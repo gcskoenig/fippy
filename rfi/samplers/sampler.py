@@ -23,8 +23,8 @@ class Sampler():
         """Initialize Sampler with X_train and mask."""
         self.X_train = X_train
         self.fsoi = fsoi
-        self.__trained = False
-        self.__G = None
+        self._trained = False
+        self._G = None
 
     def is_trained(self, G):
         """Indicates whether the Sampler has been trained
@@ -53,11 +53,11 @@ class Sampler():
             Nothing. Now the sample function can be used
             to resample on seen or unseen data.
         """
-        self.__trained = True
-        self.__G = G
+        self._trained = True
+        self._G = G
         pass
 
-    def sample(self, X_eval):
+    def sample(self, X_eval, G):
         """Sample features of interest using trained resampler.
 
         Args:
@@ -67,7 +67,7 @@ class Sampler():
             Resampled data for the features of interest.
             np.array with shape (X_eval.shape[0], # features of interest)
         """
-        if self.is_trained():
+        if self.is_trained(G):
             # TODO(gcsk): assert that it was trained on the correct set
             pass
         else:
