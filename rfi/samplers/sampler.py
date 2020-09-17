@@ -9,7 +9,7 @@ class Sampler():
     """Can be used to resample perturbed versions of a variable conditional on
     any set of variables G.
 
-    More details here.
+    # TODO(gcsk): potentially allow storing training on multiple sets G.
 
     Attributes:
         X_train: reference to training data.
@@ -27,14 +27,20 @@ class Sampler():
         self.__G = None
 
     def is_trained(self, G):
-        """Indicates whether the Sampler has been trained"""
+        """Indicates whether the Sampler has been trained
+        on a specific RFI set G.
+        
+        Args:
+            G: RFI set G to be checked
+
+        Returns:
+            Whether the sampler was trained with respect to
+            a set G.
+
+        """
         # TODO(gcsk): validate whether trained
         # TODO(gcsk): validate whether G and __G coincide
         pass
-
-    def get_G(self):
-        """Access the set G that the Sampler was trained on"""
-        return self.__G
 
     def train(self, G):
         """Trains sampler using the training dataset to resample
