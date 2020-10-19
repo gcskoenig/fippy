@@ -4,11 +4,12 @@ Second-order Gaussian models are used to model the
 conditional distribution.
 """
 import rfi.samplers.Sampler as Sampler
+import DeepKnockoffs
 
 
-class MXSampler(Sampler):
+class GaussianSampler(Sampler):
     """
-    Model-X Knockoff sampler.
+    Second order Gaussian Sampler
 
     Attributes:
         see rfi.samplers.Sampler
@@ -31,7 +32,7 @@ class MXSampler(Sampler):
             to resample on seen or unseen data.
         """
         super().train(G)  # updates "is_trained" functionality
-
+        
         # TODO(gcsk): Do the actual training.
         # TODO(gcsk): Print progress
         pass

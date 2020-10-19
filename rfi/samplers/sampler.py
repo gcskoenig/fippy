@@ -29,7 +29,7 @@ class Sampler():
     def is_trained(self, G):
         """Indicates whether the Sampler has been trained
         on a specific RFI set G.
-        
+
         Args:
             G: RFI set G to be checked
 
