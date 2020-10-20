@@ -80,10 +80,19 @@ class Explainer():
             perturbed_foiss[:, kk, :] = sampler.sample(X_test, G)
 
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
-        # TODO(gcsk): RFI routine
+
+        # compute observasitonwise loss differences for all runs and fois
         for jj in np.arange(0, self.fsoi.shape[0], 1):
+            # copy of the data where perturbed variables are copied into
             X_test_perturbed = np.array(X_test)
             for kk in np.arange(0, nr_runs, 1):
+                # replace with perturbed
                 X_test_perturbed[:, jj] = perturbed_foiss[jj, kk, :]
+                # compute difference in observationwise loss
                 lss[jj, kk, :] = (loss(self.model(X_test_perturbed), y_test) -
                                   loss(self.model(X_test), y_test))
+
+        # TODO initialize explanation
+        # TODO return explanation object
+
+        pass
