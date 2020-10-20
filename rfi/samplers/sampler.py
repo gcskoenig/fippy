@@ -57,15 +57,15 @@ class Sampler():
         self._G = G
         pass
 
-    def sample(self, X_eval, G):
+    def sample(self, X_test, G):
         """Sample features of interest using trained resampler.
 
         Args:
-            X_eval: Data for which sampling shall be performed.
+            X_test: Data for which sampling shall be performed.
 
         Returns:
             Resampled data for the features of interest.
-            np.array with shape (X_eval.shape[0], # features of interest)
+            np.array with shape (X_test.shape[0], # features of interest)
         """
         if self.is_trained(G):
             # TODO(gcsk): assert that it was trained on the correct set

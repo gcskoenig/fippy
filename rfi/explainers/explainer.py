@@ -28,7 +28,7 @@ class Explainer():
         self.X_train = X_train
         self.loss = loss
 
-    def rfi(self, X_test, y_test, G, sampler=None, loss=None):
+    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10, verbose=False):
         """Computes Relative Feature importance
 
         # TODO(gcsk): allow handing a sample as argument
@@ -42,6 +42,8 @@ class Explainer():
               when sampler is None and self.sampler is None as well.
             loss: choice of loss. Default None. Will throw an Error when
               both loss and self.loss are None.
+            nr_runs: how often the experiment shall be run
+            verbose: whether printing in verbose mode or not.
 
         Returns:
             A np.array with the relative feature importance values for
@@ -49,24 +51,30 @@ class Explainer():
         """
         if sampler is None:
             if self.sampler is None:
-                # TODO(gcsk): raise Exception
-                pass
+                raise ValueError("Sampler has not been specified.")
             else:
                 sampler = self.sampler
-                pass
+                if verbose:
+                    print("Using class specified sampler.")
 
         if loss is None:
             if self.loss is None:
-                # TODO(gcsk): raise Exception
-                pass
+                raise ValueError("Loss has not been specified.")
             else:
                 loss = self.loss
-                pass
+                if verbose:
+                    print("Using class specified loss.")
 
         # TODO(gcsk): check whether the sampler is trained on G
-        # TODO(gcsk): if the sampler is not traine on G, train it
-        # TODO(gcsk): if the sampler is trained
+        if not sampler.is_trained(G):
+            if verbose:
+                print('Sampler was not trained on G. Retraining sampler on set G.')
 
         # TODO(gcsk): sample the replacements
+        perturbed_fsoi = sampler.sample(X_test, G)
+
 
         # TODO(gcsk): RFI routine
+        for jj in np.arange(0, self.fsoi.shape[0], 1):
+
+

@@ -37,17 +37,17 @@ class GaussianSampler(Sampler):
         # TODO(gcsk): Print progress
         pass
 
-    def sample(self, X_eval, G):
+    def sample(self, X_test, G):
         """Sample features of interest using trained resampler.
 
         Args:
-            X_eval: Data for which sampling shall be performed.
+            X_test: Data for which sampling shall be performed.
 
         Returns:
             Resampled data for the features of interest.
-            np.array with shape (X_eval.shape[0], # features of interest)
+            np.array with shape (X_test.shape[0], # features of interest)
         """
-        super().sample(X_eval, G)  # asserts that it was trained
+        super().sample(X_test, G)  # asserts that it was trained
 
         # TODO(gcsk): Do the actual sampling
         # TODO(gcsk): print progress
