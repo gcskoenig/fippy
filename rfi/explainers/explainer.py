@@ -4,6 +4,8 @@ Different sampling algorithms and loss functions can be used.
 More details in the docstring for the class Explainer.
 """
 
+import numpy as np
+
 
 class Explainer():
     """Uses Relative Feature Importance to compute the importance of features
@@ -28,7 +30,8 @@ class Explainer():
         self.X_train = X_train
         self.loss = loss
 
-    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10, verbose=False):
+    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10,
+            verbose=False):
         """Computes Relative Feature importance
 
         # TODO(gcsk): allow handing a sample as argument
@@ -68,13 +71,19 @@ class Explainer():
         # TODO(gcsk): check whether the sampler is trained on G
         if not sampler.is_trained(G):
             if verbose:
-                print('Sampler was not trained on G. Retraining sampler on set G.')
+                print('Sampler was not trained on G. Retraining.')
 
-        # TODO(gcsk): sample the replacements
-        perturbed_fsoi = sampler.sample(X_test, G)
+        # sample perturbed
+        perturbed_foiss = np.zeros(self.fsoi.shape[0], nr_runs,
+                                   X_test.shape[0])
+        for kk in np.arange(0, nr_runs, 1):
+            perturbed_foiss[:, kk, :] = sampler.sample(X_test, G)
 
-
+        lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
         # TODO(gcsk): RFI routine
         for jj in np.arange(0, self.fsoi.shape[0], 1):
-
-
+            X_test_perturbed = np.array(X_test)
+            for kk in np.arange(0, nr_runs, 1):
+                X_test_perturbed[:, jj] = perturbed_foiss[jj, kk, :]
+                lss[jj, kk, :] = (loss(self.model(X_test_perturbed), y_test) -
+                                  loss(self.model(X_test), y_test))
