@@ -26,19 +26,7 @@ class Explanation():
             self.fsoi_names = fsoi
 
     def mean_rfis(self):
-        """Computes Relative Feature importance
-
-        # TODO(gcsk): allow handing a sample as argument
-        #             (without needing sampler)
-
-        Args:
-            X_test: data to use for sampler training and evaluation.
-            y_test: labels for evaluation.
-            G: relative feature set
-            sampler: choice of sampler. Default None. Will throw an error
-              when sampler is None and self.sampler is None as well.
-            loss: choice of loss. Default None. Will throw an Error when
-              both loss and self.loss are None.
+        """Computes Mean RFI over runs and observations
 
         Returns:
             A np.array with the relative feature importance values for

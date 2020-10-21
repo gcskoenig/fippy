@@ -9,7 +9,7 @@ import DeepKnockoffs
 
 class GaussianSampler(Sampler):
     """
-    Second order Gaussian Sampler
+    Second order Gaussian Sampler.
 
     Attributes:
         see rfi.samplers.Sampler
@@ -33,7 +33,8 @@ class GaussianSampler(Sampler):
         """
         super().train(G)  # updates "is_trained" functionality
         
-        # TODO(gcsk): Do the actual training.
+
+        # TODO(gcsk): train one model per fsoi
         # TODO(gcsk): Print progress
         pass
 
@@ -49,6 +50,32 @@ class GaussianSampler(Sampler):
         """
         super().sample(X_test, G)  # asserts that it was trained
 
-        # TODO(gcsk): Do the actual sampling
+        # TODO(gcsk): resample for every fsoi
         # TODO(gcsk): print progress
         pass
+
+
+
+# def knockoff_caller(X_train, X_test):
+#     '''
+#     knockoff code as given in examples for deepknockoff paper
+
+#     '''
+#     SigmaHat = np.cov(X_train, rowvar=False)
+#     second_order = GaussianKnockoffs(SigmaHat, mu=np.mean(X_train,0))#, method="sdp")
+#     knockoffs = second_order.generate(X_test)
+#     return knockoffs
+
+
+# def create_2nd_order_knockoff(j, G, X_train, X_test):
+#     '''
+#     j: index of variable of interest
+#     G: list of conditioning indexes
+#     '''
+#     G = np.array(G) # conditioning set
+#     S = np.zeros(np.prod(G.shape)+1, dtype=np.int16)
+#     S[:-1] = G
+#     S[-1] = j # variable to be replaced
+#     knockoffs = knockoff_caller(X_train[:, S], X_test[:, S]) # creates knockoffs
+#     knockoff_j = knockoffs[:, -1]
+#     return knockoff_j # knockoff of j computed from G

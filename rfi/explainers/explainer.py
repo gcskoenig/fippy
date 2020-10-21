@@ -5,6 +5,7 @@ More details in the docstring for the class Explainer.
 """
 
 import numpy as np
+import rfi.explanation.explanation as explanation
 
 
 class Explainer():
@@ -21,14 +22,16 @@ class Explainer():
         X_train: Training data for Resampling.
         sampler: default sampler.
         loss: default loss.
+        fsoi_names: list of strings with fsoi names
     """
 
-    def __init__(self, model, fsoi, X_train, sampler=None, loss=None):
+    def __init__(self, model, fsoi, X_train, sampler=None, loss=None, fsoi_names=None):
         """Inits Explainer with model, mask and potentially sampler and loss"""
         self.model = model
         self.fsoi = fsoi
         self.X_train = X_train
         self.loss = loss
+        self.fsoi_names = fsoi_names
 
     def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10,
             verbose=False):
@@ -95,4 +98,5 @@ class Explainer():
         # TODO initialize explanation
         # TODO return explanation object
 
-        pass
+        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fsoi_names)
+        return result
