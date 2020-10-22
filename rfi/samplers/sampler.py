@@ -63,8 +63,4 @@ class Sampler():
             Resampled data for the features of interest.
             np.array with shape (X_test.shape[0], # features of interest)
         """
-        if self.is_trained(G):
-            # TODO(gcsk): assert that it was trained on the correct set
-            pass
-        else:
-            pass
+        pass

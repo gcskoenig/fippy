@@ -3,7 +3,7 @@
 Aggregated or obser-wise wise results can be
 accessed. Plotting functionality is available.
 """
-
+import numpy as np
 
 class Explanation():
     """Stores and provides access to results from Explainer.
@@ -32,4 +32,4 @@ class Explanation():
             A np.array with the relative feature importance values for
             features of interest.
         """
-        return np.mean(np.mean(lss, axis=2), axis=1)
+        return self.fsoi_names, np.mean(np.mean(self.lss, axis=2), axis=1)

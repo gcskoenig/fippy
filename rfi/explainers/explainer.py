@@ -31,6 +31,7 @@ class Explainer():
         self.fsoi = fsoi
         self.X_train = X_train
         self.loss = loss
+        self.sampler = sampler
         self.fsoi_names = fsoi_names
 
     def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10,
@@ -71,16 +72,16 @@ class Explainer():
                 if verbose:
                     print("Using class specified loss.")
 
-        # TODO(gcsk): check whether the sampler is trained on G
+        #check whether the sampler is trained on G
         if not sampler.is_trained(G):
             if verbose:
                 print('Sampler was not trained on G. Retraining.')
 
         # sample perturbed
-        perturbed_foiss = np.zeros(self.fsoi.shape[0], nr_runs,
-                                   X_test.shape[0])
+        perturbed_foiss = np.zeros((self.fsoi.shape[0], nr_runs,
+                                   X_test.shape[0]))
         for kk in np.arange(0, nr_runs, 1):
-            perturbed_foiss[:, kk, :] = sampler.sample(X_test, G)
+            perturbed_foiss[:, kk, :] = np.transpose(sampler.sample(X_test, G))
 
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
 
@@ -95,8 +96,6 @@ class Explainer():
                 lss[jj, kk, :] = (loss(self.model(X_test_perturbed), y_test) -
                                   loss(self.model(X_test), y_test))
 
-        # TODO initialize explanation
-        # TODO return explanation object
-
+        # return explanation object
         result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fsoi_names)
         return result
