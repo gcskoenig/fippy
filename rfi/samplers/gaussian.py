@@ -79,3 +79,28 @@ class GaussianSampler(Sampler):
 #     knockoffs = knockoff_caller(X_train[:, S], X_test[:, S]) # creates knockoffs
 #     knockoff_j = knockoffs[:, -1]
 #     return knockoff_j # knockoff of j computed from G
+
+
+# def create_knockoffs(G, X_train, X_test, D):
+#     '''
+#     leverages model-x-knockoffs to create replacement variables
+
+#     args:
+#         G: variables to condition on
+#         X_train: training dataset
+#         X_test: prediction dataset
+#         D: the variables for which knockoffs shall be generated
+
+#     returns
+#         K_test: (#n_test, |D|)-matrix with knockoffs
+
+#     '''
+#     K_test = np.zeros((X_test.shape[0], D.shape[0]))
+#     for kk in np.arange(0, D.shape[0], 1):
+#         k_xj = np.zeros((X_train.shape[0], 1))
+#         if D[kk] in G:
+#             k_xj = copy.deepcopy(X_test[:,D[kk]]) # if the variable is in G, simply return a copy
+#         else:
+#             k_xj = create_2nd_order_knockoff(D[kk], G, X_train, X_test) # create 2nd-order knockoff
+#         K_test[:, kk] = k_xj
+#     return K_test

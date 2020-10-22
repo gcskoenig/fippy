@@ -4,6 +4,8 @@ conditional on a set G.
 More details can be found in the class description
 """
 
+import rfi.utils as utils
+
 
 class Sampler():
     """Can be used to resample perturbed versions of a variable conditional on
@@ -14,17 +16,14 @@ class Sampler():
     Attributes:
         X_train: reference to training data.
         mask: features of interest.
-        __trained: private variable indicating whether the sampler was trained
-        __G: private variable indicating regarding which set G
-          the sampler was trained
+        _trainedGs: dictionary with G as key and callable sampler as value
     """
 
     def __init__(self, X_train, fsoi):
         """Initialize Sampler with X_train and mask."""
         self.X_train = X_train
         self.fsoi = fsoi
-        self._trained = False
-        self._G = None
+        self._trainedGs = {}
 
     def is_trained(self, G):
         """Indicates whether the Sampler has been trained
@@ -38,9 +37,8 @@ class Sampler():
             a set G.
 
         """
-        # TODO(gcsk): validate whether trained
-        # TODO(gcsk): validate whether G and __G coincide
-        pass
+        key = utils.to_key(G) # transform into hashable form
+        return key in self._trainedGs # check whether key is in dictionary
 
     def train(self, G):
         """Trains sampler using the training dataset to resample
@@ -53,8 +51,6 @@ class Sampler():
             Nothing. Now the sample function can be used
             to resample on seen or unseen data.
         """
-        self._trained = True
-        self._G = G
         pass
 
     def sample(self, X_test, G):
