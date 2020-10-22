@@ -28,3 +28,9 @@ Watson2019, TBD
 
 
 ## Dependencies
+
+## Installation
+
+```
+python setup.py install --user
+```
