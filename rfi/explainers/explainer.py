@@ -22,17 +22,20 @@ class Explainer():
         X_train: Training data for Resampling.
         sampler: default sampler.
         loss: default loss.
-        fsoi_names: list of strings with fsoi names
+        fs_names: list of strings with feature names
     """
 
-    def __init__(self, model, fsoi, X_train, sampler=None, loss=None, fsoi_names=None):
+    def __init__(self, model, fsoi, X_train, sampler=None, loss=None, fs_names=None):
         """Inits Explainer with model, mask and potentially sampler and loss"""
         self.model = model
         self.fsoi = fsoi
         self.X_train = X_train
         self.loss = loss
         self.sampler = sampler
-        self.fsoi_names = fsoi_names
+        self.fs_names = fs_names
+        if self.fs_names is None:
+            names = [ix_to_desc(jj) for jj in range(X_train.shape[0])]
+            self.fs_names = names
 
     def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10,
             verbose=False):
@@ -56,6 +59,7 @@ class Explainer():
             A np.array with the relative feature importance values for
             features of interest.
         """
+
         if sampler is None:
             if self.sampler is None:
                 raise ValueError("Sampler has not been specified.")
@@ -73,15 +77,15 @@ class Explainer():
                     print("Using class specified loss.")
 
         #check whether the sampler is trained on G
-        if not sampler.is_trained(G):
+        if not sampler.is_trained(self.fsoi, G):
             if verbose:
-                print('Sampler was not trained on G. Retraining.')
+                print('Sampler was not trained on (fsoi, G). Retraining.')
 
         # sample perturbed
         perturbed_foiss = np.zeros((self.fsoi.shape[0], nr_runs,
                                    X_test.shape[0]))
         for kk in np.arange(0, nr_runs, 1):
-            perturbed_foiss[:, kk, :] = np.transpose(sampler.sample(X_test, G))
+            perturbed_foiss[:, kk, :] = np.transpose(sampler.sample(X_test, self.fsoi, G))
 
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
 
@@ -90,12 +94,13 @@ class Explainer():
             # copy of the data where perturbed variables are copied into
             X_test_perturbed = np.array(X_test)
             for kk in np.arange(0, nr_runs, 1):
-                # replace with perturbed
+                # replaced with perturbed
                 X_test_perturbed[:, jj] = perturbed_foiss[jj, kk, :]
                 # compute difference in observationwise loss
                 lss[jj, kk, :] = (loss(self.model(X_test_perturbed), y_test) -
                                   loss(self.model(X_test), y_test))
 
         # return explanation object
-        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fsoi_names)
+        ex_name = 'RFI'
+        result = explanation.Explanation(self.fsoi, lss, fs_names=self.fs_names)
         return result

@@ -20,7 +20,25 @@ class GaussianSampler(Sampler):
         """Initialize Sampler with X_train and mask."""
         super().__init__(X_train, fsoi)
 
-    def train(self, G, verbose=True):
+    def train(self, jj, G, verbose=True):
+        """Trains sampler using dataset to resample
+        variable jj relative to G.
+
+        Args:
+            jj: feature of interest
+            G: arbitrary set of variables
+            verbose: printing
+        """
+        G_key = utils.to_key(G)
+        jj_key = utils.to_key([jj])
+        if verbose:
+            print('Start training')
+            print('G: {}, fsoi: {}'.format(G, jj))
+        self._trainedGs[(jj_key, G_key)] = train_gaussian_knockoff(self.X_train, G, jj)
+        if verbose:
+            print('Training ended. Sampler saved.')
+
+    def train_fsoi(self, G, verbose=True):
         """Trains sampler using the training dataset to resample
         relative to any variable set G.
 
@@ -31,17 +49,29 @@ class GaussianSampler(Sampler):
             Nothing. Now the sample function can be used
             to resample on seen or unseen data.
         """
-        if verbose:
-            print('Start training relative to G.')
-            print('G: {}'.format(G))
-            print('fsoi: {}'.format(self.fsoi))
-        sample_func = train_gaussian_knockoffs(self.X_train, G, self.fsoi)
-        if verbose:
-            print('End training. Save sampler.')
-        key = utils.to_key(G)
-        self._trainedGs[key] = sample_func
+        for jj in self.fsoi:
+            self.train(jj, G, verbose=verbose)
 
-    def sample(self, X_test, G):
+    def sample(self, X_test, J, G, verbose=True):
+        """
+
+        """
+        # initialize numpy matrix
+        J = np.array(J, dtype=np.int16)
+        sampled_data = np.zeros((X_test.shape[0], J.shape[0]))
+
+        #sample
+        G_key = utils.to_key(G)
+        for kk in range(J.shape[0]):
+            jj_key = utils.to_key([J[kk]])
+            if not super().is_trained([J[kk]], G):
+                print('Sampler not trained yet.')
+                self.train(J[kk], G, verbose=verbose)
+            sample_func = self._trainedGs[(jj_key, G_key)]
+            sampled_data[:, kk] =    sample_func(X_test)
+        return sampled_data
+
+    def sample_fsoi(self, X_test, G, verbose=True):
         """Sample features of interest using trained resampler.
 
         Args:
@@ -51,12 +81,7 @@ class GaussianSampler(Sampler):
             Resampled data for the features of interest.
             np.array with shape (X_test.shape[0], # features of interest)
         """
-        if not super().is_trained(G):  # asserts that it was trained
-            print('Sampler not trained yet.')
-            self.train(G)
-        key = utils.to_key(G)
-        sample_func = self._trainedGs[key]
-        return sample_func(X_test)
+        return self.sample(X_test, self.fsoi, G, verbose=verbose)
 
 
 # auxilary functions below, TODO cleanup
@@ -76,13 +101,13 @@ def train_gaussian_knockoff(X_train, G, j):
         return knockoffs[:, -1]
     return sample
 
-def train_gaussian_knockoffs(X_train, G, fsoi):
-    fs = []
-    for jj in fsoi:
-        fs.append(train_gaussian_knockoff(X_train, G, jj))
-    def sample(X_test):
-        knockoffs = np.zeros((X_test.shape[0], fsoi.shape[0]))
-        for jj in range(len(fsoi)):
-            knockoffs[:, jj] = fs[jj](X_test)
-        return knockoffs
-    return sample
+# def train_gaussian_knockoffs(X_train, G, fsoi):
+#     fs = []
+#     for jj in fsoi:
+#         fs.append(train_gaussian_knockoff(X_train, G, jj))
+#     def sample(X_test):
+#         knockoffs = np.zeros((X_test.shape[0], fsoi.shape[0]))
+#         for jj in range(len(fsoi)):
+#             knockoffs[:, jj] = fs[jj](X_test)
+#         return knockoffs
+#     return sample

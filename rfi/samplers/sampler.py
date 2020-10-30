@@ -15,8 +15,8 @@ class Sampler():
 
     Attributes:
         X_train: reference to training data.
-        mask: features of interest.
-        _trainedGs: dictionary with G as key and callable sampler as value
+        fsoi: features of interest.
+        _trainedGs: dictionary with (fsoi, G) as key and callable sampler as value
     """
 
     def __init__(self, X_train, fsoi):
@@ -25,7 +25,7 @@ class Sampler():
         self.fsoi = fsoi
         self._trainedGs = {}
 
-    def is_trained(self, G):
+    def is_trained(self, J, G):
         """Indicates whether the Sampler has been trained
         on a specific RFI set G.
 
@@ -37,8 +37,13 @@ class Sampler():
             a set G.
 
         """
-        key = utils.to_key(G) # transform into hashable form
-        return key in self._trainedGs # check whether key is in dictionary
+        G_key = utils.to_key(G) # transform into hashable form
+        for jj in J:
+            jj_key = utils.to_key([jj])
+            if (jj_key, G_key) not in self._trainedGs:
+                return False 
+
+        return (J_key, G_key) in self._trainedGs # check whether key is in dictionary
 
     def train(self, G):
         """Trains sampler using the training dataset to resample
