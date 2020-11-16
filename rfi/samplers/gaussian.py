@@ -4,6 +4,7 @@ Second-order Gaussian models are used to model the
 conditional distribution.
 """
 from rfi.samplers.sampler import Sampler
+from rfi.samplers._helpers import id
 import rfi.utils as utils
 from DeepKnockoffs import GaussianKnockoffs
 import numpy as np
@@ -68,7 +69,7 @@ class GaussianSampler(Sampler):
                 print('Sampler not trained yet.')
                 self.train(J[kk], G, verbose=verbose)
             sample_func = self._trainedGs[(jj_key, G_key)]
-            sampled_data[:, kk] =    sample_func(X_test)
+            sampled_data[:, kk] = sample_func(X_test)
         return sampled_data
 
     def sample_fsoi(self, X_test, G, verbose=True):
