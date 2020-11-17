@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import rfi.plots._snsstyle #set default style
 
+def rfi_barplot(explanation):
+	
+
 # def rfi_barplot(rfis, fnames, rfinames, savepath, figsize=(16,10), textformat='{:5.2f}')
 #     """
 #     rfis: list of tuples (means, stds)

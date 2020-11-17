@@ -26,11 +26,28 @@ class Explanation():
         if self.fs_names is None:
             self.fs_names = fsoi
 
-    def mean_rfis(self):
+    def rfis_names(self):
+        """Return RFI names for feature of interest
+
+        Returns:
+            A np.array with the feature names for the
+            features of interest
+        """
+        return self.fs_names[self.fsoi]
+
+    def rfis_mean(self):
         """Computes Mean RFI over all runs
 
         Returns:
             A np.array with the relative feature importance values for
             features of interest.
         """
-        return self.fs_names[self.fsoi], np.mean(np.mean(self.lss, axis=2), axis=1)
+        return np.mean(np.mean(self.lss, axis=2), axis=1)
+
+    def rfis_std(self):
+        """Computes std of RFI over all runs
+
+        Returns:
+            A np.array with the std of RFI values for the features of interest
+        """
+        return np.std(np.mean(self.lss, axis=2), axis=1
