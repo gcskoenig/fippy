@@ -35,7 +35,7 @@ class Explanation():
         """
         return self.fs_names[self.fsoi]
 
-    def rfis_mean(self):
+    def rfis_means(self):
         """Computes Mean RFI over all runs
 
         Returns:
@@ -44,10 +44,10 @@ class Explanation():
         """
         return np.mean(np.mean(self.lss, axis=2), axis=1)
 
-    def rfis_std(self):
+    def rfis_stds(self):
         """Computes std of RFI over all runs
 
         Returns:
             A np.array with the std of RFI values for the features of interest
         """
-        return np.std(np.mean(self.lss, axis=2), axis=1
+        return np.std(np.mean(self.lss, axis=2), axis=1)

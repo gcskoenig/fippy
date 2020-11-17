@@ -1,8 +1,23 @@
 import matplotlib.pyplot as plt
 import rfi.plots._snsstyle #set default style
 
-def rfi_barplot(explanation):
-	
+def rfi_barplot(ex):
+	'''Function that plots the result of an RFI computation
+	as a barplot
+
+	Args:
+		ex: Explanation object
+	'''
+	rfis = ex.rfi_means()
+	stds = ex.rfi_stds()
+
+	plt.figure()
+
+	ixs = np.arange(0.5, rfis.shape[0] + 0.5, 1)
+
+	plt.bar(ixs, rfis)
+
+	plt.show()
 
 # def rfi_barplot(rfis, fnames, rfinames, savepath, figsize=(16,10), textformat='{:5.2f}')
 #     """
