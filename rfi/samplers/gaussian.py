@@ -69,8 +69,7 @@ class GaussianSampler(Sampler):
         return sampled_data
 
 
-# auxilary functions below, TODO cleanup
-# TODO(gcsk) handle corner cases like "j in G" or "G empty"
+# TODO(gcsk): Replace Knockoff dependency with my own conditional gaussian sampling
 
 def train_gaussian(X_train, j, G):
     '''Training a conditional sampler under the assumption
@@ -97,14 +96,3 @@ def train_gaussian(X_train, j, G):
             knockoffs = second_order.generate(X_test[:, ixs])
             return knockoffs[:, -1]
         return sample
-
-# def train_gaussian_knockoffs(X_train, G, fsoi):
-#     fs = []
-#     for jj in fsoi:
-#         fs.append(train_gaussian_knockoff(X_train, G, jj))
-#     def sample(X_test):
-#         knockoffs = np.zeros((X_test.shape[0], fsoi.shape[0]))
-#         for jj in range(len(fsoi)):
-#             knockoffs[:, jj] = fs[jj](X_test)
-#         return knockoffs
-#     return sample
