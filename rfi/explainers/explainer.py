@@ -79,12 +79,14 @@ class Explainer():
         #check whether the sampler is trained on G
         if not sampler.is_trained(self.fsoi, G):
             if verbose:
+                # Retraining will be triggered by the sample function
                 print('Sampler was not trained on (fsoi, G). Retraining.')
 
         # sample perturbed
         perturbed_foiss = np.zeros((self.fsoi.shape[0], nr_runs,
                                    X_test.shape[0]))
         for kk in np.arange(0, nr_runs, 1):
+            #TODO(gcsk) assess: does te sampler return the same sample every time?
             perturbed_foiss[:, kk, :] = np.transpose(sampler.sample(X_test, self.fsoi, G))
 
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))

@@ -4,7 +4,7 @@ Second-order Gaussian models are used to model the
 conditional distribution.
 """
 from rfi.samplers.sampler import Sampler
-from rfi.samplers._helpers import id
+from rfi.samplers._helpers import sample_id, sample_perm
 import rfi.utils as utils
 from DeepKnockoffs import GaussianKnockoffs
 import numpy as np
@@ -17,41 +17,37 @@ class GaussianSampler(Sampler):
         see rfi.samplers.Sampler
     """
 
-    def __init__(self, X_train, fsoi):
+    def __init__(self, X_train):
         """Initialize Sampler with X_train and mask."""
-        super().__init__(X_train, fsoi)
+        super().__init__(X_train)
 
-    def train(self, jj, G, verbose=True):
-        """Trains sampler using dataset to resample
-        variable jj relative to G.
+    def __train_j(self, jj, G, verbose=True):
 
-        Args:
-            jj: feature of interest
-            G: arbitrary set of variables
-            verbose: printing
-        """
+        G = np.array(G, dtype=np.int16)
         G_key = utils.to_key(G)
         jj_key = utils.to_key([jj])
         if verbose:
             print('Start training')
             print('G: {}, fsoi: {}'.format(G, jj))
-        self._trainedGs[(jj_key, G_key)] = train_gaussian_knockoff(self.X_train, G, jj)
+        self._trainedGs[(jj_key, G_key)] = train_gaussian(self.X_train, jj, G)
         if verbose:
             print('Training ended. Sampler saved.')
 
-    def train_fsoi(self, G, verbose=True):
-        """Trains sampler using the training dataset to resample
-        relative to any variable set G.
+    def train(self, J, G, verbose=True):
+        """Trains sampler using dataset to resample
+        variable jj relative to G.
 
         Args:
-            G: arbitrary set of variables.
-
-        Returns:
-            Nothing. Now the sample function can be used
-            to resample on seen or unseen data.
+            J: features of interest
+            G: arbitrary set of variables
+            verbose: printing
         """
-        for jj in self.fsoi:
-            self.train(jj, G, verbose=verbose)
+        try:
+            for jj in J:
+                self.__train_j(jj, G, verbose=verbose)
+        except TypeError as te:
+            self.__train_j(J, G, verbose=verbose)
+            
 
     def sample(self, X_test, J, G, verbose=True):
         """
@@ -72,35 +68,35 @@ class GaussianSampler(Sampler):
             sampled_data[:, kk] = sample_func(X_test)
         return sampled_data
 
-    def sample_fsoi(self, X_test, G, verbose=True):
-        """Sample features of interest using trained resampler.
-
-        Args:
-            X_test: Data for which sampling shall be performed.
-
-        Returns:
-            Resampled data for the features of interest.
-            np.array with shape (X_test.shape[0], # features of interest)
-        """
-        return self.sample(X_test, self.fsoi, G, verbose=verbose)
-
 
 # auxilary functions below, TODO cleanup
 # TODO(gcsk) handle corner cases like "j in G" or "G empty"
 
-def train_gaussian_knockoff(X_train, G, j):
+def train_gaussian(X_train, j, G):
+    '''Training a conditional sampler under the assumption
+    of gaussianity
+
+    Args:
+        G: relative feature set
+        j: feature of interest
+    '''
     data = np.zeros((X_train.shape[0], G.shape[0]+1))
-    data[:, :-1] = X_train[:, G]
-    data[:, -1] = X_train[:, j]
-    SigmaHat = np.cov(data, rowvar=False)
-    second_order = GaussianKnockoffs(SigmaHat, mu=np.mean(data, 0))
-    def sample(X_test):
-        ixs = np.zeros((G.shape[0] + 1), dtype=np.int16)
-        ixs[:-1] = G
-        ixs[-1] = j
-        knockoffs = second_order.generate(X_test[:, ixs])
-        return knockoffs[:, -1]
-    return sample
+    if j in G:
+        return sample_id(j)
+    elif G.size == 0:
+        return sample_perm(j)
+    else:
+        data[:, :-1] = X_train[:, G]
+        data[:, -1] = X_train[:, j]
+        SigmaHat = np.cov(data, rowvar=False)
+        second_order = GaussianKnockoffs(SigmaHat, mu=np.mean(data, 0))
+        def sample(X_test):
+            ixs = np.zeros((G.shape[0] + 1), dtype=np.int16)
+            ixs[:-1] = G
+            ixs[-1] = j
+            knockoffs = second_order.generate(X_test[:, ixs])
+            return knockoffs[:, -1]
+        return sample
 
 # def train_gaussian_knockoffs(X_train, G, fsoi):
 #     fs = []

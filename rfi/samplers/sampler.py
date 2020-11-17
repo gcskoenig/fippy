@@ -19,10 +19,9 @@ class Sampler():
         _trainedGs: dictionary with (fsoi, G) as key and callable sampler as value
     """
 
-    def __init__(self, X_train, fsoi):
+    def __init__(self, X_train):
         """Initialize Sampler with X_train and mask."""
         self.X_train = X_train
-        self.fsoi = fsoi
         self._trainedGs = {}
 
     def is_trained(self, J, G):
@@ -42,14 +41,14 @@ class Sampler():
             jj_key = utils.to_key([jj])
             if (jj_key, G_key) not in self._trainedGs:
                 return False 
+        return True # all j_s are trained with respect to G
 
-        return (J_key, G_key) in self._trainedGs # check whether key is in dictionary
-
-    def train(self, G):
+    def train(self, J, G):
         """Trains sampler using the training dataset to resample
         relative to any variable set G.
 
         Args:
+            J: set of features to train on
             G: arbitrary set of variables.
 
         Returns:
@@ -58,10 +57,12 @@ class Sampler():
         """
         pass
 
-    def sample(self, X_test, G):
+    def sample(self, X_test, J, G):
         """Sample features of interest using trained resampler.
 
         Args:
+            J: Set of features to sample
+            G: relative feature set
             X_test: Data for which sampling shall be performed.
 
         Returns:
