@@ -26,7 +26,7 @@ class Explanation():
         if self.fs_names is None:
             self.fs_names = fsoi
 
-    def rfis_names(self):
+    def rfi_names(self):
         """Return RFI names for feature of interest
 
         Returns:
@@ -35,7 +35,7 @@ class Explanation():
         """
         return self.fs_names[self.fsoi]
 
-    def rfis_means(self):
+    def rfi_means(self):
         """Computes Mean RFI over all runs
 
         Returns:
@@ -44,7 +44,7 @@ class Explanation():
         """
         return np.mean(np.mean(self.lss, axis=2), axis=1)
 
-    def rfis_stds(self):
+    def rfi_stds(self):
         """Computes std of RFI over all runs
 
         Returns:
