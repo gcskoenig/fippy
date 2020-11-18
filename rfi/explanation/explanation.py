@@ -4,6 +4,7 @@ Aggregated or obser-wise wise results can be
 accessed. Plotting functionality is available.
 """
 import numpy as np
+import rfi.plots._barplot as _barplot
 
 class Explanation():
     """Stores and provides access to results from Explainer.
@@ -26,11 +27,31 @@ class Explanation():
         if self.fs_names is None:
             self.fs_names = fsoi
 
-    def mean_rfis(self):
+    def rfi_names(self):
+        """Return RFI names for feature of interest
+
+        Returns:
+            A np.array with the feature names for the
+            features of interest
+        """
+        return self.fs_names[self.fsoi]
+
+    def rfi_means(self):
         """Computes Mean RFI over all runs
 
         Returns:
             A np.array with the relative feature importance values for
             features of interest.
         """
-        return self.fs_names[self.fsoi], np.mean(np.mean(self.lss, axis=2), axis=1)
+        return np.mean(np.mean(self.lss, axis=2), axis=1)
+
+    def rfi_stds(self):
+        """Computes std of RFI over all runs
+
+        Returns:
+            A np.array with the std of RFI values for the features of interest
+        """
+        return np.std(np.mean(self.lss, axis=2), axis=1)
+
+    def barplot(self):
+        _barplot.rfi_hbarplot(self)
