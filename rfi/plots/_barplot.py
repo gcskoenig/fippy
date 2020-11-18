@@ -2,13 +2,14 @@ import matplotlib.pyplot as plt
 import rfi.plots._snsstyle #set default style
 import numpy as np
 
-def rfi_hbarplot(ex):
+def rfi_hbarplot(ex, textformat='{:5.2f}'):
 	'''Function that plots the result of an RFI computation
 	as a barplot
 
 	Args:
 		ex: Explanation object
 	'''
+
 	rfis = ex.rfi_means()
 	stds = ex.rfi_stds()
 	names = ex.rfi_names()
@@ -17,29 +18,36 @@ def rfi_hbarplot(ex):
 
 	ixs = np.arange(rfis.shape[0] + 0.5, 0.5, -1)
 
-	for jj in range(len(ixs)):
-		rect = ax.barh(ixs[jj], rfis[jj], tick_label=names[jj], xerr=stds[jj], capsize=5)
+	ax.barh(ixs, rfis, tick_label=names, xerr=stds, capsize=5)
 
-	# ## determine height of bar in pixels
-	# def autolabel(rects, xpos=0):
- #        """
- #        Attach a text label above each bar in *rects*, displaying its height.
- #        """
- #        for rect in rects:
- #            height = rect.get_height()
- #            ax.annotate(textformat.format(height),
- #                        xy=(rect.get_x(), height),
- #                        xytext=(3, 4),  # use 3 points offset 
- #                        #previously in xpos of xytext: +rect.get_width()/2
- #                        textcoords="offset points",  # in both directions
- #                        va='bottom')
-
-
-	for jj in range(len(ixs)):
-		ax.text(rfis[jj], ixs[jj] + 0.1, 'mean: {}'.format(rfis[jj]), va='center')
-		ax.text(rfis[jj], ixs[jj] - 0.1, 'std: {}'.format(stds[jj]), va='center')
+ 	for jj in range(len(ax.patches)):
+ 		rect = ax.patches[jj]
+ 		tx, ty_lower = hbar_text_position(rect, y_pos=0.25)
+ 		tx, ty_upper = hbar_text_position(rect, y_pos=0.75)
+ 		pix_height = math.floor(coord_height_to_pixels(ax, rect.get_height())/4)
+		ax.text(tx, ty_upper, textformat.format(rect.get_width()), 
+			va='center', ha='center', size=pix_height)
+		ax.text(tx, ty_lower, '+-'+ textformat.format(stds[jj]), 
+			va='center', ha='center', size=pix_height)
 
 	plt.show()
+
+
+def coord_height_to_pixels(ax, height):
+	p1 = ax.transData.transform((0, height))
+	p2 = ax.transData.transform((0, 0))
+
+	pix_height = p1[1] - p2[1]
+	return pix_height
+
+def hbar_text_position(rect, x_pos = 0.5, y_pos=0.5):
+	rx, ry = rect.get_xy()
+	width = rect.get_width()
+	height = rect.get_height()
+
+	tx = rx + (width * x_pos)
+	ty = ry + (height * y_pos)
+	return (tx, ty)
 
 # def rfi_barplot(rfis, fnames, rfinames, savepath, figsize=(16,10), textformat='{:5.2f}')
 #     """
