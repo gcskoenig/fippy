@@ -4,6 +4,7 @@ Aggregated or obser-wise wise results can be
 accessed. Plotting functionality is available.
 """
 import numpy as np
+import rfi.plots._barplot as _barplot
 
 class Explanation():
     """Stores and provides access to results from Explainer.
@@ -51,3 +52,6 @@ class Explanation():
             A np.array with the std of RFI values for the features of interest
         """
         return np.std(np.mean(self.lss, axis=2), axis=1)
+
+    def barplot(self):
+        _barplot.rfi_hbarplot(self)
