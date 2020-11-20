@@ -3,6 +3,9 @@ import numpy as np
 
 # good resource: https://matplotlib.org/3.1.1/gallery/lines_bars_and_markers/horizontal_barchart_distribution.html#sphx-glr-gallery-lines-bars-and-markers-horizontal-barchart-distribution-py
 
+
+
+
 # def plot_rfis(rfis, fnames, rfinames, savepath, figsize=(16,10), textformat='{:5.2f}'):
 #     '''
 #     rfis: list of tuples (means, stds)

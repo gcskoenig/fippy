@@ -6,6 +6,7 @@ accessed. Plotting functionality is available.
 import numpy as np
 import rfi.plots._barplot as _barplot
 
+
 class Explanation():
     """Stores and provides access to results from Explainer.
 
@@ -21,11 +22,18 @@ class Explanation():
 
     def __init__(self, fsoi, lss, fs_names, ex_name=None):
         """Inits Explainer with model, mask and potentially sampler and loss"""
+        # TODO(gcsk): compress Explanation
         self.fsoi = fsoi # TODO evaluate, do I need to make a copy?
         self.lss = lss # TODO evaluate, do I need to make a copy?
         self.fs_names = fs_names
         if self.fs_names is None:
             self.fs_names = fsoi
+        if ex_name is None:
+            self.ex_name = 'Unknown'
+
+    def ex_name(self):
+        # TODO(gcsk): add description, refined functionality
+        return self.ex_name
 
     def rfi_names(self):
         """Return RFI names for feature of interest

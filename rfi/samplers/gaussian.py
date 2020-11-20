@@ -4,7 +4,7 @@ Second-order Gaussian models are used to model the
 conditional distribution.
 """
 from rfi.samplers.sampler import Sampler
-from rfi.samplers._helpers import sample_id, sample_perm
+from rfi.samplers._utils import sample_id, sample_perm
 import rfi.utils as utils
 from DeepKnockoffs import GaussianKnockoffs
 import numpy as np

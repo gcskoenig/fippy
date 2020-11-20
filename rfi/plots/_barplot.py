@@ -34,21 +34,36 @@ def rfi_hbarplot(ex, textformat='{:5.2f}'):
     plt.show()
 
 
-def coord_height_to_pixels(ax, height):
-    p1 = ax.transData.transform((0, height))
-    p2 = ax.transData.transform((0, 0))
+def container_hbarplot(exs, textformat='{:5.2f}'):
+    """Function that plots the results of multiple RFI
+    computations (on the same features of interest).
 
-    pix_height = p1[1] - p2[1]
-    return pix_height
+    Args:
+        exs: Iterable of explanations
+    """
 
-def hbar_text_position(rect, x_pos = 0.5, y_pos=0.5):
-    rx, ry = rect.get_xy()
-    width = rect.get_width()
-    height = rect.get_height()
+    fig, ax = plt.subplots()
 
-    tx = rx + (width * x_pos)
-    ty = ry + (height * y_pos)
-    return (tx, ty)
+    ind = np.arange(len(exs), -1, -1)
+    height = ((1 / len(exs[0].fsoi)) * 0.95)
+
+    containers = [] 
+    for jj in range(len(exs)):
+        barcontainer = ax.barh(ind + (jj*width), exs[jj].rfi_means(), xerr=exs[jj].rfi_stds()
+                               height=height, label=exs[jj].ex_name())
+        containers.append(barcontainer)
+
+    # TODO(gcsk)
+    # barcontainers have patches and errorbars
+    # modify code above to automatically label the bars 
+    # docu: https://matplotlib.org/3.1.1/api/container_api.html#matplotlib.container.BarContainer
+
+    ax.set_xticks(ind)
+    ax.set_xticklabels(exs[0].fsoi)
+    ax.legend()
+
+    fig.tight_layout()
+    plt.show()
 
 # def rfi_barplot(rfis, fnames, rfinames, savepath, figsize=(16,10), textformat='{:5.2f}')
 #     """
