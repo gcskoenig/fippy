@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import rfi.plots._snsstyle #set default style
 import numpy as np
 import math
+from rfi.plots._utils import hbar_text_position, coord_height_to_pixels, get_line_hlength
+textformat='{:5.2f}' # TODO(gcsk): remove this line
 
 def rfi_hbarplot(ex, textformat='{:5.2f}'):
     '''Function that plots the result of an RFI computation
@@ -27,9 +29,9 @@ def rfi_hbarplot(ex, textformat='{:5.2f}'):
         tx, ty_upper = hbar_text_position(rect, y_pos=0.75)
         pix_height = math.floor(coord_height_to_pixels(ax, rect.get_height())/4)
         ax.text(tx, ty_upper, textformat.format(rect.get_width()), 
-            va='center', ha='center', size=pix_height)
+                va='center', ha='center', size=pix_height)
         ax.text(tx, ty_lower, '+-'+ textformat.format(stds[jj]), 
-            va='center', ha='center', size=pix_height)
+                va='center', ha='center', size=pix_height)
 
     plt.show()
 
@@ -42,27 +44,41 @@ def container_hbarplot(exs, textformat='{:5.2f}'):
         exs: Iterable of explanations
     """
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(16,10))
 
-    ind = np.arange(len(exs), -1, -1)
-    height = ((1 / len(exs[0].fsoi)) * 0.95)
+    ind = np.arange(len(exs[0].fsoi), 0, -1) - 1
+    height = ((1 / len(exs)) * 0.95)
+
+    ax.set_yticks(ind)
+    ax.set_yticklabels(exs[0].fsoi)
+    ax.legend()
+    fig.tight_layout()
 
     containers = [] 
     for jj in range(len(exs)):
-        barcontainer = ax.barh(ind + (jj*width), exs[jj].rfi_means(), xerr=exs[jj].rfi_stds()
-                               height=height, label=exs[jj].ex_name())
+        barcontainer = ax.barh(ind + (jj*height), exs[jj].rfi_means(), xerr=exs[jj].rfi_stds(),
+                               height=height, label=exs[jj].ex_name, align='edge')
         containers.append(barcontainer)
+
+    pix_height = math.floor(coord_height_to_pixels(ax, height)/4)
+    # TODO(gcsk): set font size to pix_height
 
     # TODO(gcsk)
     # barcontainers have patches and errorbars
     # modify code above to automatically label the bars 
     # docu: https://matplotlib.org/3.1.1/api/container_api.html#matplotlib.container.BarContainer
+    for jj in range(len(exs)):
+        patches = containers[jj].patches
+        #errbar_lines = containers[jj].errorbar.lines[2].segments
+        for kk in range(len(patches)):
+            #errbar_length = get_line_hlength(errbar_lines[kk])
+            tx, ty_lower = hbar_text_position(patches[kk], y_pos=0.25)
+            tx, ty_upper = hbar_text_position(patches[kk], y_pos=0.75)
+            ax.text(0, ty_upper, textformat.format(patches[kk].get_width()), 
+                    va='center', ha='left', size=pix_height)
+            #ax.text(tx, ty_lower, '+-'+ textformat.format(errbar_length), 
+            #        va='center', ha='center', size=pix_height)  
 
-    ax.set_xticks(ind)
-    ax.set_xticklabels(exs[0].fsoi)
-    ax.legend()
-
-    fig.tight_layout()
     plt.show()
 
 # def rfi_barplot(rfis, fnames, rfinames, savepath, figsize=(16,10), textformat='{:5.2f}')

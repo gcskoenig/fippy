@@ -31,10 +31,6 @@ class Explanation():
         if ex_name is None:
             self.ex_name = 'Unknown'
 
-    def ex_name(self):
-        # TODO(gcsk): add description, refined functionality
-        return self.ex_name
-
     def rfi_names(self):
         """Return RFI names for feature of interest
 

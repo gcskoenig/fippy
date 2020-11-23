@@ -18,3 +18,8 @@ def hbar_text_position(rect, x_pos = 0.5, y_pos=0.5):
     tx = rx + (width * x_pos)
     ty = ry + (height * y_pos)
     return (tx, ty)
+
+def get_line_hlength(line):
+    start_x = line[0][0]
+    end_x = line[-1][0]
+    return end_x - start_x
