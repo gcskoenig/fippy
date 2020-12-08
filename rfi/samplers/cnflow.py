@@ -45,6 +45,7 @@ class CNFSampler(Sampler):
 
         for j_ind, j in enumerate(J):
             j_key = utils.to_key([j])
+            # TODO(gcsk): check if trained
             sampled_data[:, j_ind] = self._trainedGs[(j_key, G_key)](X_test)
 
         return sampled_data
