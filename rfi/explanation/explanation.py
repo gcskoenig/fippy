@@ -58,4 +58,4 @@ class Explanation():
         return np.std(np.mean(self.lss, axis=2), axis=1)
 
     def barplot(self):
-        _barplot.rfi_hbarplot(self)
+        return _barplot.rfi_hbarplot(self)

@@ -4,7 +4,7 @@ Second-order Gaussian models are used to model the
 conditional distribution.
 """
 from rfi.samplers.sampler import Sampler
-# from rfi.samplers._utils import sample_id, sample_perm
+from rfi.samplers._utils import sample_id, sample_perm
 import rfi.utils as utils
 # from DeepKnockoffs import GaussianKnockoffs
 import numpy as np
@@ -64,7 +64,7 @@ class GaussianSampler(Sampler):
                 print('Sampler not trained yet.')
                 self.train(J[kk], G, verbose=verbose)
             sample_func = self._trainedGs[(jj_key, G_key)]
-            sampled_data[:, kk] = sample_func(X_test)
+            sampled_data[:, kk] = sample_func(X_test).reshape(-1)
         return sampled_data
 
 
@@ -76,9 +76,15 @@ def train_gaussian(X_train, J, G):
         G: relative feature set
         j: features of interest
     """
+    J = np.array(J, dtype=np.int16).reshape(-1)
     mean = np.mean(X_train, axis=0)
     cov = np.cov(X_train.T)
-    Sigma_GG_inv = None
+
+    if J in G:
+        return sample_id(J)
+    elif G.size == 0:
+        return sample_perm(J)
+
     if G.shape[0] == 1:
         Sigma_GG_inv = 1/cov[np.ix_(G, G)]
     else:
@@ -94,12 +100,12 @@ def train_gaussian(X_train, J, G):
         for jj in range(len(X_G)):
             mu = mu_part + mu_part2[:, jj]
             if len(J) == 1:
-                res[jj, :] = np.random.normal(mu[0], Sigma[0, 0], 1)
+                res[jj, :] = np.random.normal(mu[0], np.sqrt(Sigma[0, 0]), 1)
             else:
                 res[jj, :] = np.random.multivariate_normal(mu, Sigma, 1)
         return res
 
-    return sample
+    return lambda X_test: sample(X_test[:, G]).reshape(-1)
 
 # def train_gaussian(X_train, j, G):
 #     '''Training a conditional sampler under the assumption

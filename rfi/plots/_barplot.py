@@ -32,8 +32,7 @@ def rfi_hbarplot(ex, textformat='{:5.2f}'):
                 va='center', ha='center', size=pix_height)
         ax.text(tx, ty_lower, '+-'+ textformat.format(stds[jj]), 
                 va='center', ha='center', size=pix_height)
-
-    plt.show()
+    return ax
 
 
 def container_hbarplot(exs, textformat='{:5.2f}'):

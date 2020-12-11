@@ -105,4 +105,4 @@ class Explainer():
         # return explanation object
         ex_name = 'RFI'
         result = explanation.Explanation(self.fsoi, lss, fs_names=self.fs_names)
-        return result
+        return result, perturbed_foiss
