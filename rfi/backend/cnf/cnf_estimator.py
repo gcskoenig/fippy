@@ -20,6 +20,9 @@ import ray
 
 
 class ConditionalNormalisingFlowEstimator(Flow):
+    """
+    Conditional density estimator based on Normalising Flows
+    """
 
     default_hparam_grid = {
         'n_epochs': tune.grid_search([500, 1000]),
