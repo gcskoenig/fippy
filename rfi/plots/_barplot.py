@@ -5,7 +5,8 @@ import math
 from rfi.plots._utils import hbar_text_position, coord_height_to_pixels, get_line_hlength
 textformat='{:5.2f}' # TODO(gcsk): remove this line
 
-def rfi_hbarplot(ex, textformat='{:5.2f}'):
+
+def rfi_hbarplot(ex, textformat='{:5.2f}', ax=None):
     '''Function that plots the result of an RFI computation
     as a barplot
 
@@ -16,8 +17,9 @@ def rfi_hbarplot(ex, textformat='{:5.2f}'):
     rfis = ex.rfi_means()
     stds = ex.rfi_stds()
     names = ex.rfi_names()
-    
-    fig, ax = plt.subplots()
+
+    if ax is None:
+        fig, ax = plt.subplots()
 
     ixs = np.arange(rfis.shape[0] + 0.5, 0.5, -1)
 
@@ -32,8 +34,7 @@ def rfi_hbarplot(ex, textformat='{:5.2f}'):
                 va='center', ha='center', size=pix_height)
         ax.text(tx, ty_lower, '+-'+ textformat.format(stds[jj]), 
                 va='center', ha='center', size=pix_height)
-
-    plt.show()
+    return ax
 
 
 def container_hbarplot(exs, textformat='{:5.2f}'):

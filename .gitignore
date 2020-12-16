@@ -3,4 +3,4 @@ build/
 dist/
 rfi_gcsk.egg-info/
 .DS_Store
-/examples/data/
+/examples/chains/data/

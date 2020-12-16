@@ -18,7 +18,6 @@ class CNFSampler(Sampler):
         self.time_budget_s = 120
 
     def _train_j(self, j, G):
-        logger.info(f'Fitting sampler for feature {j}. Time budget for CV search: {self.time_budget_s} sec')
 
         G_key, j_key = utils.to_key(G), utils.to_key([j])
 
@@ -27,6 +26,7 @@ class CNFSampler(Sampler):
         elif G.size == 0:
             self._trainedGs[(j_key, G_key)] = sample_perm(j)
         else:
+            logger.info(f'Fitting sampler for feature {j}. Time budget for CV search: {self.time_budget_s} sec')
             cnf = ConditionalNormalisingFlowEstimator(context_size=len(G))
             cnf.fit_by_cv(train_inputs=self.X_train[:, j], train_context=self.X_train[:, G], time_budget_s=self.time_budget_s)
             self._trainedGs[(j_key, G_key)] = lambda X_test: cnf.sample(X_test[:, G]).reshape(-1)

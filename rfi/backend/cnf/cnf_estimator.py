@@ -20,6 +20,9 @@ import ray
 
 
 class ConditionalNormalisingFlowEstimator(Flow):
+    """
+    Conditional density estimator based on Normalising Flows
+    """
 
     default_hparam_grid = {
         'n_epochs': tune.grid_search([500, 1000]),
@@ -185,7 +188,7 @@ class ConditionalNormalisingFlowEstimator(Flow):
                   hparam_grid=None, n_splits=5, resources_per_trial={"cpu": 0.5}, time_budget_s=None):
         """
         Method for hyper-parameter search for Conditional Normalizing Flow density estimator, performs K-fold cross-validation.
-        After the hyper-parameter search, fits the best model on full train dataset.
+        After the hyper-parameter search, fits the best sem on full train dataset.
         Using ray.tune as backend
 
         Args:
@@ -230,7 +233,7 @@ class ConditionalNormalisingFlowEstimator(Flow):
         ray.shutdown()
 
         print(f"Models evaluated: {result.results_df['done'].sum()} / {len(result.results_df)}, "
-              f"Best config: {result.get_best_config()}. Refitting the best model.")
+              f"Best config: {result.get_best_config()}. Refitting the best sem.")
         self.__init__(self.context_size, device=self.device, **result.get_best_config())
         self.fit(train_inputs, train_context)
         return self
