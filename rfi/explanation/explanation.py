@@ -7,7 +7,7 @@ import numpy as np
 import rfi.plots._barplot as _barplot
 
 
-class Explanation():
+class Explanation:
     """Stores and provides access to results from Explainer.
 
     Aggregated as well as observation-wise results are stored.
@@ -17,11 +17,11 @@ class Explanation():
         fsoi: Features of interest.
         lss: losses on perturbed (# fsoi, # runs, # observations)
         ex_name: Explanation description
-        fsoi_names: FSOI names
+        fsoi_names: FSOI input_var_names
     """
 
     def __init__(self, fsoi, lss, fs_names, ex_name=None):
-        """Inits Explainer with model, mask and potentially sampler and loss"""
+        """Inits Explainer with sem, mask and potentially sampler and loss"""
         # TODO(gcsk): compress Explanation
         self.fsoi = fsoi # TODO evaluate, do I need to make a copy?
         self.lss = lss # TODO evaluate, do I need to make a copy?
@@ -32,10 +32,10 @@ class Explanation():
             self.ex_name = 'Unknown'
 
     def rfi_names(self):
-        """Return RFI names for feature of interest
+        """Return RFI input_var_names for feature of interest
 
         Returns:
-            A np.array with the feature names for the
+            A np.array with the feature input_var_names for the
             features of interest
         """
         return self.fs_names[self.fsoi]
@@ -57,5 +57,5 @@ class Explanation():
         """
         return np.std(np.mean(self.lss, axis=2), axis=1)
 
-    def barplot(self):
-        return _barplot.rfi_hbarplot(self)
+    def barplot(self, ax=None):
+        return _barplot.rfi_hbarplot(self, ax=ax)

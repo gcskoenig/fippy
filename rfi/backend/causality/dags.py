@@ -13,7 +13,7 @@ class DirectedAcyclicGraph:
         """
         Args:
             adjacency_matrix: Square adjacency matrix
-            var_names: List of variable names
+            var_names: List of variable input_var_names
         """
         assert adjacency_matrix.shape[0] == adjacency_matrix.shape[1]
         assert adjacency_matrix.shape[0] == len(var_names)
@@ -34,13 +34,13 @@ class DirectedAcyclicGraph:
         if ax is None:
             fig, ax = plt.subplots()
         labels_dict = {i: self.var_names[i] for i in range(len(self.DAG))}
-        nx.draw_networkx(self.DAG, ax=ax, labels=labels_dict, node_color='white', arrowsize=15,
-                         edgecolors='b', node_size=800)
+        nx.draw_networkx(self.DAG, pos=nx.kamada_kawai_layout(self.DAG), ax=ax, labels=labels_dict, node_color='white',
+                         arrowsize=15, edgecolors='b', node_size=800)
 
     @staticmethod
     def random_dag(n, p, seed=None):
         """
-        Creates random Erdős-Rényi graph from G(n, p) model
+        Creates random Erdős-Rényi graph from G(size, p) sem
         (see https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93R%C3%A9nyi_model)
 
         Args:

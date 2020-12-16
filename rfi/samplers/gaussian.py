@@ -1,6 +1,6 @@
 """Model-X Knockoff sampler based on arXiv:1610.02351.
 
-Second-order Gaussian models are used to model the
+Second-order Gaussian models are used to sem the
 conditional distribution.
 """
 from rfi.samplers.sampler import Sampler

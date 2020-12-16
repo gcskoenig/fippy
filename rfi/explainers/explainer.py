@@ -22,11 +22,11 @@ class Explainer():
         X_train: Training data for Resampling.
         sampler: default sampler.
         loss: default loss.
-        fs_names: list of strings with feature names
+        fs_names: list of strings with feature input_var_names
     """
 
     def __init__(self, model, fsoi, X_train, sampler=None, loss=None, fs_names=None):
-        """Inits Explainer with model, mask and potentially sampler and loss"""
+        """Inits Explainer with sem, mask and potentially sampler and loss"""
         self.model = model
         self.fsoi = fsoi
         self.X_train = X_train
@@ -37,8 +37,7 @@ class Explainer():
             names = [ix_to_desc(jj) for jj in range(X_train.shape[0])]
             self.fs_names = names
 
-    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10,
-            verbose=False):
+    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10, return_perturbed = False, verbose=False):
         """Computes Relative Feature importance
 
         # TODO(gcsk): allow handing a sample as argument
@@ -105,4 +104,7 @@ class Explainer():
         # return explanation object
         ex_name = 'RFI'
         result = explanation.Explanation(self.fsoi, lss, fs_names=self.fs_names)
-        return result, perturbed_foiss
+        if return_perturbed:
+            return result, perturbed_foiss
+        else:
+            return result
