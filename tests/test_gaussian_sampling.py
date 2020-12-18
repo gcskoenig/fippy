@@ -15,9 +15,10 @@ ix_test = np.arange(splitpoint, N, 1)
 X_train, y_train = dataset[ix_train, :-1], dataset[ix_train,-1]
 X_test, y_test = dataset[ix_test, :-1], dataset[ix_test,-1]
 
+J, G = [0,1], [2, 3] # TODO(gcsk): remove before release
 
 class TestGaussian:
-    thresh = 0.1
+    thresh = 0.1 # TODO(gcsk): remove before release
 
     def compute_sample(self, J, G):
         X_G = X_test[:, G]

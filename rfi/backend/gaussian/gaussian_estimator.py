@@ -17,7 +17,7 @@ class GaussianConditionalEstimator(Distribution):
         super(GaussianConditionalEstimator, self).__init__()
 
     def fit(self, train_inputs: np.array, train_context: np.array):
-        train_inputs = train_inputs.reshape(-1, 1)
+        train_inputs = train_inputs.reshape(-1, 1) # TODO(gcsk): needs to be removed for multivariate J
         X_train = np.concatenate([train_inputs, train_context], axis=1)
 
         mean = np.mean(X_train, axis=0)
