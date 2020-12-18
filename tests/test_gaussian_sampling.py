@@ -1,5 +1,5 @@
 import numpy as np
-from rfi.samplers.gaussian import train_gaussian
+from rfi.backend.gaussian.gaussian_estimator import GaussianConditionalEstimator
 import math
 
 name = 'chain2'
@@ -22,6 +22,10 @@ class TestGaussian:
     def compute_sample(self, J, G):
         X_G = X_test[:, G]
         X_J = X_test[:, J]
+
+        gaussian_estimator = GaussianConditionalEstimator()
+        gaussian_estimator.fit(train_inputs=X_train[:, J], train_context=X_train[:, G])
+        X_J_recovered = gaussian_estimator.sample(X_test[:, G])
 
         sample = train_gaussian(X_train, J, G)
         X_J_recovered = sample(X_G)

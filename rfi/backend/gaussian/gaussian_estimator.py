@@ -26,6 +26,14 @@ class GaussianConditionalEstimator(Distribution):
         self.fit_mean_cov(mean, cov, np.array([0]), np.arange(1, len(cov)))
 
     def fit_mean_cov(self, joint_mean, joint_cov, inp_ind, cont_ind):
+        """Fit using mean vector and covariate matrix.
+
+        Args:
+            joint_mean: means for all variables
+            cov: cov for all variables
+            inp_ind: indices of variables to be sampled
+            cont_ind: "context" variable indexes (conditioning set)
+        """
         self.inp_ind = inp_ind
         if cont_ind.shape[0] == 1:
             Sigma_GG_inv = 1 / joint_cov[np.ix_(cont_ind, cont_ind)]

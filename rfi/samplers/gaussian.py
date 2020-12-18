@@ -40,7 +40,7 @@ class GaussianSampler(Sampler):
         if not super()._train_J_degenerate(J, G, verbose=verbose):
             gaussian_estimator = GaussianConditionalEstimator()
             gaussian_estimator.fit(train_inputs=self.X_train[:, J], train_context=self.X_train[:, G])
-            samplefunc = lambda X_test: gaussian_estimator.sample(X_test[:, G]).reshape(-1)
+            samplefunc = lambda X_test: gaussian_estimator.sample(X_test[:, G])
             super()._store_samplefunc(J, G, samplefunc, verbose=verbose)
 
 

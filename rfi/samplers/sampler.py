@@ -129,7 +129,7 @@ class Sampler():
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
 
         if not super().is_trained(J, G):
-            # TODO(gcsk): raise exception
+            pass# TODO(gcsk): raise exception
         else:
             sample_func = self._trainedGs[(J_key, G_key)]
             sampled_data = sample_func(X_test)
