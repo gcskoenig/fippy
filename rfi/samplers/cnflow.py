@@ -17,7 +17,7 @@ class CNFSampler(Sampler):
         super().__init__(X_train)
         self.time_budget_s = 120
 
-    def train(self, J, G, verbose=verbose):
+    def train(self, J, G, verbose=True):
 
         J = Sampler._to_array(J)
         G = Sampler._to_array(G)
