@@ -5,7 +5,7 @@ import math
 name = 'chain2'
 
 N=10**5
-dataset = np.loadtxt('data/{}.csv'.format(name), dtype=np.float32)
+dataset = np.loadtxt('tests/data/{}.csv'.format(name), dtype=np.float32)
 D = np.arange(0, 4)
 
 splitpoint = math.floor(N*0.5)

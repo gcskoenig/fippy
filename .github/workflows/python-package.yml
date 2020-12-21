@@ -36,5 +36,5 @@ jobs:
         flake8 . --count --max-complexity=10 --max-line-length=130 --statistics
     - name: Test with pytest
       run: |
-        cd tests/
-	pytest
+        # assuming we start within the package root, execute tests
+        pytest tests/
