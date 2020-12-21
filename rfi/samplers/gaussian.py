@@ -4,11 +4,11 @@ Second-order Gaussian models are used to sem the
 conditional distribution.
 """
 from rfi.samplers.sampler import Sampler
-from rfi.samplers._utils import sample_id, sample_perm
 from rfi.backend.gaussian import GaussianConditionalEstimator
 import rfi.utils as utils
 # from DeepKnockoffs import GaussianKnockoffs
 import numpy as np
+import logging
 
 
 class GaussianSampler(Sampler):
@@ -38,9 +38,11 @@ class GaussianSampler(Sampler):
         super().train(J, G, verbose=verbose)
 
         if not super()._train_J_degenerate(J, G, verbose=verbose):
+            logging.debug('No degenerate case. Fitting GaussianConditionalEstimator.')
             gaussian_estimator = GaussianConditionalEstimator()
             gaussian_estimator.fit(train_inputs=self.X_train[:, J], train_context=self.X_train[:, G])
-            samplefunc = lambda X_test: gaussian_estimator.sample(X_test[:, G])
+            def samplefunc(X_test, **kwargs):
+                return gaussian_estimator.sample(X_test[:, G], **kwargs)
             super()._store_samplefunc(J, G, samplefunc, verbose=verbose)
 
 

@@ -15,7 +15,7 @@ from rfi.samplers.gaussian import GaussianSampler
 import rfi.explainers.explainer as explainer
 
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 # Synthesizing data
 X_train, y_train, X_test, y_test = chain2.get_train_test_data(inputs=('x1', 'x2', 'x3', 'x4'), target='y',
@@ -28,16 +28,18 @@ model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 risk = mean_squared_error(y_test, y_pred)
 
-print('Linear Model')
-print(input_var_names)
-print(model.coef_)
+logging.info('Linear Model')
+logging.info(input_var_names)
+logging.info(model.coef_)
+logging.debug('This is a debugging message.')
 
 
 # Relative feature importance
-G = np.array([0])
+G = np.array([1])
 fsoi = np.array([0, 1, 2, 3], dtype=np.int16)
 
-samplers_classes = [CNFSampler, GaussianSampler]
+#samplers_classes = [CNFSampler, GaussianSampler]
+samplers_classes = [GaussianSampler]
 
 for sampler_class in samplers_classes:
 

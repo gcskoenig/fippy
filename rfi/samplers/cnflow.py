@@ -28,5 +28,6 @@ class CNFSampler(Sampler):
             cnf = ConditionalNormalisingFlowEstimator(context_size=len(G))
             cnf.fit_by_cv(train_inputs=self.X_train[:, J], train_context=self.X_train[:, G], 
                           time_budget_s=self.time_budget_s)
-            samplefunc = lambda X_test: cnf.sample(X_test[:, G]).reshape(-1)
+            def samplefunc(X_test, **kwargs):
+                return gaussian_estimator.sample(X_test[:, G], **kwargs)
             super()._store_samplefunc(J, G, samplefunc, verbose=verbose)

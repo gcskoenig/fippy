@@ -5,6 +5,9 @@ More details can be found in the class description
 """
 
 import rfi.utils as utils
+import numpy as np
+from rfi.samplers._utils import sample_id, sample_perm
+import logging
 
 
 class Sampler():
@@ -51,7 +54,7 @@ class Sampler():
 
         """
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J) # transform into hashable form
-        trained = (G_key, J_key) in self._trainedGs()
+        trained = (J_key, G_key) in self._trainedGs
         return trained
 
 
@@ -66,20 +69,23 @@ class Sampler():
         Returns:
             Whether a degenerate case was present.
         """        
-        G_key, J_key = utils.to_key(G), utils.to_key(J)
-
         degenerate = True
-
-        if J in G: # TODO update for subset numpy array
-            self._trainedGs[(j_key, G_key)] = sample_id(j)
-        elif G.size == 0:
-            self._trainedGs[(j_key, G_key)] = sample_perm(j)
+        
+        # are we conditioning on zero elements?
+        if G.size == 0:
+            logging.debug('Degenerate Training: Empty G')
+            self._store_samplefunc(J, G, sample_perm(J))
+        # are all elements in G being conditioned upon?
+        elif np.sum(1 - np.isin(J, G)) == 0:
+            logging.debug('Degenerate Training: J subseteq G')
+            self._store_samplefunc(J, G, sample_id(J))
         else:
+            logging.debug('Training not degenerate.')
             degenerate = False
 
         return degenerate
 
-    def _store_samplefunc(self, samplefunc, J, G, verbose=True):
+    def _store_samplefunc(self, J, G, samplefunc, verbose=True):
         """Storing a trained sample function
 
         Args:
@@ -88,10 +94,9 @@ class Sampler():
             G: relative feature set
             verbose: printing or not
         """
-        G_key, J_key = Sampler._to_key(G), Sampler.to_key(J)
+        G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
         self._trainedGs[(J_key, G_key)] = samplefunc
-        if verbose:
-            print('Training ended. Sampler saved.')
+        logging.info('Training ended. Sampler saved.')
 
 
     def train(self, J, G, verbose=True):
@@ -106,20 +111,21 @@ class Sampler():
             Nothing. Now the sample function can be used
             to resample on seen or unseen data.
         """
-        print('Training Sampler for: {} | {}'.format(J, G))
+        logging.info('Training Sampler for: {} | {}'.format(J, G))
 
 
-    def sample(self, X_test, J, G):
+    def sample(self, X_test, J, G, num_samples=1):
         """Sample features of interest using trained resampler.
 
         Args:
             J: Set of features to sample
             G: relative feature set
-            X_test: Data for which sampling shall be performed.
+            X_test: Data for which sampling shall be performed. (format as self.X_train)
+            num_samples: number of resamples without retraining shall be computed
 
         Returns:
             Resampled data for the features of interest.
-            np.array with shape (X_test.shape[0], # features of interest)
+            np.array with shape (X_test.shape[0], #num_samples, # features of interest)
         """
                 # initialize numpy matrix
         J = np.array(J, dtype=np.int16)
@@ -129,8 +135,8 @@ class Sampler():
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
 
         if not self.is_trained(J, G):
-            pass# TODO(gcsk): raise exception
+            raise RuntimeError("Sampler not trained on {} | {}".format(J, G))
         else:
             sample_func = self._trainedGs[(J_key, G_key)]
-            sampled_data = sample_func(X_test)
+            sampled_data = sample_func(X_test, num_samples=num_samples)
             return sampled_data
