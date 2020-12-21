@@ -17,15 +17,34 @@ class GaussianConditionalEstimator(Distribution):
         super(GaussianConditionalEstimator, self).__init__()
 
     def fit(self, train_inputs: np.array, train_context: np.array):
-        train_inputs = train_inputs.reshape(-1, 1)
+        """Fit Gaussian Sampler.
+
+        Args:
+            train_inputs: variables to be resampled
+            train_context: conditioning set
+        """
+        # make sure arrays are 2d and concatenate into one array
+        train_inputs = train_inputs.reshape((train_inputs.shape[0], -1)) 
+        train_context = train_context.reshape((train_context.shape[0], -1))
         X_train = np.concatenate([train_inputs, train_context], axis=1)
 
         mean = np.mean(X_train, axis=0)
         cov = np.cov(X_train.T)
 
-        self.fit_mean_cov(mean, cov, np.array([0]), np.arange(1, len(cov)))
+        n_in, n_co = train_inputs.shape[1], train_context.shape[1]
+        inp_ind, cont_ind = np.arange(0, n_in, 1), np.arange(n_in, n_in+n_co, 1)
+
+        self.fit_mean_cov(mean, cov, inp_ind, cont_ind)
 
     def fit_mean_cov(self, joint_mean, joint_cov, inp_ind, cont_ind):
+        """Fit using mean vector and covariate matrix.
+
+        Args:
+            joint_mean: means for all variables
+            cov: cov for all variables
+            inp_ind: indices of variables to be sampled
+            cont_ind: "context" variable indexes (conditioning set)
+        """
         self.inp_ind = inp_ind
         if cont_ind.shape[0] == 1:
             Sigma_GG_inv = 1 / joint_cov[np.ix_(cont_ind, cont_ind)]
