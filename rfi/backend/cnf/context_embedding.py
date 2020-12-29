@@ -8,7 +8,7 @@ from rfi.backend.cnf.transforms import ContextualCompositeTransform
 
 class ContextEmbedding(Module):
     """
-    Conditioning context embedding neural network. Used together with conditional normalizing flow.
+    Conditioning global_context embedding neural network. Used together with conditional normalizing flow.
     Implemented as MLP with weights normalisation.
     """
 

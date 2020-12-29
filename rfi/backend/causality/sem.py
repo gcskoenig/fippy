@@ -1,20 +1,31 @@
 import networkx as nx
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List, Union
 import collections
 import numpy as np
 import torch
+from torch.distributions import Distribution, Normal, MultivariateNormal, constraints, TransformedDistribution
+from scipy.integrate import quad, quad_vec
+from scipy.interpolate import LinearNDInterpolator, interp1d, RegularGridInterpolator
 from torch import Tensor
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from pyro.contrib.randomvariable import RandomVariable
+import logging
+from tqdm import tqdm
 
 from rfi.backend.causality.dags import DirectedAcyclicGraph
+from rfi.backend.gaussian import GaussianConditionalEstimator
+
+logger = logging.getLogger(__name__)
+
 
 
 class StructuralEquationModel:
     """
     Semi-abstract class for Structural Equation Model, defined by DAG. Specific assignments should be redefined in subclasses
     """
+
+    name = 'sem'
 
     def __init__(self, dag: DirectedAcyclicGraph):
         """
@@ -25,41 +36,173 @@ class StructuralEquationModel:
         self.dag = dag
         self.model = {}
         self.topological_order = []
+        self.parents_conditional_support = constraints.real
 
         # Model and topological order init
         for node in nx.algorithms.dag.topological_sort(dag.DAG):
             parents = dag.DAG.predecessors(node)
-            node, parents = dag.var_names[node], [dag.var_names[par] for par in parents]
+            children = dag.DAG.successors(node)
+            node, parents, children = dag.var_names[node], [dag.var_names[par] for par in parents], \
+                                      [dag.var_names[par] for par in children]
 
             self.model[node] = {
-                'parents': parents,
+                'parents': tuple(parents),
+                'children': tuple(children),
                 'value': None
             }
             self.topological_order.append(node)
+
+    @property
+    def support_bounds(self):
+        support_bounds = [-np.inf, np.inf]
+        if hasattr(self.parents_conditional_support, 'lower_bound'):
+            support_bounds[0] = self.parents_conditional_support.lower_bound
+        if hasattr(self.parents_conditional_support, 'upper_bound'):
+            support_bounds[1] = self.parents_conditional_support.upper_bound
+        return support_bounds
+
+    def parents_conditional_sample(self, node: str, parents_context: Dict[str, Tensor] = None, size: int = 1, seed=None) -> Tensor:
+        torch.manual_seed(seed) if seed is not None else None
+        cond_dist = self.parents_conditional_distribution(node, parents_context)
+        # if len(cond_dist.batch_shape) > 0 or isinstance(cond_dist, TransformedDistribution):  # Conditional sampling
+        #     if len(list(parents_context.values())[0]) == size:
+        #         return cond_dist.sample()
+        #     else:
+        #         return cond_dist.sample(sample_shape=(size,))
+        # else:  # Unconditional sampling
+        return cond_dist.sample(sample_shape=(size, 1))
 
     def sample(self, size: int, seed: int = None) -> Tensor:
         """
         Returns a sample from SEM, columns are ordered as var input_var_names in DAG
         Args:
-            seed: Random seed
+            seed: Random mc_seed
             size: Sample size
 
-        Returns: torch.Tensor with sampled values of shape (size, n_vars))
+        Returns: torch.Tensor with sampled value of shape (size, n_vars))
         """
-        raise NotImplementedError()
+        torch.manual_seed(seed) if seed is not None else None
+        for node in self.topological_order:
+            parent_values = {par_node: self.model[par_node]['value'] for par_node in self.model[node]['parents']}
+            sample_size = size if len(parent_values) == 0 else 1
+            self.model[node]['value'] = self.parents_conditional_sample(node, parent_values, sample_size).reshape(-1)
+        return torch.stack([self.model[node]['value'] for node in self.dag.var_names], dim=1)
 
-    def conditional_pdf(self, node: str, value: Tensor, context: Dict[str, Tensor]) -> Tensor:
+    @staticmethod
+    def _support_check_wrapper(dist: Distribution):
+
+        old_log_prob = dist.log_prob
+
+        def new_log_prob_method(value):
+            result = old_log_prob(value)
+
+            # Out of support values
+            result[torch.isnan(result)] = - float("Inf")
+            result[~dist.support.check(value)] = - float("Inf")
+
+            return result
+
+        dist.log_prob = new_log_prob_method
+
+
+    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None) -> Distribution:
         """
-        Conditional probability distribution function (density) of node
+        Conditional probability distribution of node, conditioning only on parent nodes
         Args:
             node: Node
-            value: Input values, torch.Tensor of shape (n, )
-            context: Conditioning context, as dict of all the other variables (only parent values will be chosen), each value
-                should be torch.Tensor of shape (n, )
+            parents_context: Conditioning global_context, as dict of all the other variables,
+                    each value should be torch.Tensor of shape (n, )
 
-        Returns: torch.Tensor of shape (n, )
+        Returns: torch.distribution.Distribution with batch_shape == n
         """
         raise NotImplementedError()
+
+    def joint_log_prob(self, value: Tensor) -> Tensor:
+        global_context = {node: value[:, node_ind] for node_ind, node in enumerate(self.dag.var_names)}
+
+        log_prob = torch.zeros_like(value)
+        for node in self.topological_order:
+            parent_values = {par_node: global_context[par_node] for par_node in self.model[node]['parents']}
+            log_prob += self.parents_conditional_distribution(node, parents_context=parent_values).log_prob(global_context[node])
+        return log_prob
+
+    def get_markov_blanket(self, node: str) -> set:
+        parents = self.model[node]['parents']
+        children = self.model[node]['children']
+        spouses = tuple([par for child in children for par in self.model[child]['parents'] if par != node and par not in parents])
+        return set(parents + children + spouses)
+
+    def children_log_prob(self, node, value: Tensor, global_context: Dict[str, Tensor] = None):
+        log_prob = torch.zeros_like(value)
+        for child in self.model[node]['children']:
+            child_par_context = {par: global_context[par].repeat(len(value)) for par in self.model[child]['parents'] if par != node}
+            child_par_context[node] = value.flatten()
+            cond_dist = self.parents_conditional_distribution(child, parents_context=child_par_context)
+
+            child_log_prob = cond_dist.log_prob(global_context[child].repeat(len(value)))
+
+            log_prob += child_log_prob.reshape(value.shape)
+
+        return log_prob
+
+    def mb_conditional_log_prob(self, node: str, global_context: Dict[str, Tensor] = None, method='mc', mc_size=500,
+                                quad_epsabs=1e-2, mc_seed=None) -> callable:
+        """
+        Conditional log-probability function (density) of node, conditioning on Markov-Blanket of node
+        Args:
+            node: Node
+            global_context: Conditioning global_context, as dict of all the other variables,
+                each value should be torch.Tensor of shape (n, )
+            method: 'mc' or 'quad', method to compute normalisation constant (Monte-Carlo integration or quadrature integration)
+            mc_size: if method == 'mc', MC samples for integration
+            mc_seed: mc_seed for MC sampling
+            quad_epsabs: epsabs for scipy.integrate.quad
+        Returns:
+
+        """
+        global_context = {} if global_context is None else global_context
+
+        # Checking, if all vars from MarkovBlanket(node) are present
+        assert all([mb_var in global_context.keys() for mb_var in self.get_markov_blanket(node)])
+
+        parents_context = {par: global_context[par] for par in self.model[node]['parents']}
+
+        if method == 'mc':
+            sampled_value = self.parents_conditional_sample(node, parents_context, mc_size, mc_seed)
+            if sampled_value.dim() == 1:  # Populating unconditional sample for all contexts
+                sampled_value = sampled_value.unsqueeze(-1).repeat(1, len(list(global_context.values())[0]))
+            normalisation_constant = self.children_log_prob(node, sampled_value, global_context).exp().mean(0)
+
+        elif method == 'quad':
+            normalisation_constant = []
+            for cont_ind in tqdm(range(len(list(global_context.values())[0]))):
+                global_context_slice = {node: value[cont_ind:cont_ind+1] for (node, value) in global_context.items()}
+                parents_context_slice = {par: global_context_slice[par] for par in self.model[node]['parents']}
+
+                def integrand(value):
+                    value = torch.tensor([value])
+                    parents_cond_dist = self.parents_conditional_distribution(node, parents_context_slice)
+                    unnorm_log_prob = parents_cond_dist.log_prob(value) + self.children_log_prob(node, value, global_context_slice)
+                    return unnorm_log_prob.exp().item()
+
+                normalisation_constant.append(quad_vec(integrand, *self.support_bounds, epsabs=quad_epsabs)[0])
+
+            normalisation_constant = torch.tensor(normalisation_constant)
+
+        else:
+            raise NotImplementedError()
+
+        def cond_log_prob(value):
+            result = self.parents_conditional_distribution(node, parents_context).log_prob(value)
+
+            # Considering only inside-support values for conditional distributions of children
+            in_support = (~torch.isinf(result)).all(1)
+            children_lob_prob = self.children_log_prob(node, value[in_support], global_context)
+            result[in_support] += children_lob_prob
+
+            return result - normalisation_constant.log()
+
+        return cond_log_prob
 
 
 class LinearGaussianNoiseSEM(StructuralEquationModel):
@@ -68,8 +211,14 @@ class LinearGaussianNoiseSEM(StructuralEquationModel):
     X_i = w^T par(X_i) + eps, eps ~ N(0, sigma_i)
     """
 
-    def __init__(self, dag: DirectedAcyclicGraph, coeff_dict: Dict[str, Dict[str, float]] = {},
-                 noise_std_dict: Dict[str, float] = {}, default_noise_std_bounds: Tuple[float, float] = (0.0, 1.0), seed=None):
+    name = 'linear_gauss'
+
+    def __init__(self, dag: DirectedAcyclicGraph,
+                 coeff_dict: Dict[str, Dict[str, float]] = {},
+                 noise_std_dict: Dict[str, float] = {},
+                 default_coef: Union[float, Tuple[float]] = (0.0, 1.0),
+                 default_noise_std_bounds: Tuple[float, float] = (0.0, 1.0),
+                 seed=None):
         """
         Args:
             dag: DAG, defining SEM
@@ -83,42 +232,32 @@ class LinearGaussianNoiseSEM(StructuralEquationModel):
         np.random.seed(seed) if seed is not None else None
 
         for node in self.topological_order:
-            self.model[node]['coeff'] = \
-                coeff_dict[node] if node in coeff_dict else {par: 0.0 for par in self.model[node]['parents']}
+            if node in coeff_dict:
+                self.model[node]['coeff'] = coeff_dict[node]
+            else:
+                if type(default_coef) == float:
+                    self.model[node]['coeff'] = {par: default_coef for par in self.model[node]['parents']}
+                else:
+                    self.model[node]['coeff'] = {par: np.random.uniform(*default_coef) for par in self.model[node]['parents']}
             self.model[node]['noise_std'] = noise_std_dict[node] if node in noise_std_dict \
                 else np.random.uniform(*default_noise_std_bounds)
 
-    @staticmethod
-    def _linear_comb(coeffs_dict, parent_values_dict) -> Tensor:
-        result = 0.0
-        for par in coeffs_dict.keys():
-            result += torch.tensor(parent_values_dict[par], dtype=torch.float32) * \
-                      torch.tensor(coeffs_dict[par], dtype=torch.float32)
-        return torch.tensor(result)
+    def conditional_distribution(self, node: str, context: Dict[str, Tensor] = None) -> Distribution:
+        node_ind = np.searchsorted(self.dag.var_names, [node])
+        if context is None or len(context) == 0:  # Unconditional distribution
+            return Normal(self.joint_mean[node_ind].item(), torch.sqrt(self.joint_cov[node_ind, node_ind]).item())
+        else:  # Conditional distribution
+            context_ind = np.searchsorted(self.dag.var_names, list(context.keys()))
+            cond_dist = GaussianConditionalEstimator()
+            cond_dist.fit_mean_cov(self.joint_mean.numpy(), self.joint_cov.numpy(), inp_ind=node_ind, cont_ind=context_ind)
+            context_sorted = [context[par_node] for par_node in self.dag.var_names if par_node in context]
+            context_sorted = np.stack(context_sorted).T if len(context_sorted) > 0 else None
+            return cond_dist.conditional_distribution(context_sorted)
 
-
-    def sample(self, size=1, seed=None) -> Tensor:
-        torch.manual_seed(seed) if seed is not None else None
-        for node in self.topological_order:
-            # Sampling noise
-            noise = torch.distributions.Normal(0, self.model[node]['noise_std']).rsample(sample_shape=(size,))
-
-            # Linear combination of parent values
-            parent_values = {par_node: self.model[par_node]['value'] for par_node in self.model[node]['parents']}
-            linear_effect = self._linear_comb(coeffs_dict=self.model[node]['coeff'], parent_values_dict=parent_values)
-
-            self.model[node]['value'] = linear_effect + noise
-
-        return torch.stack([self.model[node]['value'] for node in self.dag.var_names], dim=1)
-
-    def conditional_pdf(self, node: str, value: Tensor, context: Dict[str, Tensor] = {}) -> Tensor:
-        result = torch.zeros((len(value), ))
-        for val_ind, val in enumerate(value):
-            parent_values = {par_node: context[par_node][val_ind] for par_node in self.model[node]['parents']}
-            linear_comb = self._linear_comb(coeffs_dict=self.model[node]['coeff'], parent_values_dict=parent_values)
-            cond_dist = torch.distributions.Normal(linear_comb, self.model[node]['noise_std'])
-            result[val_ind] = cond_dist.log_prob(val).exp()
-        return result
+    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None) -> Distribution:
+        # Only conditioning on parent nodes is possible for now
+        assert set(self.model[node]['parents']) == set(parents_context.keys())
+        return self.conditional_distribution(node, parents_context)
 
     @property
     def joint_cov(self) -> Tensor:
@@ -160,8 +299,10 @@ class RandomGPGaussianNoiseSEM(StructuralEquationModel):
     X_i = f(par(X_i)) + eps, eps ~ N(0, sigma_i) and f ~ GP(0, K(X, X'))
     """
 
+    name = 'gauss_anm'
+
     def __init__(self, dag: DirectedAcyclicGraph, bandwidth: float = 1.0, noise_std_dict: Dict[str, float] = {},
-                 default_noise_std_bounds: Tuple[float, float] = (0.0, 1.0), seed=None):
+                 default_noise_std_bounds: Tuple[float, float] = (0.0, 1.0), seed=None, interpolation_switch=300):
         """
         Args:
             bandwidth: Bandwidth of GP kernel
@@ -179,60 +320,63 @@ class RandomGPGaussianNoiseSEM(StructuralEquationModel):
                 else np.random.uniform(*default_noise_std_bounds)
             self.model[node]['stacked_parent_values'] = None  # Needed for repetitive sampling
             self.model[node]['stacked_random_effects'] = None  # Needed for repetitive sampling
+            self.model[node]['interpolator'] = None
 
         self.bandwidth = bandwidth
+        self.interpolation_switch = interpolation_switch
 
-    def _random_function(self, node: str, new_parent_values: collections.OrderedDict, seed=None) -> Tensor:
-        new_parent_values = list(new_parent_values.values())
-        if len(new_parent_values) == 0:
+    def _random_function(self, node: str, parent_values: Dict[str, Tensor], seed=None) -> Tensor:
+
+        # Ordering
+        parent_values = collections.OrderedDict([(par_node, parent_values[par_node])
+                                                 for par_node in self.model[node]['parents']])
+
+        parent_values = list(parent_values.values())
+        if len(parent_values) == 0:
             return torch.tensor(0.0)
 
         old_parent_values = self.model[node]['stacked_parent_values']
         old_random_effects = self.model[node]['stacked_random_effects']
-        new_parent_values = torch.stack(new_parent_values).T
+        parent_values = torch.stack(parent_values).T
 
         gp = GaussianProcessRegressor(kernel=RBF(length_scale=self.bandwidth), optimizer=None)
 
         if old_parent_values is None and old_random_effects is None:  # Sampling for the first time
-            node_values = torch.tensor(gp.sample_y(new_parent_values, random_state=seed)).reshape(-1)
+            node_values = torch.tensor(gp.sample_y(parent_values, random_state=seed)).reshape(-1)
 
             self.model[node]['stacked_random_effects'] = node_values
-            self.model[node]['stacked_parent_values'] = new_parent_values
+            self.model[node]['stacked_parent_values'] = parent_values
             return node_values
 
         else:  # Sampling, when random function was already evaluated
-            gp.fit(old_parent_values, old_random_effects)
-            node_values = torch.tensor(gp.sample_y(new_parent_values, random_state=seed)).reshape(-1)
+            if len(old_random_effects) >= self.interpolation_switch:
+                if self.model[node]['interpolator'] is None:
+                    logger.warning('Using interpolation instead of Gaussian process!')
+                    if old_parent_values.shape[1] == 1:
+                        interpolator = interp1d(old_parent_values.squeeze(), old_random_effects, fill_value=0.0,
+                                                bounds_error=False)
+                    else:
+                        interpolator = LinearNDInterpolator(old_parent_values.squeeze(), old_random_effects, fill_value=0.0)
+                    self.model[node]['interpolator'] = interpolator
 
-            self.model[node]['stacked_random_effects'] = torch.cat([old_random_effects, node_values])
-            self.model[node]['stacked_parent_values'] = torch.cat([old_parent_values, new_parent_values], dim=0)
-            return node_values
+                # else:
+                #     interpolator = LinearNDInterpolator(old_parent_values, old_random_effects, fill_value=0.0)
+                return torch.tensor(self.model[node]['interpolator'](parent_values.squeeze()))
+            else:
+                gp.fit(old_parent_values, old_random_effects)
+                node_values = torch.tensor(gp.sample_y(parent_values, random_state=seed)).reshape(-1)
 
+                self.model[node]['stacked_random_effects'] = torch.cat([old_random_effects, node_values])
+                self.model[node]['stacked_parent_values'] = torch.cat([old_parent_values, parent_values], dim=0)
+                return node_values
 
-    def sample(self, size, seed=None) -> Tensor:
-        torch.manual_seed(seed) if seed is not None else None
-
-        for node in self.topological_order:
-            # Sampling noise
-            noise = torch.distributions.Normal(0, self.model[node]['noise_std']).rsample(sample_shape=(size,))
-
-            # Random function of parent values
-            new_parent_values = collections.OrderedDict([(par_node, self.model[par_node]['value'])
-                                                         for par_node in self.model[node]['parents']])
-            random_effect = self._random_function(node, new_parent_values, seed=seed)
-            self.model[node]['value'] = random_effect + noise
-
-        return torch.stack([self.model[node]['value'] for node in self.dag.var_names], dim=1)
-
-    def conditional_pdf(self, node: str, value: Tensor, context: Dict[str, Tensor] = {}) -> Tensor:
-        result = torch.zeros((len(value), ))
-        for val_ind, val in enumerate(value):
-            new_parent_values = collections.OrderedDict([(par_node, context[par_node][val_ind].unsqueeze(-1))
-                                                         for par_node in self.model[node]['parents']])
-            random_effect = self._random_function(node=node, new_parent_values=new_parent_values)
-            cond_dist = torch.distributions.Normal(random_effect, self.model[node]['noise_std'])
-            result[val_ind] = cond_dist.log_prob(val).exp()
-        return result
+    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None) -> Distribution:
+        # Only conditioning on parent nodes is possible for now
+        assert set(self.model[node]['parents']) == set(parents_context.keys())
+        random_effect = self._random_function(node, parents_context)
+        cond_dist = torch.distributions.Normal(random_effect, self.model[node]['noise_std'])
+        self._support_check_wrapper(cond_dist)
+        return cond_dist
 
 
 class PostNonLinearLaplaceSEM(RandomGPGaussianNoiseSEM):
@@ -243,63 +387,54 @@ class PostNonLinearLaplaceSEM(RandomGPGaussianNoiseSEM):
     See http://docs.pyro.ai/en/stable/_modules/pyro/contrib/randomvariable/random_variable.html#RandomVariable.transform
     """
 
+    name = 'post_nonlin'
+
     def __init__(self, dag: DirectedAcyclicGraph, bandwidth: float = 1.0, noise_std_dict: Dict[str, float] = {},
-                 default_noise_std_bounds: Tuple[float, float] = (0.0, 1.0), seed=None, invertable_nonlinearity: str = 'sigmoid'):
+                 default_noise_std_bounds: Tuple[float, float] = (0.0, 1.0), seed=None, invertable_nonlinearity: str = 'sigmoid',
+                 interpolation_switch=300):
         """
         Args:
             invertable_nonlinearity: Post noise addition non-linearity
             bandwidth: Bandwidth of GP kernel
             dag: DAG, defining SEM
             noise_std_dict: Noise std dict for each variable
-            default_noise_std: Default noise std
+            default_noise_std_bounds: Default noise std
         """
-        super(PostNonLinearLaplaceSEM, self).__init__(dag, bandwidth, noise_std_dict, default_noise_std_bounds, seed)
+        super(PostNonLinearLaplaceSEM, self).__init__(dag, bandwidth, noise_std_dict, default_noise_std_bounds, seed,
+                                                      interpolation_switch)
         self.invertable_nonlinearity = invertable_nonlinearity
+        if self.invertable_nonlinearity == 'sigmoid':
+            self.parents_conditional_support = constraints.unit_interval
 
-    def sample(self, size, seed=None) -> Tensor:
-        torch.manual_seed(seed) if seed is not None else None
+    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None) -> Distribution:
+        # Only conditioning on parent nodes is possible for now
+        assert set(self.model[node]['parents']) == set(parents_context.keys())
 
-        for node in self.topological_order:
-            # Sampling noise
-            noise = torch.distributions.Laplace(0, self.model[node]['noise_std']).rsample(sample_shape=(size,))
+        # Checking, if context is in the support
+        if parents_context is not None:
+            for cont in parents_context.values():
+                if not all(self.parents_conditional_support.check(cont)):
+                    logger.warning('Out of support value in context!')
 
-            # Random function of parent values
-            new_parent_values = collections.OrderedDict([(par_node, self.model[par_node]['value'])
-                                                         for par_node in self.model[node]['parents']])
-            random_effect = self._random_function(node, new_parent_values, seed=seed)
+        random_effect = self._random_function(node, parents_context)
 
-            nonlinearity = getattr(torch, self.invertable_nonlinearity)
-            self.model[node]['value'] = nonlinearity(random_effect + noise)
-
-        return torch.stack([self.model[node]['value'] for node in self.dag.var_names], dim=1)
-
-    def conditional_pdf(self, node: str, value: Tensor, context: Dict[str, Tensor] = {}) -> Tensor:
-        result = torch.zeros((len(value), ))
-        for val_ind, val in enumerate(value):
-            new_parent_values = collections.OrderedDict([(par_node, context[par_node][val_ind].unsqueeze(-1))
-                                                         for par_node in self.model[node]['parents']])
-            random_effect = self._random_function(node=node, new_parent_values=new_parent_values)
-
-            noise = RandomVariable(torch.distributions.Laplace(0, self.model[node]['noise_std']))
-            cond_dist = getattr(random_effect + noise, self.invertable_nonlinearity)().dist
-
-            assert cond_dist.support.check(val)  # Check, if evaluated value falls to conditional distribution support
-
-            result[val_ind] = cond_dist.log_prob(val).exp()
-
-        return result
+        noise = RandomVariable(torch.distributions.Laplace(0, self.model[node]['noise_std']))
+        cond_dist = getattr(random_effect + noise, self.invertable_nonlinearity)().dist
+        self._support_check_wrapper(cond_dist)
+        return cond_dist
 
 
 class PostNonLinearMultiplicativeHalfNormalSEM(StructuralEquationModel):
 
+    name = 'post_nonlin_half_norm'
+
     def __init__(self, dag: DirectedAcyclicGraph, noise_std_dict: Dict[str, float] = {},
-                 default_noise_std_bounds: Tuple[float, float] = (0.0, 1.0), seed=None):
+                 default_noise_std_bounds: Tuple[float, float] = (0.5, 1.0), seed=None):
         """
         Args:
             dag: DAG, defining SEM
-            coeff_dict: Coefficients of linear combination of parent nodes, if not written - considered as zero
             noise_std_dict: Noise std dict for each variable
-            default_noise_std: Default noise std
+            default_noise_std_bounds: Default noise std
         """
         super(PostNonLinearMultiplicativeHalfNormalSEM, self).__init__(dag)
 
@@ -309,31 +444,22 @@ class PostNonLinearMultiplicativeHalfNormalSEM(StructuralEquationModel):
             self.model[node]['noise_std'] = noise_std_dict[node] if node in noise_std_dict \
                 else np.random.uniform(*default_noise_std_bounds)
 
-    def sample(self, size, seed=None) -> Tensor:
-        torch.manual_seed(seed) if seed is not None else None
+        self.parents_conditional_support = constraints.greater_than(0.0)
 
-        for node in self.topological_order:
-            # Sampling noise
-            noise = torch.distributions.HalfNormal(self.model[node]['noise_std']).rsample(sample_shape=(size,))
-            parent_values = [self.model[par_node]['value'] for par_node in self.model[node]['parents']]
-            parent_values = torch.stack(parent_values).T if len(parent_values) > 0 else torch.tensor([[1.0]])
+    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None) -> Distribution:
+        # Only conditioning on parent nodes is possible for now
+        assert set(self.model[node]['parents']) == set(parents_context.keys())
 
-            self.model[node]['value'] = torch.exp(torch.log(parent_values.sum(dim=1)) + noise)
+        parent_values = [parents_context[par_node] for par_node in self.model[node]['parents']]
+        parent_values = torch.stack(parent_values).T if len(parent_values) > 0 else torch.ones((1, 1))
 
-        return torch.stack([self.model[node]['value'] for node in self.dag.var_names], dim=1)
+        # Checking, if context is in the support
+        if not self.parents_conditional_support.check(parent_values).all():
+            logger.warning('Out of support value in context!')
 
-    def conditional_pdf(self, node: str, value: Tensor, context: Dict[str, Tensor] = {}) -> Tensor:
-        result = torch.zeros((len(value), ))
-        for val_ind, val in enumerate(value):
+        log_sums = torch.log(parent_values.sum(dim=1))
 
-            parent_values = [context[par_node][val_ind].unsqueeze(-1) for par_node in self.model[node]['parents']]
-            parent_values = torch.stack(parent_values).T if len(parent_values) > 0 else torch.tensor([[1.0]])
-            noise = RandomVariable(torch.distributions.HalfNormal(self.model[node]['noise_std']))
-
-            cond_dist = (torch.log(parent_values.sum(dim=1)) + noise).exp().dist
-
-            assert cond_dist.support.check(val)  # Check, if evaluated value falls to conditional distribution support
-
-            result[val_ind] = cond_dist.log_prob(val).exp()
-
-        return result
+        noise = RandomVariable(torch.distributions.HalfNormal(self.model[node]['noise_std']))
+        cond_dist = (log_sums + noise).exp().dist
+        self._support_check_wrapper(cond_dist)
+        return cond_dist

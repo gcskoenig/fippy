@@ -7,7 +7,7 @@ import torch
 import torch.nn.init as init
 from typing import Optional, Tuple, List
 from torch import Tensor
-from nflows.transforms import Transform, CompositeTransform, AffineTransform
+from nflows.transforms import Transform, CompositeTransform, PointwiseAffineTransform
 
 
 class ContextualInvertableRadialTransform(Transform):
@@ -67,7 +67,7 @@ class ContextualInvertableRadialTransform(Transform):
 
     def forward(self, inputs, context=None):
         """
-        Given inputs (y) and context(x), returns transformed input (z = f(y/x)) and the abs log-determinant log|dz/dy|.
+        Given context_vars (y) and global_context(x), returns transformed input (z = f(y/x)) and the abs log-determinant log|dz/dy|.
         """
         self.alpha_hat, self.beta_hat, self.gamma = self._params_from_context(context)
         alpha, beta = self._alpha_beta_hat_to_alpha_beta(self.alpha_hat, self.beta_hat)
@@ -80,7 +80,7 @@ class ContextualInvertableRadialTransform(Transform):
 
     def inverse(self, z, context=None):
         """
-        Given inputs (z) and context(x), returns inverse transformed input (y = f^-1(z/x)).
+        Given context_vars (z) and global_context(x), returns inverse transformed input (y = f^-1(z/x)).
         """
         self.alpha_hat, self.beta_hat, self.gamma = self._params_from_context(context)
         alpha, beta = self._alpha_beta_hat_to_alpha_beta(self.alpha_hat, self.beta_hat)
@@ -102,7 +102,7 @@ class ContextualInvertableRadialTransform(Transform):
         return inputs_merged, log_det
 
 
-class ContextualAffineTransform(AffineTransform):
+class ContextualAffineTransform(PointwiseAffineTransform):
     """
     Affine flow: z = f(y/x) = y * scale(x) + shift(x)
     scale is exponentiated, so no worries about devision on zero
@@ -124,11 +124,12 @@ class ContextualAffineTransform(AffineTransform):
                 shift = context[:, :, 1:2]
             return scale, shift
         else:
-            return self._scale, self._shift
+            return torch.log(self._scale), self._shift
 
     def forward(self, inputs: Tensor, context=Optional[Tensor]) -> Tuple[Tensor, Tensor]:
         """
-        Given inputs (y) and context(x), returns transformed input (z = f(y/x)) and the abs log-determinant log|dz/dy|.
+        Given context_vars (y) and global_context(x), returns transformed input (z = f(y/x))
+        and the abs log-determinant log|dz/dy|.
         """
         log_scale, self._shift = self._params_from_context(context)
         self._scale = torch.exp(log_scale)
@@ -139,7 +140,8 @@ class ContextualAffineTransform(AffineTransform):
 
     def inverse(self, inputs: Tensor, context=Optional[Tensor]) -> Tuple[Tensor, Tensor]:
         """
-        Given inputs (z) and context(x), returns inverse transformed input (y = f^-1(z/x)) and the abs log-determinant log|dy/dz|.
+        Given context_vars (z) and global_context(x), returns inverse transformed input (y = f^-1(z/x))
+        and the abs log-determinant log|dy/dz|.
         """
         log_scale, self._shift = self._params_from_context(context)
         self._scale = torch.exp(log_scale)
@@ -150,7 +152,7 @@ class ContextualAffineTransform(AffineTransform):
 
 class ContextualCompositeTransform(CompositeTransform):
     """
-    Composition of different transformations, embedded context is tiled for each transformation.
+    Composition of different transformations, embedded global_context is tiled for each transformation.
 
     Attributes:
         n_params (int): Number of parameters of transformation
@@ -176,7 +178,7 @@ class ContextualCompositeTransform(CompositeTransform):
         if forward:
             ind_acc = 0
             for func in funcs:
-                # Splitting context along transformations
+                # Splitting global_context along transformations
                 context_tile = context[:, ind_acc:ind_acc + func.n_params] if context.dim() == 2 else \
                     context[:, :, ind_acc:ind_acc + func.n_params]
                 ind_acc += func.n_params
@@ -185,7 +187,7 @@ class ContextualCompositeTransform(CompositeTransform):
         else:
             ind_acc = context.shape[-1]
             for func in funcs[::-1]:
-                # Splitting context along transformations
+                # Splitting global_context along transformations
                 context_tile = context[:, ind_acc - func.n_params:ind_acc] if context.dim() == 2 else \
                     context[:, ind_acc - func.n_params:ind_acc]
                 ind_acc -= func.n_params

@@ -1,0 +1,9 @@
+# @package _global_
+estimator_type: ConditionalNormalisingFlowEstimator
+
+# Estimating model specific params
+estimator:
+  _target_: rfi.backend.cnf.${estimator_type}
+  fit_method: fit
+#  fit_params:
+#    time_budget_s: 60

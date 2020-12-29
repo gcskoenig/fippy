@@ -18,7 +18,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 # Synthesizing data
-X_train, y_train, X_test, y_test = chain2.get_train_test_data(inputs=('x1', 'x2', 'x3', 'x4'), target='y',
+X_train, y_train, X_test, y_test = chain2.get_train_test_data(context_vars=('x1', 'x2', 'x3', 'x4'), target_var='y',
                                                               n_train=10 ** 4, n_test=10 ** 3, seed=300)
 input_var_names = np.array(chain2.var_names[0:-1])
 
@@ -37,7 +37,7 @@ print(model.coef_)
 G = np.array([0])
 fsoi = np.array([0, 1, 2, 3], dtype=np.int16)
 
-samplers_classes = [CNFSampler, GaussianSampler]
+samplers_classes = [GaussianSampler]
 
 for sampler_class in samplers_classes:
 

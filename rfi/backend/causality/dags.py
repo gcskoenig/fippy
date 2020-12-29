@@ -44,7 +44,7 @@ class DirectedAcyclicGraph:
         (see https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93R%C3%A9nyi_model)
 
         Args:
-            seed: Random seed
+            seed: Random mc_seed
             n: Number of nodes
             p: Probability of creating an edge
 

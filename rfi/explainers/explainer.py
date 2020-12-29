@@ -55,7 +55,7 @@ class Explainer():
             verbose: whether printing in verbose mode or not.
 
         Returns:
-            A np.array with the relative feature importance values for
+            A np.array with the relative feature importance value for
             features of interest.
         """
 

@@ -1,0 +1,7 @@
+# @package _global_
+estimator_type: GaussianConditionalEstimator
+
+# Estimating model specific params
+estimator:
+  _target_: rfi.backend.gaussian.gaussian_estimator.${estimator_type}
+  fit_method: fit

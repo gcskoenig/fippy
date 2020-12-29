@@ -14,7 +14,7 @@ def sample_id(ix):
 	return sample
 
 def sample_perm(ix):
-	''' Simple sampler that permutes the values
+	''' Simple sampler that permutes the value
 
 	Args:
 		X_test: data

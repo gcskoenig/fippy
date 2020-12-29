@@ -1,9 +1,9 @@
 from nflows.flows.base import Flow, Distribution
-from typing import Type, Union, Tuple
+from typing import Type, Union, Tuple, List
 import numpy as np
 from scipy.stats import multivariate_normal
 import torch
-from torch import Tensor
+from torch.distributions import Normal, MultivariateNormal, Distribution
 from statsmodels.stats.correlation_tools import cov_nearest
 
 
@@ -13,7 +13,7 @@ class GaussianConditionalEstimator(Distribution):
     Conditional density estimation for joint normal distribution
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         super(GaussianConditionalEstimator, self).__init__()
 
     def fit(self, train_inputs: np.array, train_context: np.array):
@@ -36,26 +36,31 @@ class GaussianConditionalEstimator(Distribution):
         # self.Sigma = cov_nearest(self.Sigma, threshold=1e-16)
         self.mu_part = joint_mean[inp_ind] - self.RegrCoeff @ joint_mean[cont_ind]
 
-    def _log_prob(self, inputs: np.array, context: np.array):
-        mu_part2 = self.RegrCoeff @ context.T
-        log_probs = np.zeros((context.shape[0], ))
-        for j in range(len(context)):
-            mu = self.mu_part + mu_part2[:, j]
-            log_probs[j] = np.log(multivariate_normal.pdf(inputs[j], mean=mu, cov=self.Sigma))
-        return log_probs
-
     def log_prob(self, inputs: np.array, context: np.array = None):
         """
-        Calculates log-likelihood of inputs
+        Calculates log-likelihood of context_vars
         @param inputs: np.array with random variable sample, shape = (-1, 1)
         @param context: np.array, conditioning sample
         """
         inputs = inputs.reshape(-1, 1)
         assert context is not None
-        # assert inputs.shape[1] == 1
+        # assert context_vars.shape[1] == 1
         assert len(context.shape) == 2
 
-        return self._log_prob(inputs, context)
+        mu_part2 = self.RegrCoeff @ context.T
+        log_probs = np.zeros((context.shape[0],))
+        for j in range(len(context)):
+            mu = self.mu_part + mu_part2[:, j]
+            log_probs[j] = np.log(multivariate_normal.pdf(inputs[j], mean=mu, cov=self.Sigma))
+        return log_probs
+
+    def conditional_distribution(self, context: np.array = None) -> List[Distribution]:
+        mu_part2 = self.RegrCoeff @ context.T
+        mu = self.mu_part + mu_part2
+        if len(self.inp_ind) == 1:
+            return Normal(torch.tensor(mu[0]), torch.sqrt(torch.tensor(self.Sigma[0, 0])))
+        else:
+            return MultivariateNormal(torch.tensor(mu), torch.tensor(self.Sigma))
 
     def sample(self, context: np.array, num_samples=1):
         res = np.zeros((context.shape[0], num_samples, self.inp_ind.shape[0],))

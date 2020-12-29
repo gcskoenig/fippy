@@ -1,0 +1,6 @@
+# @package _global_
+sem_type: PostNonLinearMultiplicativeHalfNormalSEM
+
+# SEM specific params
+data_generator:
+  sem_type: ${sem_type}

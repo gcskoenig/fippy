@@ -44,7 +44,7 @@ class Explanation:
         """Computes Mean RFI over all runs
 
         Returns:
-            A np.array with the relative feature importance values for
+            A np.array with the relative feature importance value for
             features of interest.
         """
         return np.mean(np.mean(self.lss, axis=2), axis=1)
@@ -53,7 +53,7 @@ class Explanation:
         """Computes std of RFI over all runs
 
         Returns:
-            A np.array with the std of RFI values for the features of interest
+            A np.array with the std of RFI value for the features of interest
         """
         return np.std(np.mean(self.lss, axis=2), axis=1)
 

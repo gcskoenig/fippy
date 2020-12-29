@@ -1,0 +1,8 @@
+# @package _global_
+sem_type: LinearGaussianNoiseSEM
+
+# SEM specific params
+data_generator:
+  sem_type: ${sem_type}
+  sem:
+    default_coef: [-1.0, 1.0]

@@ -1,0 +1,36 @@
+# Data generating mechanism setup
+data_generator:
+  dag:
+    n: 6
+    p: 0.2
+    seed: 42
+  sem_type: ???
+  sem:
+    _target_: rfi.backend.causality.${data_generator.sem_type}
+    seed: 42
+    default_noise_std_bounds: [0.0, 0.5]
+
+# Data sampling details
+data:
+  n_train: 1000
+  train_seed: 42
+  n_test: 100
+  test_seed: 4242
+
+# Estimating model
+estimator:
+  _target_: ???
+  fit_method: ???
+  fit_params:
+
+
+# Experiment parameters
+exp:
+  conditioning_mode: all  # true_parents, true_markov_blanket, all
+
+
+
+defaults:
+  - hydra/job_logging: colorlog
+  - hydra/hydra_logging: colorlog
+
