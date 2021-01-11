@@ -6,6 +6,7 @@ More details in the docstring for the class Explainer.
 
 import numpy as np
 import rfi.explanation.explanation as explanation
+import logging
 
 
 class Explainer():
@@ -37,7 +38,7 @@ class Explainer():
             names = [ix_to_desc(jj) for jj in range(X_train.shape[0])]
             self.fs_names = names
 
-    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10, return_perturbed = False, verbose=False):
+    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10, return_perturbed=False):
         """Computes Relative Feature importance
 
         # TODO(gcsk): allow handing a sample as argument
@@ -64,30 +65,29 @@ class Explainer():
                 raise ValueError("Sampler has not been specified.")
             else:
                 sampler = self.sampler
-                if verbose:
-                    print("Using class specified sampler.")
+                logging.debug("Using class specified sampler.")
 
         if loss is None:
             if self.loss is None:
                 raise ValueError("Loss has not been specified.")
             else:
                 loss = self.loss
-                if verbose:
-                    print("Using class specified loss.")
+                logging.debug("Using class specified loss.")
 
         #check whether the sampler is trained on G
         if not sampler.is_trained(self.fsoi, G):
-            if verbose:
-                # Retraining will be triggered by the sample function
-                print('Sampler was not trained on (fsoi, G). Retraining.')
+            raise RuntimeError('Sampler is not trained.')
+        else:
+            logging.info('Sampler is already trained.')
 
         # sample perturbed
         perturbed_foiss = np.zeros((self.fsoi.shape[0], nr_runs,
                                    X_test.shape[0]))
-        for kk in np.arange(0, nr_runs, 1):
-            #TODO(gcsk) assess: does te sampler return the same sample every time?
-            perturbed_foiss[:, kk, :] = np.transpose(sampler.sample(X_test, self.fsoi, G))
-
+ 
+        # TODO(gcsk): assess: does the sampler return the same sample every time?
+        # returns sample (#obs, #nr_runs, #fsoi)
+        sample = sampler.sample(X_test, self.fsoi, G, num_samples=nr_runs)
+        
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
 
         # compute observasitonwise loss differences for all runs and fois
@@ -105,6 +105,8 @@ class Explainer():
         ex_name = 'RFI'
         result = explanation.Explanation(self.fsoi, lss, fs_names=self.fs_names)
         if return_perturbed:
+            logging.debug('Return both explanation and perturbed.')
             return result, perturbed_foiss
         else:
+            logging.debug('Return explanation object only')
             return result
