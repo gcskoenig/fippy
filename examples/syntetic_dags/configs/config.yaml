@@ -8,7 +8,6 @@ data_generator:
   sem:
     _target_: rfi.backend.causality.${data_generator.sem_type}
     seed: 42
-    default_noise_std_bounds: [0.0, 0.5]
 
 # Data sampling details
 data:
@@ -27,6 +26,13 @@ estimator:
 # Experiment parameters
 exp:
   conditioning_mode: all  # true_parents, true_markov_blanket, all
+  mlflow_uri: http://127.0.0.1:5000
+  metrics:
+    epsabs: 0.01
+  mb_dist:
+    method: mc  # quad, mc
+    quad_epsabs: 0.001
+    mc_size: 5000
 
 
 

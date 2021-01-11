@@ -26,6 +26,7 @@ class StructuralEquationModel:
     """
 
     name = 'sem'
+    is_batched = False
 
     def __init__(self, dag: DirectedAcyclicGraph):
         """
@@ -61,16 +62,10 @@ class StructuralEquationModel:
             support_bounds[1] = self.parents_conditional_support.upper_bound
         return support_bounds
 
-    def parents_conditional_sample(self, node: str, parents_context: Dict[str, Tensor] = None, size: int = 1, seed=None) -> Tensor:
-        torch.manual_seed(seed) if seed is not None else None
+    def parents_conditional_sample(self, node: str, parents_context: Dict[str, Tensor] = None, sample_shape: tuple = (1, )) \
+            -> Tensor:
         cond_dist = self.parents_conditional_distribution(node, parents_context)
-        # if len(cond_dist.batch_shape) > 0 or isinstance(cond_dist, TransformedDistribution):  # Conditional sampling
-        #     if len(list(parents_context.values())[0]) == size:
-        #         return cond_dist.sample()
-        #     else:
-        #         return cond_dist.sample(sample_shape=(size,))
-        # else:  # Unconditional sampling
-        return cond_dist.sample(sample_shape=(size, 1))
+        return cond_dist.sample(sample_shape=sample_shape)
 
     def sample(self, size: int, seed: int = None) -> Tensor:
         """
@@ -84,8 +79,13 @@ class StructuralEquationModel:
         torch.manual_seed(seed) if seed is not None else None
         for node in self.topological_order:
             parent_values = {par_node: self.model[par_node]['value'] for par_node in self.model[node]['parents']}
-            sample_size = size if len(parent_values) == 0 else 1
-            self.model[node]['value'] = self.parents_conditional_sample(node, parent_values, sample_size).reshape(-1)
+            if len(parent_values) == 0:
+                sample_shape = (size,)
+            elif self.is_batched:
+                sample_shape = (1, )
+            else:
+                sample_shape = (1, size)
+            self.model[node]['value'] = self.parents_conditional_sample(node, parent_values, sample_shape).reshape(-1)
         return torch.stack([self.model[node]['value'] for node in self.dag.var_names], dim=1)
 
     @staticmethod
@@ -166,16 +166,17 @@ class StructuralEquationModel:
         assert all([mb_var in global_context.keys() for mb_var in self.get_markov_blanket(node)])
 
         parents_context = {par: global_context[par] for par in self.model[node]['parents']}
+        context_size = len(list(global_context.values())[0])
 
         if method == 'mc':
-            sampled_value = self.parents_conditional_sample(node, parents_context, mc_size, mc_seed)
-            if sampled_value.dim() == 1:  # Populating unconditional sample for all contexts
-                sampled_value = sampled_value.unsqueeze(-1).repeat(1, len(list(global_context.values())[0]))
+            torch.manual_seed(mc_seed) if mc_seed is not None else None
+            sample_shape = (mc_size, 1) if len(parents_context) != 0 and self.is_batched else (mc_size, context_size)
+            sampled_value = self.parents_conditional_sample(node, parents_context, sample_shape)
             normalisation_constant = self.children_log_prob(node, sampled_value, global_context).exp().mean(0)
 
         elif method == 'quad':
             normalisation_constant = []
-            for cont_ind in tqdm(range(len(list(global_context.values())[0]))):
+            for cont_ind in tqdm(range(context_size)):
                 global_context_slice = {node: value[cont_ind:cont_ind+1] for (node, value) in global_context.items()}
                 parents_context_slice = {par: global_context_slice[par] for par in self.model[node]['parents']}
 
@@ -196,9 +197,11 @@ class StructuralEquationModel:
             result = self.parents_conditional_distribution(node, parents_context).log_prob(value)
 
             # Considering only inside-support values for conditional distributions of children
-            in_support = (~torch.isinf(result)).all(1)
-            children_lob_prob = self.children_log_prob(node, value[in_support], global_context)
-            result[in_support] += children_lob_prob
+            in_support = (~torch.isinf(result))
+            for val_ind, val in enumerate(value):
+                global_context_tile = {n: v[in_support[val_ind]] for (n, v) in global_context.items()}
+                children_lob_prob = self.children_log_prob(node, val[in_support[val_ind]].unsqueeze(0), global_context_tile)
+                result[val_ind, in_support[val_ind]] += children_lob_prob.squeeze()
 
             return result - normalisation_constant.log()
 
@@ -212,6 +215,7 @@ class LinearGaussianNoiseSEM(StructuralEquationModel):
     """
 
     name = 'linear_gauss'
+    is_batched = True
 
     def __init__(self, dag: DirectedAcyclicGraph,
                  coeff_dict: Dict[str, Dict[str, float]] = {},
@@ -250,7 +254,7 @@ class LinearGaussianNoiseSEM(StructuralEquationModel):
             context_ind = np.searchsorted(self.dag.var_names, list(context.keys()))
             cond_dist = GaussianConditionalEstimator()
             cond_dist.fit_mean_cov(self.joint_mean.numpy(), self.joint_cov.numpy(), inp_ind=node_ind, cont_ind=context_ind)
-            context_sorted = [context[par_node] for par_node in self.dag.var_names if par_node in context]
+            context_sorted = [context[par_node] for par_node in context.keys()]
             context_sorted = np.stack(context_sorted).T if len(context_sorted) > 0 else None
             return cond_dist.conditional_distribution(context_sorted)
 
@@ -300,6 +304,7 @@ class RandomGPGaussianNoiseSEM(StructuralEquationModel):
     """
 
     name = 'gauss_anm'
+    is_batched = True
 
     def __init__(self, dag: DirectedAcyclicGraph, bandwidth: float = 1.0, noise_std_dict: Dict[str, float] = {},
                  default_noise_std_bounds: Tuple[float, float] = (0.0, 1.0), seed=None, interpolation_switch=300):
@@ -388,6 +393,7 @@ class PostNonLinearLaplaceSEM(RandomGPGaussianNoiseSEM):
     """
 
     name = 'post_nonlin'
+    is_batched = False
 
     def __init__(self, dag: DirectedAcyclicGraph, bandwidth: float = 1.0, noise_std_dict: Dict[str, float] = {},
                  default_noise_std_bounds: Tuple[float, float] = (0.0, 1.0), seed=None, invertable_nonlinearity: str = 'sigmoid',
@@ -427,6 +433,7 @@ class PostNonLinearLaplaceSEM(RandomGPGaussianNoiseSEM):
 class PostNonLinearMultiplicativeHalfNormalSEM(StructuralEquationModel):
 
     name = 'post_nonlin_half_norm'
+    is_batched = False
 
     def __init__(self, dag: DirectedAcyclicGraph, noise_std_dict: Dict[str, float] = {},
                  default_noise_std_bounds: Tuple[float, float] = (0.5, 1.0), seed=None):

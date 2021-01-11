@@ -5,4 +5,5 @@ sem_type: RandomGPGaussianNoiseSEM
 data_generator:
   sem_type: ${sem_type}
   sem:
-    interpolation_switch: ${data.n_train}
+    interpolation_switch:
+    default_noise_std_bounds: [0.63245553203, 0.894427191]

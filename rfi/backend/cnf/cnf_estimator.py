@@ -282,8 +282,6 @@ class ConditionalNormalisingFlowEstimator(Flow):
         if data_normalization:
             _, context = self._transform_normalise(None, context)
 
-        # flows = []
-
         # for cont in context:
         transforms_list = torch.nn.ModuleList()
 
@@ -297,8 +295,8 @@ class ConditionalNormalisingFlowEstimator(Flow):
             _ = super().log_prob(torch.zeros(len(context), 1), context)
 
         transforms_list.extend(deepcopy(self._transform._transforms))
-
-        return Flow(CompositeTransform(transforms_list), self._distribution)
+        cond_dist = Flow(CompositeTransform(transforms_list), self._distribution)
+        return cond_dist
 
 
     def sample(self, context: Union[np.array, Tensor], num_samples=1, data_normalization=True) -> Union[np.array, Tensor]:
