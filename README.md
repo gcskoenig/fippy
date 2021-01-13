@@ -6,28 +6,12 @@ In this library we offer an implementation of Relative Feature Importance includ
 - visualization
 - significance testing
 
-The library is accompagnied by our paper [[arXiv]](https://arxiv.org/abs/2007.08283)
+The library is accompagnied by our ICPR paper [[arXiv]](https://arxiv.org/abs/2007.08283)
 
 ## Sampling techniques
 
-- Molnar2020
-- Model-X knockoffs
-- Deep Knockoffs
-- Knockoff GANs
-- Copula Knockoffs
-- MCMC knockoffs
-- Flow Knockoffs
-
-## Visualization
-
-TBD
-
-## Testing frameworks
-
-Watson2019, TBD
-
-
-## Dependencies
+- Gaussian Sampling
+- Conditional Normalizing Flows
 
 ## Installation
 
