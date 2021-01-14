@@ -8,9 +8,10 @@ import rfi.utils as utils
 import numpy as np
 from rfi.samplers._utils import sample_id, sample_perm
 import logging
+from typing import Union
 
 
-class Sampler():
+class Sampler:
     """Can be used to resample perturbed versions of a variable conditional on
     any set of variables G.
 
@@ -18,14 +19,15 @@ class Sampler():
 
     Attributes:
         X_train: reference to training data.
-        fsoi: features of interest.
-        _trainedGs: dictionary with (fsoi, G) as key and callable sampler as value
+        _trained_sampling_funcs: dictionary with (fsoi, G) as key and callable sampler as value
     """
 
-    def __init__(self, X_train):
+    def __init__(self, X_train, X_val=None):
         """Initialize Sampler with X_train and mask."""
         self.X_train = X_train
-        self._trainedGs = {}
+        self.X_val = X_val
+        self._trained_sampling_funcs = {}
+        self._trained_estimators = {}
 
 
     @staticmethod
@@ -54,7 +56,7 @@ class Sampler():
 
         """
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J) # transform into hashable form
-        trained = (J_key, G_key) in self._trainedGs
+        trained = (J_key, G_key) in self._trained_sampling_funcs
         return trained
 
 
@@ -95,9 +97,20 @@ class Sampler():
             verbose: printing or not
         """
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
-        self._trainedGs[(J_key, G_key)] = samplefunc
+        self._trained_sampling_funcs[(J_key, G_key)] = samplefunc
         logging.info('Training ended. Sampler saved.')
 
+    def _store_estimator(self, J, G, estimator, verbose=True):
+        """Storing a trained sample function
+
+        Args:
+            samplefunc: function
+            J: features of interest
+            G: relative feature set
+            verbose: printing or not
+        """
+        G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
+        self._trained_estimators[(J_key, G_key)] = estimator
 
     def train(self, J, G, verbose=True):
         """Trains sampler using the training dataset to resample
@@ -137,6 +150,6 @@ class Sampler():
         if not self.is_trained(J, G):
             raise RuntimeError("Sampler not trained on {} | {}".format(J, G))
         else:
-            sample_func = self._trainedGs[(J_key, G_key)]
+            sample_func = self._trained_sampling_funcs[(J_key, G_key)]
             sampled_data = sample_func(X_test, num_samples=num_samples)
             return sampled_data

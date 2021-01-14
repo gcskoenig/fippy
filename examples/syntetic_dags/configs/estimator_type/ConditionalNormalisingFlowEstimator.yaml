@@ -6,4 +6,7 @@ estimator:
   _target_: rfi.backend.cnf.${estimator_type}
   fit_method: fit_by_cv
   fit_params:
-    time_budget_s: 120
+    time_budget_s:
+  sampler:
+    _target_: rfi.samplers.cnflow.CNFSampler
+    time_budget_s: ${estimator.fit_params.time_budget_s}

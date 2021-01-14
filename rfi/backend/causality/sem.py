@@ -15,6 +15,7 @@ from tqdm import tqdm
 
 from rfi.backend.causality.dags import DirectedAcyclicGraph
 from rfi.backend.gaussian import GaussianConditionalEstimator
+from rfi.utils import search_nonsorted
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,7 @@ class StructuralEquationModel:
             else:
                 sample_shape = (1, size)
             self.model[node]['value'] = self.parents_conditional_sample(node, parent_values, sample_shape).reshape(-1)
+            assert (~self.model[node]['value'].isnan()).all()
         return torch.stack([self.model[node]['value'] for node in self.dag.var_names], dim=1)
 
     @staticmethod
@@ -247,11 +249,11 @@ class LinearGaussianNoiseSEM(StructuralEquationModel):
                 else np.random.uniform(*default_noise_std_bounds)
 
     def conditional_distribution(self, node: str, context: Dict[str, Tensor] = None) -> Distribution:
-        node_ind = np.searchsorted(self.dag.var_names, [node])
+        node_ind = search_nonsorted(self.dag.var_names, [node])
         if context is None or len(context) == 0:  # Unconditional distribution
             return Normal(self.joint_mean[node_ind].item(), torch.sqrt(self.joint_cov[node_ind, node_ind]).item())
         else:  # Conditional distribution
-            context_ind = np.searchsorted(self.dag.var_names, list(context.keys()))
+            context_ind = search_nonsorted(self.dag.var_names, list(context.keys()))
             cond_dist = GaussianConditionalEstimator()
             cond_dist.fit_mean_cov(self.joint_mean.numpy(), self.joint_cov.numpy(), inp_ind=node_ind, cont_ind=context_ind)
             context_sorted = [context[par_node] for par_node in context.keys()]

@@ -6,6 +6,7 @@ import pandas as pd
 import logging
 
 from rfi.backend.causality.sem import StructuralEquationModel
+from rfi.utils import search_nonsorted
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +34,8 @@ class SyntheticExample:
         train = self.sem.sample(n_train, seed=train_seed).numpy()
         test = self.sem.sample(n_test, seed=test_seed).numpy()
 
-        inputs_ind = np.searchsorted(self.var_names, context_vars)
-        target_ind = np.searchsorted(self.var_names, target_var)
+        inputs_ind = search_nonsorted(self.var_names, context_vars)
+        target_ind = search_nonsorted(self.var_names, target_var)
         if not as_dataframes:
             return train[:, inputs_ind], train[:, target_ind], test[:, inputs_ind], test[:, target_ind]
         else:

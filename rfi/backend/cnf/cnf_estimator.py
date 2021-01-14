@@ -148,7 +148,8 @@ class ConditionalNormalisingFlowEstimator(Flow):
             verbose=False,
             val_inputs: Union[np.array, Tensor] = None,
             val_context: Union[np.array, Tensor] = None,
-            log_frequency: int = 100):
+            log_frequency: int = 100,
+            **kwargs):
         """
         Method to fit Conditional Normalizing Flow density estimator
         Args:
@@ -208,7 +209,7 @@ class ConditionalNormalisingFlowEstimator(Flow):
         Returns: self
         """
 
-        ray.init(logging_level=logging.INFO)
+        ray.init(logging_level=logging.WARN)
         logger.info(f'Start fitting, using {n_splits}-fold split, time budget: {time_budget_s}')
 
         if hparam_grid is None:

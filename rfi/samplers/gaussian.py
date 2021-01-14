@@ -19,9 +19,9 @@ class GaussianSampler(Sampler):
         see rfi.samplers.Sampler
     """
 
-    def __init__(self, X_train):
+    def __init__(self, X_train, X_val=None, **kwargs):
         """Initialize Sampler with X_train and mask."""
-        super().__init__(X_train)
+        super().__init__(X_train, X_val)
             
 
     def train(self, J, G, verbose=True):
@@ -33,18 +33,44 @@ class GaussianSampler(Sampler):
             G: arbitrary set of variables
             verbose: printing
         """
+
         J = Sampler._to_array(J)
         G = Sampler._to_array(G)
         super().train(J, G, verbose=verbose)
 
-        if not super()._train_J_degenerate(J, G, verbose=verbose):
-            logging.debug('No degenerate case. Fitting GaussianConditionalEstimator.')
-            gaussian_estimator = GaussianConditionalEstimator()
-            gaussian_estimator.fit(train_inputs=self.X_train[:, J], train_context=self.X_train[:, G])
-            def samplefunc(X_test, **kwargs):
-                return gaussian_estimator.sample(X_test[:, G], **kwargs)
-            super()._store_samplefunc(J, G, samplefunc, verbose=verbose)
+        val_log_probs = []
 
+        for j in J:
+            j = Sampler._to_array([j])
+            if not self._train_J_degenerate(j, G, verbose=verbose):
+
+                gaussian_estimator = GaussianConditionalEstimator()
+                gaussian_estimator.fit(train_inputs=self.X_train[:, j], train_context=self.X_train[:, G])
+
+                def samplefunc(X_test, **kwargs):
+                    return gaussian_estimator.sample(X_test[:, G], **kwargs)
+
+                self._store_samplefunc(j, G, samplefunc, verbose=verbose)
+
+                if self.X_val is not None:
+                    val_log_prob = gaussian_estimator.log_prob(inputs=self.X_val[:, j], context=self.X_val[:, G]).mean()
+                    val_log_probs.append(val_log_prob)
+
+            elif self.X_val is not None:
+                val_log_probs.append(None)
+
+        if len(J) > 1:
+            def samplefunc(X_test, **kwargs):
+                sampled_data = []
+                for j in J:
+                    j = Sampler._to_array([j])
+                    G_key, j_key = Sampler._to_key(G), Sampler._to_key(j)
+                    sampled_data.append(np.squeeze(self._trained_sampling_funcs[(j_key, G_key)](X_test, **kwargs)))
+                return np.stack(sampled_data, axis=-1)
+            self._store_samplefunc(J, G, samplefunc, verbose=verbose)
+
+        if self.X_val is not None:
+            return val_log_probs
 
 
 # def train_gaussian(X_train, J, G):

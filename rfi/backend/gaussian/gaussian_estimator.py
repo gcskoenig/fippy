@@ -49,7 +49,7 @@ class GaussianConditionalEstimator(Distribution):
         if cont_ind.shape[0] == 1:
             Sigma_GG_inv = 1 / joint_cov[np.ix_(cont_ind, cont_ind)]
         else:
-            Sigma_GG_inv = np.linalg.pinv(joint_cov[np.ix_(cont_ind, cont_ind)], hermitian=True)
+            Sigma_GG_inv = np.linalg.pinv(joint_cov[np.ix_(cont_ind, cont_ind)])
         self.RegrCoeff = (joint_cov[np.ix_(inp_ind, cont_ind)] @ Sigma_GG_inv).reshape((len(inp_ind), len(cont_ind)))
         self.Sigma = joint_cov[np.ix_(inp_ind, inp_ind)] - self.RegrCoeff @ joint_cov[np.ix_(cont_ind, inp_ind)]
         # self.Sigma = cov_nearest(self.Sigma, threshold=1e-16)
@@ -86,8 +86,8 @@ class GaussianConditionalEstimator(Distribution):
         mu_part2 = self.RegrCoeff @ context.T
         for j in range(len(context)):
             mu = self.mu_part + mu_part2[:, j]
-            if len(self.inp_ind) == 1:
-                res[j, :, :] = np.random.normal(mu[0], np.sqrt(self.Sigma[0, 0]), num_samples)
-            else:
-                res[j, :, :] = np.random.multivariate_normal(mu, self.Sigma, num_samples)
+            # if len(self.inp_ind) == 1:
+            #     res[j, :, :] = np.random.normal(mu[0], np.sqrt(self.Sigma[0, 0]), num_samples)
+            # else:
+            res[j, :, :] = np.random.multivariate_normal(mu, self.Sigma, num_samples)
         return res

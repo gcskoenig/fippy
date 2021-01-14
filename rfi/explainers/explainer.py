@@ -79,26 +79,21 @@ class Explainer():
             raise RuntimeError('Sampler is not trained.')
         else:
             logging.info('Sampler is already trained.')
-
-        # sample perturbed
-        perturbed_foiss = np.zeros((self.fsoi.shape[0], nr_runs,
-                                   X_test.shape[0]))
  
         # TODO(gcsk): assess: does the sampler return the same sample every time?
-        # returns sample (#obs, #nr_runs, #fsoi)
-        sample = sampler.sample(X_test, self.fsoi, G, num_samples=nr_runs)
+        perturbed_foiss = sampler.sample(X_test, self.fsoi, G, num_samples=nr_runs).reshape(X_test.shape[0], nr_runs, self.fsoi.shape[0])
         
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
 
         # compute observasitonwise loss differences for all runs and fois
-        for jj in np.arange(0, self.fsoi.shape[0], 1):
+        for jj_ind, jj in enumerate(self.fsoi):
             # copy of the data where perturbed variables are copied into
             X_test_perturbed = np.array(X_test)
             for kk in np.arange(0, nr_runs, 1):
                 # replaced with perturbed
-                X_test_perturbed[:, jj] = perturbed_foiss[jj, kk, :]
+                X_test_perturbed[:, jj] = perturbed_foiss[:, kk, jj_ind]
                 # compute difference in observationwise loss
-                lss[jj, kk, :] = (loss(self.model(X_test_perturbed), y_test) -
+                lss[jj_ind, kk, :] = (loss(self.model(X_test_perturbed), y_test) -
                                   loss(self.model(X_test), y_test))
 
         # return explanation object

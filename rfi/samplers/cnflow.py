@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 class CNFSampler(Sampler):
-    def __init__(self, X_train):
-        super().__init__(X_train)
-        self.time_budget_s = 120
+    def __init__(self, X_train, X_val, time_budget_s=120, **kwargs):
+        super().__init__(X_train, X_val)
+        self.time_budget_s = time_budget_s
 
     def train(self, J, G, verbose=True):
 
@@ -23,11 +23,40 @@ class CNFSampler(Sampler):
         G = Sampler._to_array(G)
         super().train(J, G, verbose=verbose)
 
-        if not super()._train_J_degenerate(J, G, verbose=verbose):
-            logger.info(f'Fitting sampler for feature {j}. Time budget for CV search: {self.time_budget_s} sec')
-            cnf = ConditionalNormalisingFlowEstimator(context_size=len(G))
-            cnf.fit_by_cv(train_inputs=self.X_train[:, J], train_context=self.X_train[:, G], 
-                          time_budget_s=self.time_budget_s)
+        val_log_probs = []
+
+        for j in J:
+            j = Sampler._to_array([j])
+            if not self._train_J_degenerate(j, G, verbose=verbose):
+                logger.info(f'Fitting sampler for feature {j}. Time budget for CV search: {self.time_budget_s} sec')
+
+                # TODO CNF for multivariate J
+                cnf = ConditionalNormalisingFlowEstimator(context_size=len(G))
+                cnf.fit_by_cv(train_inputs=self.X_train[:, j], train_context=self.X_train[:, G], time_budget_s=self.time_budget_s)
+
+                def samplefunc(X_test, **kwargs):
+                    return cnf.sample(X_test[:, G], **kwargs)
+
+                self._store_samplefunc(j, G, samplefunc, verbose=verbose)
+
+                if self.X_val is not None:
+                    val_log_prob = cnf.log_prob(inputs=self.X_val[:, j], context=self.X_val[:, G]).mean()
+                    val_log_probs.append(val_log_prob)
+
+            elif self.X_val is not None:
+                val_log_probs.append(None)
+
+        if len(J) > 1:
+
             def samplefunc(X_test, **kwargs):
-                return gaussian_estimator.sample(X_test[:, G], **kwargs)
-            super()._store_samplefunc(J, G, samplefunc, verbose=verbose)
+                sampled_data = []
+                for j in J:
+                    j = Sampler._to_array([j])
+                    G_key, j_key = Sampler._to_key(G), Sampler._to_key(j)
+                    sampled_data.append(np.squeeze(self._trained_sampling_funcs[(j_key, G_key)](X_test, **kwargs)))
+                return np.stack(sampled_data, axis=-1)
+
+            self._store_samplefunc(J, G, samplefunc, verbose=verbose)
+
+        if self.X_val is not None:
+            return val_log_probs

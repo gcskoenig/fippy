@@ -16,15 +16,21 @@ data:
   n_test: 100
   test_seed: 4242
 
-# Estimating model
+# Conditional density estimator
 estimator:
   _target_: ???
   fit_method: ???
   fit_params:
+  sampler: ???
+
+# Predictive model for RFI
+pred_model:
+  _target_: sklearn.linear_model.LinearRegression
 
 
 # Experiment parameters
 exp:
+  check_exisisting_hash: True
   conditioning_mode: all  # true_parents, true_markov_blanket, all
   mlflow_uri: http://127.0.0.1:5000
   metrics:
@@ -33,6 +39,9 @@ exp:
     method: mc  # quad, mc
     quad_epsabs: 0.001
     mc_size: 5000
+  rfi:
+    risk: mean_squared_error
+    nr_runs: 50
 
 
 
