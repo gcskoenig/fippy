@@ -30,13 +30,12 @@ class ConditionalNormalisingFlowEstimator(Flow):
 
     default_hparam_grid = {
         'n_epochs': tune.grid_search([500, 1000, 1500]),
-        'hidden_units': tune.grid_search([(8,), (16,), (32,)]),
+        'hidden_units': tune.grid_search([(8,), (16,)]),
         'transform_classes': tune.grid_search([(ContextualAffineTransform,),
                                                2 * (ContextualInvertableRadialTransform,) + (ContextualAffineTransform,),
-                                               4 * (ContextualInvertableRadialTransform,) + (ContextualAffineTransform,),
-                                               6 * (ContextualInvertableRadialTransform,) + (ContextualAffineTransform,)]),
+                                               4 * (ContextualInvertableRadialTransform,) + (ContextualAffineTransform,)]),
         'context_noise_std': tune.grid_search([0.1, 0.2, 0.3]),
-        'input_noise_std': tune.grid_search([0.01, 0.02, 0.05, 0.1]),
+        'input_noise_std': tune.grid_search([0.01, 0.05, 0.1]),
         'weight_decay': tune.grid_search([0.0, 1e-4])
     }
 
