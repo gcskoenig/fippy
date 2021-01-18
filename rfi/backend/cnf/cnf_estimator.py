@@ -191,7 +191,7 @@ class ConditionalNormalisingFlowEstimator(Flow):
         return self
 
     def fit_by_cv(self, train_inputs: Union[np.array, Tensor], train_context: Union[np.array, Tensor],
-                  hparam_grid=None, n_splits=5, resources_per_trial={"cpu": 0.5}, time_budget_s=None):
+                  hparam_grid=None, n_splits=5, resources_per_trial={"cpu": 0.5}, time_budget_s=None, num_cpus=15):
         """
         Method for hyper-parameter search for Conditional Normalizing Flow density estimator, performs K-fold cross-validation.
         After the hyper-parameter search, fits the best sem on full train dataset.
@@ -204,11 +204,12 @@ class ConditionalNormalisingFlowEstimator(Flow):
             n_splits: Number of splits for K-Fold cross-validation
             resources_per_trial: Ray tune parameter
             time_budget_s: Total time budget (Ray tune parameter)
+            num_cpus: Number of CPUs to employ
 
         Returns: self
         """
 
-        ray.init(logging_level=logging.WARN)
+        ray.init(logging_level=logging.WARN, num_cpus=num_cpus)
         logger.info(f'Start fitting, using {n_splits}-fold split, time budget: {time_budget_s}')
 
         if hparam_grid is None:

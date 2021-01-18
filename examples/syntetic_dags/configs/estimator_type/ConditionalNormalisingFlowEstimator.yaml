@@ -4,9 +4,8 @@ estimator_type: ConditionalNormalisingFlowEstimator
 # Estimating model specific params
 estimator:
   _target_: rfi.backend.cnf.${estimator_type}
-  fit_method: fit_by_cv
+  fit_method: fit
   fit_params:
-    time_budget_s:
+#    time_budget_s: 120
   sampler:
     _target_: rfi.samplers.cnflow.CNFSampler
-    time_budget_s: ${estimator.fit_params.time_budget_s}

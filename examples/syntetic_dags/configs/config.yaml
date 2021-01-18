@@ -1,8 +1,10 @@
 # Data generating mechanism setup
 data_generator:
   dag:
-    n: 6
+    model: nm  # np, nm
+    n: 5
     p: 0.2
+    m_n_ratio: 1
     seed: 42
   sem_type: ???
   sem:

@@ -115,7 +115,8 @@ def main(args: DictConfig):
             mlflow.log_metrics(gof_results, step=var_ind)
 
         # Relative feature importance
-        sampler = instantiate(args.estimator.sampler, X_train=X_train, X_val=X_test)
+        sampler = instantiate(args.estimator.sampler, X_train=X_train, X_val=X_test, fit_method=args.estimator.fit_method,
+                              fit_params=args.estimator.fit_params)
 
         # 1. G = MB(target_var), FoI = input_vars / MB(target_var)
         G_vars = list(sem.get_markov_blanket(target_var))

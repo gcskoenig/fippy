@@ -263,7 +263,11 @@ class LinearGaussianNoiseSEM(StructuralEquationModel):
     def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None) -> Distribution:
         # Only conditioning on parent nodes is possible for now
         assert set(self.model[node]['parents']) == set(parents_context.keys())
-        return self.conditional_distribution(node, parents_context)
+        linear_comb = 0.0
+        if len(self.model[node]['parents']) > 0:
+            for par in parents_context.keys():
+                linear_comb += parents_context[par] * torch.tensor(self.model[node]['coeff'][par])
+        return Normal(linear_comb, self.model[node]['noise_std'])
 
     @property
     def joint_cov(self) -> Tensor:

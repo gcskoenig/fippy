@@ -13,9 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 class CNFSampler(Sampler):
-    def __init__(self, X_train, X_val, time_budget_s=120, **kwargs):
+    def __init__(self, X_train, X_val, fit_method='fit_by_cv', fit_params={'time_budget_s': 120}, **kwargs):
         super().__init__(X_train, X_val)
-        self.time_budget_s = time_budget_s
+        self.fit_method = fit_method
+        self.fit_params = fit_params if fit_params is not None else {}
 
     def train(self, J, G, verbose=True):
 
@@ -28,11 +29,13 @@ class CNFSampler(Sampler):
         for j in J:
             j = Sampler._to_array([j])
             if not self._train_J_degenerate(j, G, verbose=verbose):
-                logger.info(f'Fitting sampler for feature {j}. Time budget for CV search: {self.time_budget_s} sec')
+                logger.info(f'Fitting sampler for feature {j}. Fitting method: {self.fit_method}. '
+                            f'Fitting parameters: {self.fit_params}')
 
                 # TODO CNF for multivariate J
                 cnf = ConditionalNormalisingFlowEstimator(context_size=len(G))
-                cnf.fit_by_cv(train_inputs=self.X_train[:, j], train_context=self.X_train[:, G], time_budget_s=self.time_budget_s)
+                getattr(cnf, self.fit_method)(train_inputs=self.X_train[:, j], train_context=self.X_train[:, G],
+                                              **self.fit_params)
 
                 def samplefunc(X_test, **kwargs):
                     return cnf.sample(X_test[:, G], **kwargs)
