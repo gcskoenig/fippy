@@ -125,10 +125,9 @@ class Explainer():
             logging.debug('Return explanation object only')
             return result
 
-    def sage(self, X_test, y_test, nr_orderings=self.fsoi**2, nr_runs=10, sampler=None, 
-             loss=None, train_allowed=True, return_orderings=False):
+    def sage(self, X_test, y_test, nr_orderings, nr_runs=10, sampler=None, loss=None, train_allowed=True, return_orderings=False):
         """Compute Shapley Additive Global Importance values.
-
+        
         Args:
             X_test: data to use for resampling and evaluation.
             y_test: labels for evaluation.
@@ -174,15 +173,17 @@ class Explainer():
                     # compute change in performance by entering the respective feature
                     # store the result in the right place
                     # validate training of sampler
-                    if not sampler.is_trained(self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]]):
+                    fixed, impute = self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]]
+                    logging.debug('{}:{}:{}: fixed, impute: {}|{}'.format(ii, kk, jj, fixed, impute))
+                    if not sampler.is_trained(fixed, impute):
                         # train if allowed, otherwise raise error
                         if train_allowed:
-                            sampler.train(self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]])
-                            logging.info('Training sampler on {}|{}'.format([f],G))
+                            sampler.train(fixed, impute)
+                            logging.info('Training sampler on {}|{}'.format(fixed, impute))
                         else:
-                            raise RuntimeError('Sampler is not trained on {}|{}'.format([f], G))
+                            raise RuntimeError('Sampler is not trained on {}|{}'.format(fixed, impute))
                     X_test_perturbed = np.array(X_test)
-                    X_test_perturbed[:, self.fsoi[ordering[jj:]]] = sampler.sample(self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]])
+                    X_test_perturbed[:, self.fsoi[ordering[jj:]]] = sampler.sample(X_test, fixed, impute, nr_runs=1).reshape(X_test.shape[0], len(impute))
                     # sample replacement, create replacement matrix
                     y_hat_new = self.model(X_test_perturbed)
                     lss[self.fsoi[ordering[jj-1]], kk, X_test.shape[0], ii] = loss(y_hat_new, y_hat_base)
@@ -193,3 +194,7 @@ class Explainer():
         ex_name = 'SAGE'
         result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi])
 
+        if return_orderings:
+            raise NotImplementedError('Returning errors is not implemented yet.')
+
+        return result

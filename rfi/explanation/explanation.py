@@ -18,7 +18,7 @@ class Explanation:
 
     Attributes:
         fsoi: Features of interest.
-        lss: losses on perturbed (# fsoi, # runs, # observations, (#orderings))
+        lss: losses on perturbed (nr_fsoi, nr_runs, nr_obs, (nr_orderings))
         ex_name: Explanation description
         fsoi_names: feature of interest names
     """
@@ -39,15 +39,6 @@ class Explanation:
         if len(self.lss.shape) != 4:
             logging.debug('lss shape: {}'.format(lss.shape))
             raise RuntimeError('Lss has incorrect shape.')
-
-    def fsoi_names(self):
-        """Return RFI input_var_names for feature of interest
-
-        Returns:
-            A np.array with the feature input_var_names for the
-            features of interest
-        """
-        return self.fsoi_names
 
     def fi_means(self):
         """Computes Mean RFI over all runs
