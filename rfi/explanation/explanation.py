@@ -8,6 +8,7 @@ import rfi.plots._barplot as _barplot
 
 
 # TODO(gcsk): compute significance of the results using the multiple runs and marwin wright's procedure
+# TODO(gcsk): allow different orderings
 
 class Explanation:
     """Stores and provides access to results from Explainer.

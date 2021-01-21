@@ -37,6 +37,18 @@ class Explainer():
             names = [ix_to_desc(jj) for jj in range(X_train.shape[1])]
             self.fs_names = names
 
+    def _sampler_specified(self):
+        if self.sampler is None:
+            raise ValueError("Sampler has not been specified.")
+        else:
+            return True
+
+    def _loss_specified(self):
+        if self.loss is None:
+            raise ValueError("Loss has not been specified.")
+        else:
+            return True
+
     def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
         """Computes Relative Feature importance
 
@@ -44,7 +56,7 @@ class Explainer():
         #             (without needing sampler)
 
         Args:
-            X_test: data to use for sampler training and evaluation.
+            X_test: data to use for resampling and evaluation.
             y_test: labels for evaluation.
             G: relative feature set
             sampler: choice of sampler. Default None. Will throw an error
@@ -61,16 +73,12 @@ class Explainer():
         """
 
         if sampler is None:
-            if self.sampler is None:
-                raise ValueError("Sampler has not been specified.")
-            else:
+            if self._sampler_specified():
                 sampler = self.sampler
                 logging.debug("Using class specified sampler.")
 
         if loss is None:
-            if self.loss is None:
-                raise ValueError("Loss has not been specified.")
-            else:
+            if self._loss_specified():
                 loss = self.loss
                 logging.debug("Using class specified loss.")
 
@@ -116,3 +124,70 @@ class Explainer():
         else:
             logging.debug('Return explanation object only')
             return result
+
+    def sage(self, X_test, y_test, nr_orderings=self.fsoi**2, nr_runs=10, sampler=None, 
+             loss=None, train_allowed=True, return_orderings=False):
+        """Compute Shapley Additive Global Importance values.
+
+        Args:
+            X_test: data to use for resampling and evaluation.
+            y_test: labels for evaluation.
+            nr_orderings: number of orderings in which features enter the model
+            nr_runs: how often each value function shall be computed
+            sampler: choice of sampler. Default None. Will throw an error
+              when sampler is None and self.sampler is None as well.
+            loss: choice of loss. Default None. Will throw an Error when
+              both loss and self.loss are None.
+            train_allowed: whether the explainer is allowed to train the sampler
+
+        Returns:
+            result: an explanation object containing the respective pairwise lossdifferences
+            with shape (nr_fsoi, nr_runs, nr_obs, nr_orderings)
+            orderings (optional): an array containing the respective orderings if return_orderings
+        """
+        # the method is currently not build for situations where we are only interested in 
+        # a subset of the model's features
+        if X_test.shape[1] != self.fsoi.shape[0]:
+            logging.debug('self.fsoi: {}'.format(self.fsoi))
+            logging.debug('#features in model: {}'.format(X_test.shape[1]))
+            raise RuntimeError('self.fsoi is not identical to all features')
+
+        if sampler is None:
+            if self._sampler_specified():
+                sampler = self.sampler
+                logging.debug("Using class specified sampler.")
+
+        if loss is None:
+            if self._loss_specified():
+                loss = self.loss
+                logging.debug("Using class specified loss.")
+
+        lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0], nr_orderings))
+
+        for ii in range(nr_orderings):
+            ordering = np.random.permutation(np.arange(self.fsoi))
+            # enter one feature at a time
+            for kk in range(nr_runs):
+                # resample multiple times
+                y_hat_base = np.mean(self.model(X_test))
+                for jj in np.arange(1, len(self.fsoi), 1):
+                    # compute change in performance by entering the respective feature
+                    # store the result in the right place
+                    # validate training of sampler
+                    if not sampler.is_trained(self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]]):
+                        # train if allowed, otherwise raise error
+                        if train_allowed:
+                            sampler.train(self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]])
+                            logging.info('Training sampler on {}|{}'.format([f],G))
+                        else:
+                            raise RuntimeError('Sampler is not trained on {}|{}'.format([f], G))
+                    X_test_perturbed = np.array(X_test)
+                    X_test_perturbed[:, self.fsoi[ordering[jj:]]] = sampler.sample(self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]])
+                    # sample replacement, create replacement matrix
+                    y_hat_new = self.model(X_test_perturbed)
+                    lss[self.fsoi[ordering[jj-1]], kk, X_test.shape[0], ii] = loss(y_hat_new, y_hat_base)
+                    y_hat_base = y_hat_new
+                y_hat_new = self.model(X_test)
+
+
+
