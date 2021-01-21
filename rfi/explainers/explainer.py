@@ -74,31 +74,33 @@ class Explainer():
                 loss = self.loss
                 logging.debug("Using class specified loss.")
 
-        #check whether the sampler is trained on G
-        if not sampler.is_trained(self.fsoi, G):
-            raise RuntimeError('Sampler is not trained.')
-        else:
-            logging.info('Sampler is already trained.')
+        #check whether the sampler is trained for each fsoi conditional on G
+        for f in self.fsoi:
+            if not sampler.is_trained([f], G):
+                raise RuntimeError('Sampler is not trained on {}|{}'.format([f], G))
+            else:
+                logging.info('\tCheck passed: Sampler is already trained on {}|{}'.format([f],G))
 
-        # sample perturbed
+        # initialize array for the perturbed samples
         perturbed_foiss = np.zeros((self.fsoi.shape[0], nr_runs,
                                    X_test.shape[0]))
- 
-        # TODO(gcsk): assess: does the sampler return the same sample every time?
-        # returns sample (#obs, #nr_runs, #fsoi)
-        sample = sampler.sample(X_test, self.fsoi, G, num_samples=nr_runs)
-        
+
+        # sample perturbed versions
+        # TODO(gcsk): reshape array correctly when it is returned
+        for jj in range(len(self.fsoi)):
+            perturbed_foiss[jj, :, :] = sampler.sample(X_test, [self.fsoi[jj]], G, num_samples=nr_runs)
+         
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
 
         # compute observasitonwise loss differences for all runs and fois
         for jj in np.arange(0, self.fsoi.shape[0], 1):
             # copy of the data where perturbed variables are copied into
-            X_test_perturbed = np.array(X_test)
+            X_test_one_perturbed = np.array(X_test)
             for kk in np.arange(0, nr_runs, 1):
                 # replaced with perturbed
-                X_test_perturbed[:, jj] = perturbed_foiss[jj, kk, :]
+                X_test_one_perturbed[:, jj] = perturbed_foiss[jj, kk, :]
                 # compute difference in observationwise loss
-                lss[jj, kk, :] = (loss(self.model(X_test_perturbed), y_test) -
+                lss[jj, kk, :] = (loss(self.model(X_test_one_perturbed), y_test) -
                                   loss(self.model(X_test), y_test))
 
         # return explanation object
