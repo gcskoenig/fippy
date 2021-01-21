@@ -92,7 +92,6 @@ class Explainer():
         perturbed_foiss = np.zeros((nr_fsoi, nr_runs, nr_obs))
 
         # sample perturbed versions
-        # TODO(gcsk): reshape array correctly when it is returned
         for jj in range(len(self.fsoi)):
             perturbed_foiss[jj, :, :] = sampler.sample(X_test, [self.fsoi[jj]], G, num_samples=nr_runs).reshape((nr_obs, nr_runs)).T
          
