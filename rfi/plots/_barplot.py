@@ -6,7 +6,7 @@ from rfi.plots._utils import hbar_text_position, coord_height_to_pixels, get_lin
 textformat='{:5.2f}' # TODO(gcsk): remove this line
 
 
-def rfi_hbarplot(ex, textformat='{:5.2f}', ax=None):
+def fi_hbarplot(ex, textformat='{:5.2f}', ax=None):
     '''Function that plots the result of an RFI computation
     as a barplot
 
@@ -14,9 +14,9 @@ def rfi_hbarplot(ex, textformat='{:5.2f}', ax=None):
         ex: Explanation object
     '''
 
-    rfis = ex.rfi_means()
-    stds = ex.rfi_stds()
-    names = ex.rfi_names()
+    rfis = ex.fi_means()
+    stds = ex.fi_stds()
+    names = ex.fsoi_names()
 
     if ax is None:
         fig, ax = plt.subplots()
@@ -38,7 +38,7 @@ def rfi_hbarplot(ex, textformat='{:5.2f}', ax=None):
 
 
 def container_hbarplot(exs, textformat='{:5.2f}'):
-    """Function that plots the results of multiple RFI
+    """Function that plots the results of multiple FI
     computations (on the same features of interest).
 
     Args:
@@ -57,7 +57,7 @@ def container_hbarplot(exs, textformat='{:5.2f}'):
 
     containers = [] 
     for jj in range(len(exs)):
-        barcontainer = ax.barh(ind + (jj*height), exs[jj].rfi_means(), xerr=exs[jj].rfi_stds(),
+        barcontainer = ax.barh(ind + (jj*height), exs[jj].fi_means(), xerr=exs[jj].fi_stds(),
                                height=height, label=exs[jj].ex_name, align='edge')
         containers.append(barcontainer)
 

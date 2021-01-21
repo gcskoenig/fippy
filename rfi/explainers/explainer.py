@@ -10,8 +10,7 @@ import logging
 
 
 class Explainer():
-    """Uses Relative Feature Importance to compute the importance of features
-    relative to any set of features G.
+    """Implements a number of feature importance algorithms
 
     Default samplers or loss function can be defined.
     Masks allows to specify for which features importance
@@ -35,7 +34,7 @@ class Explainer():
         self.sampler = sampler
         self.fs_names = fs_names
         if self.fs_names is None:
-            names = [ix_to_desc(jj) for jj in range(X_train.shape[0])]
+            names = [ix_to_desc(jj) for jj in range(X_train.shape[1])]
             self.fs_names = names
 
     def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
@@ -110,7 +109,7 @@ class Explainer():
 
         # return explanation object
         ex_name = 'RFI'
-        result = explanation.Explanation(self.fsoi, lss, fs_names=self.fs_names)
+        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi])
         if return_perturbed:
             logging.debug('Return both explanation and perturbed.')
             return result, perturbed_foiss
