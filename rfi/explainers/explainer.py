@@ -82,13 +82,13 @@ class Explainer():
                 logging.info('\tCheck passed: Sampler is already trained on {}|{}'.format([f],G))
 
         # initialize array for the perturbed samples
-        perturbed_foiss = np.zeros((self.fsoi.shape[0], nr_runs,
-                                   X_test.shape[0]))
+        nr_fsoi, nr_obs = self.fsoi.shape[0], X_test.shape[0]
+        perturbed_foiss = np.zeros((nr_fsoi, nr_runs, nr_obs))
 
         # sample perturbed versions
         # TODO(gcsk): reshape array correctly when it is returned
         for jj in range(len(self.fsoi)):
-            perturbed_foiss[jj, :, :] = sampler.sample(X_test, [self.fsoi[jj]], G, num_samples=nr_runs)
+            perturbed_foiss[jj, :, :] = sampler.sample(X_test, [self.fsoi[jj]], G, num_samples=nr_runs).reshape((nr_obs, nr_runs)).T
          
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
 
