@@ -82,7 +82,7 @@ class GaussianConditionalEstimator(Distribution):
         for j in range(len(context)):
             mu = self.mu_part + mu_part2[:, j]
             if len(self.inp_ind) == 1:
-                res[j, :, :] = np.random.normal(mu[0], np.sqrt(self.Sigma[0, 0]), num_samples)
+                res[j, :, 0] = np.random.normal(mu[0], np.sqrt(self.Sigma[0, 0]), num_samples)
             else:
                 res[j, :, :] = np.random.multivariate_normal(mu, self.Sigma, num_samples)
         return res

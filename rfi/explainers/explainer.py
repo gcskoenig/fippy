@@ -38,7 +38,7 @@ class Explainer():
             names = [ix_to_desc(jj) for jj in range(X_train.shape[0])]
             self.fs_names = names
 
-    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10, return_perturbed=False):
+    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
         """Computes Relative Feature importance
 
         # TODO(gcsk): allow handing a sample as argument
@@ -53,11 +53,12 @@ class Explainer():
             loss: choice of loss. Default None. Will throw an Error when
               both loss and self.loss are None.
             nr_runs: how often the experiment shall be run
-            verbose: whether printing in verbose mode or not.
+            return_perturbed: whether the sampled perturbed versions shall be returned
+            train_allowed: whether the explainer is allowed to train the sampler
 
         Returns:
-            A np.array with the relative feature importance values for
-            features of interest.
+            result: An explanation object with the RFI computation
+            perturbed_foiss (optional): perturbed features of interest if return_perturbed
         """
 
         if sampler is None:
@@ -77,7 +78,12 @@ class Explainer():
         #check whether the sampler is trained for each fsoi conditional on G
         for f in self.fsoi:
             if not sampler.is_trained([f], G):
-                raise RuntimeError('Sampler is not trained on {}|{}'.format([f], G))
+                # train if allowed, otherwise raise error
+                if train_allowed:
+                    sampler.train([f], G)
+                    logging.info('Training sampler on {}|{}'.format([f],G))
+                else:
+                    raise RuntimeError('Sampler is not trained on {}|{}'.format([f], G))
             else:
                 logging.info('\tCheck passed: Sampler is already trained on {}|{}'.format([f],G))
 
