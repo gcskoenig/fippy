@@ -165,10 +165,10 @@ class Explainer():
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0], nr_orderings))
 
         for ii in range(nr_orderings):
-            ordering = np.random.permutation(np.arange(self.fsoi))
-            # enter one feature at a time
+            ordering = np.random.permutation(len(self.fsoi))
+            # resample multiple times
             for kk in range(nr_runs):
-                # resample multiple times
+                # enter one feature at a time
                 y_hat_base = np.mean(self.model(X_test))
                 for jj in np.arange(1, len(self.fsoi), 1):
                     # compute change in performance by entering the respective feature
@@ -188,6 +188,8 @@ class Explainer():
                     lss[self.fsoi[ordering[jj-1]], kk, X_test.shape[0], ii] = loss(y_hat_new, y_hat_base)
                     y_hat_base = y_hat_new
                 y_hat_new = self.model(X_test)
+                lss[self.fsoi[ordering[-1]], kk, X_test.shape[0], ii] = loss(y_hat_new, y_hat_base)
 
-
+        ex_name = 'SAGE'
+        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi])
 

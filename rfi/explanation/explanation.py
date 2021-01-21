@@ -5,10 +5,10 @@ accessed. Plotting functionality is available.
 """
 import numpy as np
 import rfi.plots._barplot as _barplot
+import logging
 
 
 # TODO(gcsk): compute significance of the results using the multiple runs and marwin wright's procedure
-# TODO(gcsk): allow different orderings
 
 class Explanation:
     """Stores and provides access to results from Explainer.
@@ -18,7 +18,7 @@ class Explanation:
 
     Attributes:
         fsoi: Features of interest.
-        lss: losses on perturbed (# fsoi, # runs, # observations)
+        lss: losses on perturbed (# fsoi, # runs, # observations, (#orderings))
         ex_name: Explanation description
         fsoi_names: feature of interest names
     """
@@ -33,6 +33,12 @@ class Explanation:
             self.fsoi_names = fsoi
         if ex_name is None:
             self.ex_name = 'Unknown'
+        if len(self.lss.shape) == 3:
+            self.lss = self.lss.reshape((self.lss.shape[0], self.lss.shape[1], 
+                                         self.lss.shape[2], 1))
+        if len(self.lss.shape) != 4:
+            logging.debug('lss shape: {}'.format(lss.shape))
+            raise RuntimeError('Lss has incorrect shape.')
 
     def fsoi_names(self):
         """Return RFI input_var_names for feature of interest
@@ -50,7 +56,7 @@ class Explanation:
             A np.array with the relative feature importance values for
             features of interest.
         """
-        return np.mean(np.mean(self.lss, axis=2), axis=1)
+        return np.mean(np.mean(np.mean(self.lss, axis=3), axis=2), axis=1)
 
     def fi_stds(self):
         """Computes std of RFI over all runs
@@ -58,7 +64,7 @@ class Explanation:
         Returns:
             A np.array with the std of RFI values for the features of interest
         """
-        return np.std(np.mean(self.lss, axis=2), axis=1)
+        return np.std(np.mean(np.mean(self.lss, axis=3), axis=2), axis=1)
 
     def barplot(self, ax=None):
         return _barplot.fi_hbarplot(self, ax=ax)
