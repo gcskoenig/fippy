@@ -183,7 +183,7 @@ class Explainer():
                         else:
                             raise RuntimeError('Sampler is not trained on {}|{}'.format(fixed, impute))
                     X_test_perturbed = np.array(X_test)
-                    X_test_perturbed[:, self.fsoi[ordering[jj:]]] = sampler.sample(X_test, fixed, impute, nr_runs=1).reshape(X_test.shape[0], len(impute))
+                    X_test_perturbed[:, self.fsoi[ordering[jj:]]] = sampler.sample(X_test, fixed, impute, num_samples=1).reshape((X_test.shape[0], len(impute)))
                     # sample replacement, create replacement matrix
                     y_hat_new = self.model(X_test_perturbed)
                     lss[self.fsoi[ordering[jj-1]], kk, X_test.shape[0], ii] = loss(y_hat_new, y_hat_base)
