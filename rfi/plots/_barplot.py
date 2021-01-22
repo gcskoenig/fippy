@@ -16,7 +16,7 @@ def fi_hbarplot(ex, textformat='{:5.2f}', ax=None):
 
     rfis = ex.fi_means()
     stds = ex.fi_stds()
-    names = ex.fsoi_names()
+    names = ex.fsoi_names
 
     if ax is None:
         fig, ax = plt.subplots()

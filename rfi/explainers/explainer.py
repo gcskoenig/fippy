@@ -5,6 +5,7 @@ More details in the docstring for the class Explainer.
 """
 
 import numpy as np
+import rfi.utils as utils
 import rfi.explanation.explanation as explanation
 import logging
 
@@ -34,7 +35,7 @@ class Explainer():
         self.sampler = sampler
         self.fs_names = fs_names
         if self.fs_names is None:
-            names = [ix_to_desc(jj) for jj in range(X_train.shape[1])]
+            names = [utils.ix_to_desc(jj) for jj in range(X_train.shape[1])]
             self.fs_names = names
 
     def _sampler_specified(self):
@@ -110,7 +111,7 @@ class Explainer():
             X_test_one_perturbed = np.array(X_test)
             for kk in np.arange(0, nr_runs, 1):
                 # replaced with perturbed
-                X_test_one_perturbed[:, jj] = perturbed_foiss[jj, kk, :]
+                X_test_one_perturbed[:, self.fsoi[jj]] = perturbed_foiss[jj, kk, :]
                 # compute difference in observationwise loss
                 lss[jj, kk, :] = (loss(self.model(X_test_one_perturbed), y_test) -
                                   loss(self.model(X_test), y_test))
@@ -168,28 +169,29 @@ class Explainer():
             # resample multiple times
             for kk in range(nr_runs):
                 # enter one feature at a time
-                y_hat_base = np.mean(self.model(X_test))
+                y_hat_base = np.repeat(np.mean(self.model(X_test)), X_test.shape[0])
                 for jj in np.arange(1, len(self.fsoi), 1):
                     # compute change in performance by entering the respective feature
                     # store the result in the right place
                     # validate training of sampler
-                    fixed, impute = self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]]
-                    logging.debug('{}:{}:{}: fixed, impute: {}|{}'.format(ii, kk, jj, fixed, impute))
-                    if not sampler.is_trained(fixed, impute):
+                    impute, fixed = self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]]
+                    logging.debug('{}:{}:{}: fixed, impute: {}|{}'.format(ii, kk, jj, impute, fixed))
+                    if not sampler.is_trained(impute, fixed):
                         # train if allowed, otherwise raise error
                         if train_allowed:
-                            sampler.train(fixed, impute)
-                            logging.info('Training sampler on {}|{}'.format(fixed, impute))
+                            sampler.train(impute, fixed)
+                            logging.info('Training sampler on {}|{}'.format(impute, fixed))
                         else:
-                            raise RuntimeError('Sampler is not trained on {}|{}'.format(fixed, impute))
+                            raise RuntimeError('Sampler is not trained on {}|{}'.format(impute, fixed))
                     X_test_perturbed = np.array(X_test)
-                    X_test_perturbed[:, self.fsoi[ordering[jj:]]] = sampler.sample(X_test, fixed, impute, num_samples=1).reshape((X_test.shape[0], len(impute)))
+                    impute_sample = sampler.sample(X_test, impute, fixed, num_samples=1).reshape((X_test.shape[0], len(impute)))
+                    X_test_perturbed[:, impute] = impute_sample
                     # sample replacement, create replacement matrix
                     y_hat_new = self.model(X_test_perturbed)
-                    lss[self.fsoi[ordering[jj-1]], kk, X_test.shape[0], ii] = loss(y_hat_new, y_hat_base)
+                    lss[self.fsoi[ordering[jj-1]], kk, :, ii] = loss(y_hat_new, y_hat_base)
                     y_hat_base = y_hat_new
                 y_hat_new = self.model(X_test)
-                lss[self.fsoi[ordering[-1]], kk, X_test.shape[0], ii] = loss(y_hat_new, y_hat_base)
+                lss[self.fsoi[ordering[-1]], kk, :, ii] = loss(y_hat_new, y_hat_base)
 
         ex_name = 'SAGE'
         result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi])

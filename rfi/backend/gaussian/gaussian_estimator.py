@@ -77,7 +77,7 @@ class GaussianConditionalEstimator(Distribution):
         return self._log_prob(inputs, context)
 
     def sample(self, context: np.array, num_samples=1):
-        res = np.zeros((context.shape[0], num_samples, self.inp_ind.shape[0],))
+        res = np.zeros((context.shape[0], num_samples, self.inp_ind.shape[0]))
         mu_part2 = self.RegrCoeff @ context.T
         for j in range(len(context)):
             mu = self.mu_part + mu_part2[:, j]
