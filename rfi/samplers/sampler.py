@@ -127,9 +127,8 @@ class Sampler():
             Resampled data for the features of interest.
             np.array with shape (X_test.shape[0], #num_samples, # features of interest)
         """
-                # initialize numpy matrix
-        J = np.array(J, dtype=np.int16)
-        sampled_data = np.zeros((X_test.shape[0], J.shape[0]))
+        # initialize numpy matrix
+        #sampled_data = np.zeros((X_test.shape[0], num_samples, J.shape[0]))
 
         # sample
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
