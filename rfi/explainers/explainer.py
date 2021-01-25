@@ -126,6 +126,102 @@ class Explainer():
             logging.debug('Return explanation object only')
             return result
 
+    def si(self, X_test, y_test, K, sampler=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
+        """Computes Relative Shared Importance
+
+        # TODO(gcsk): allow handing a sample as argument
+        #             (without needing sampler)
+
+        Args:
+            X_test: data to use for resampling and evaluation.
+            y_test: labels for evaluation.
+            G: relative feature set
+            sampler: choice of sampler. Default None. Will throw an error
+              when sampler is None and self.sampler is None as well.
+            loss: choice of loss. Default None. Will throw an Error when
+              both loss and self.loss are None.
+            nr_runs: how often the experiment shall be run
+            return_perturbed: whether the sampled perturbed versions shall be returned
+            train_allowed: whether the explainer is allowed to train the sampler
+
+        Returns:
+            result: An explanation object with the RFI computation
+            perturbed_foiss (optional): perturbed features of interest if return_perturbed
+        """
+
+        if sampler is None:
+            if self._sampler_specified(): # may throw an error
+                sampler = self.sampler
+                logging.debug("Using class specified sampler.")
+
+        if loss is None:
+            if self._loss_specified(): # may throw an error
+                loss = self.loss
+                logging.debug("Using class specified loss.")
+
+        all_fs = np.arange(X_test.shape[1])
+
+        #check whether the sampler is trained for the baseline perturbation
+        if not sampler.is_trained(all_fs, []):
+                # train if allowed, otherwise raise error
+            if train_allowed:
+                sampler.train(all_fs, [])
+                logging.info('Training sampler on {}|{}'.format(all_fs, []))
+            else:
+                raise RuntimeError('Sampler is not trained on {}|{}'.format(all_fs, []))
+        else:
+            logging.info('\tCheck passed: Sampler is already trained on {}|{}'.format(all_fs, []))
+
+        # check for each of the features of interest
+        for f in self.fsoi:
+            if not sampler.is_trained(K, [f]):
+                # train if allowed, otherwise raise error
+                if train_allowed:
+                    sampler.train(K, [f])
+                    logging.info('Training sampler on {}|{}'.format(K, [f]))
+                else:
+                    raise RuntimeError('Sampler is not trained on {}|{}'.format(K, [f]))
+            else:
+                logging.info('\tCheck passed: Sampler is already trained on {}|{}'.format(K, [f]))
+
+        # initialize array for the perturbed samples
+        nr_fsoi, nr_obs, nr_features = self.fsoi.shape[0], X_test.shape[0], len(all_fs)
+        perturbed_reconstr = np.zeros((nr_fsoi, nr_obs, nr_runs, len(K)))
+        perturbed_baseline = np.zeros((nr_obs, nr_runs, nr_features))
+
+        
+        # sample baseline
+        sample = sampler.sample(X_test, all_fs, [], num_samples=nr_runs)
+        perturbed_baseline = sample
+
+        # sample perturbed versions
+        for jj in range(len(self.fsoi)):
+            sample = sampler.sample(X_test, K,[self.fsoi[jj]] , num_samples=nr_runs)
+            perturbed_reconstr[jj, :, :, :] = sample
+
+        lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
+        breakpoint()
+        # compute observasitonwise loss differences for all runs and fois
+        for jj in np.arange(0, self.fsoi.shape[0], 1):
+            for kk in np.arange(0, nr_runs, 1):
+                # replaced with perturbe
+                X_test_reconstructed = np.array(perturbed_baseline[:, kk, :])
+                X_test_reconstructed[:, K] = perturbed_reconstr[jj, :, kk, :]
+                # compute difference in observationwise loss
+                lss[jj, kk, :] = (loss(self.model(perturbed_baseline[:, kk, :]), y_test) -
+                                  loss(self.model(X_test_reconstructed), y_test))
+
+        # return explanation object
+        ex_name = 'si'
+        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi])
+        if return_perturbed:
+            raise NotImplementedError('Returning perturbed not implemented yet.')
+            logging.debug('Return both explanation and perturbed.')
+            return result, perturbed_baseline, perturbed_reconstr
+        else:
+            logging.debug('Return explanation object only')
+            return result
+
     def sage(self, X_test, y_test, nr_orderings, nr_runs=10, sampler=None, loss=None, train_allowed=True, return_orderings=False):
         """Compute Shapley Additive Global Importance values.
         
