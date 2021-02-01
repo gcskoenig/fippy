@@ -57,7 +57,6 @@ class Sampler():
         trained = (J_key, G_key) in self._trainedGs
         return trained
 
-
     def _train_J_degenerate(self, J, G, verbose=True):
         """Training function that takes care of degenerate cases
         where either j is in G or G is empty.
@@ -98,7 +97,6 @@ class Sampler():
         self._trainedGs[(J_key, G_key)] = samplefunc
         logging.info('Training ended. Sampler saved.')
 
-
     def train(self, J, G, verbose=True):
         """Trains sampler using the training dataset to resample
         relative to any variable set G.
@@ -112,7 +110,6 @@ class Sampler():
             to resample on seen or unseen data.
         """
         logging.info('Training Sampler for: {} | {}'.format(J, G))
-
 
     def sample(self, X_test, J, G, num_samples=1):
         """Sample features of interest using trained resampler.
