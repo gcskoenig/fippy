@@ -49,7 +49,7 @@ class StructuralEquationModel:
 
             self.model[node] = {
                 'parents': tuple(parents),
-                'children': tuple(children),
+                'children_nodes': tuple(children),
                 'value': None
             }
             self.topological_order.append(node)
@@ -129,14 +129,11 @@ class StructuralEquationModel:
         return log_prob
 
     def get_markov_blanket(self, node: str) -> set:
-        parents = self.model[node]['parents']
-        children = self.model[node]['children']
-        spouses = tuple([par for child in children for par in self.model[child]['parents'] if par != node and par not in parents])
-        return set(parents + children + spouses)
+        return self.dag.get_markov_blanket(node)
 
     def children_log_prob(self, node, value: Tensor, global_context: Dict[str, Tensor] = None):
         log_prob = torch.zeros_like(value)
-        for child in self.model[node]['children']:
+        for child in self.model[node]['children_nodes']:
             child_par_context = {par: global_context[par].repeat(len(value)) for par in self.model[child]['parents'] if par != node}
             child_par_context[node] = value.flatten()
             cond_dist = self.parents_conditional_distribution(child, parents_context=child_par_context)
@@ -147,8 +144,8 @@ class StructuralEquationModel:
 
         return log_prob
 
-    def mb_conditional_log_prob(self, node: str, global_context: Dict[str, Tensor] = None, method='mc', mc_size=500,
-                                quad_epsabs=1e-2, mc_seed=None) -> callable:
+    def mb_conditional_log_prob(self, node: str, global_context: Dict[str, Tensor] = None,
+                                method='mc', mc_size=500, quad_epsabs=1e-2, mc_seed=None) -> callable:
         """
         Conditional log-probability function (density) of node, conditioning on Markov-Blanket of node
         Args:
@@ -198,7 +195,7 @@ class StructuralEquationModel:
         def cond_log_prob(value):
             result = self.parents_conditional_distribution(node, parents_context).log_prob(value)
 
-            # Considering only inside-support values for conditional distributions of children
+            # Considering only inside-support values for conditional distributions of children_nodes
             in_support = (~torch.isinf(result))
             for val_ind, val in enumerate(value):
                 global_context_tile = {n: v[in_support[val_ind]] for (n, v) in global_context.items()}

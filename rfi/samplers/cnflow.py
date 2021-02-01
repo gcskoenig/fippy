@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class CNFSampler(Sampler):
-    def __init__(self, X_train, X_val, fit_method='fit_by_cv', fit_params={'time_budget_s': 120}, **kwargs):
+    def __init__(self, X_train, X_val, fit_method='fit_by_cv', fit_params={'time_budget_s': None}, **kwargs):
         super().__init__(X_train, X_val)
         self.fit_method = fit_method
         self.fit_params = fit_params if fit_params is not None else {}

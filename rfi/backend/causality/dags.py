@@ -4,6 +4,9 @@ from networkx import nx
 import matplotlib.pyplot as plt
 
 
+from rfi.utils import search_nonsorted
+
+
 class DirectedAcyclicGraph:
     """
     Directed acyclic graph, used to define Structural Equation Model
@@ -24,6 +27,24 @@ class DirectedAcyclicGraph:
 
         self.var_names = np.array(var_names, dtype=str)
 
+    def get_markov_blanket(self, node: str) -> set:
+        return self.get_parents(node) | self.get_children(node) | self.get_spouses(node)
+
+    def get_parents(self, node: str) -> set:
+        node_ind = search_nonsorted(self.var_names, [node])[0]
+        parents = tuple(self.DAG.predecessors(node_ind))
+        return set([self.var_names[node] for node in parents])
+
+    def get_children(self, node: str) -> set:
+        node_ind = search_nonsorted(self.var_names, [node])[0]
+        children = tuple(self.DAG.successors(node_ind))
+        return set([self.var_names[node] for node in children])
+
+    def get_spouses(self, node: str) -> set:
+        node_ind = search_nonsorted(self.var_names, [node])[0]
+        children = tuple(self.DAG.successors(node_ind))
+        spouses = tuple([par for child in children for par in tuple(self.DAG.predecessors(child)) if par != node_ind])
+        return set([self.var_names[node] for node in spouses])
 
     def plot_dag(self, ax=None):
         """

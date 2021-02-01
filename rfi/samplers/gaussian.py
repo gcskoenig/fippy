@@ -39,6 +39,7 @@ class GaussianSampler(Sampler):
         super().train(J, G, verbose=verbose)
 
         val_log_probs = []
+        estimators = {}
 
         for j in J:
             j = Sampler._to_array([j])
@@ -51,6 +52,7 @@ class GaussianSampler(Sampler):
                     return gaussian_estimator.sample(X_test[:, G], **kwargs)
 
                 self._store_samplefunc(j, G, samplefunc, verbose=verbose)
+                estimators[j[0]] = gaussian_estimator
 
                 if self.X_val is not None:
                     val_log_prob = gaussian_estimator.log_prob(inputs=self.X_val[:, j], context=self.X_val[:, G]).mean()
