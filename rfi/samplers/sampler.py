@@ -59,7 +59,6 @@ class Sampler:
         trained = (J_key, G_key) in self._trained_sampling_funcs
         return trained
 
-
     def _train_J_degenerate(self, J, G, verbose=True):
         """Training function that takes care of degenerate cases
         where either j is in G or G is empty.
@@ -100,18 +99,6 @@ class Sampler:
         self._trained_sampling_funcs[(J_key, G_key)] = samplefunc
         logging.info('Training ended. Sampler saved.')
 
-    def _store_estimator(self, J, G, estimator, verbose=True):
-        """Storing a trained sample function
-
-        Args:
-            samplefunc: function
-            J: features of interest
-            G: relative feature set
-            verbose: printing or not
-        """
-        G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
-        self._trained_estimators[(J_key, G_key)] = estimator
-
     def train(self, J, G, verbose=True):
         """Trains sampler using the training dataset to resample
         relative to any variable set G.
@@ -126,7 +113,6 @@ class Sampler:
         """
         logging.info('Training Sampler for: {} | {}'.format(J, G))
 
-
     def sample(self, X_test, J, G, num_samples=1):
         """Sample features of interest using trained resampler.
 
@@ -140,9 +126,8 @@ class Sampler:
             Resampled data for the features of interest.
             np.array with shape (X_test.shape[0], #num_samples, # features of interest)
         """
-                # initialize numpy matrix
-        J = np.array(J, dtype=np.int16)
-        sampled_data = np.zeros((X_test.shape[0], J.shape[0]))
+        # initialize numpy matrix
+        #sampled_data = np.zeros((X_test.shape[0], num_samples, J.shape[0]))
 
         # sample
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)

@@ -82,12 +82,9 @@ class GaussianConditionalEstimator(Distribution):
             return MultivariateNormal(torch.tensor(mu), torch.tensor(self.Sigma))
 
     def sample(self, context: np.array, num_samples=1):
-        res = np.zeros((context.shape[0], num_samples, self.inp_ind.shape[0],))
+        res = np.zeros((context.shape[0], num_samples, self.inp_ind.shape[0]))
         mu_part2 = self.RegrCoeff @ context.T
         for j in range(len(context)):
             mu = self.mu_part + mu_part2[:, j]
-            # if len(self.inp_ind) == 1:
-            #     res[j, :, :] = np.random.normal(mu[0], np.sqrt(self.Sigma[0, 0]), num_samples)
-            # else:
             res[j, :, :] = np.random.multivariate_normal(mu, self.Sigma, num_samples)
         return res
