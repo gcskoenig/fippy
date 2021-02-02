@@ -57,5 +57,5 @@ class Explanation:
         """
         return np.std(np.mean(np.mean(self.lss, axis=3), axis=2), axis=1)
 
-    def barplot(self, ax=None):
-        return _barplot.fi_hbarplot(self, ax=ax)
+    def barplot(self, ax=None, figsize=None):
+        return _barplot.fi_hbarplot(self, ax=ax, figsize=figsize)
