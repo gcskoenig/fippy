@@ -10,8 +10,8 @@ from typing import List, Union, Tuple
 from dataclasses import dataclass
 import logging
 
-from rfi.backend.causality import StructuralEquationModel
-from rfi.backend.cnf import ConditionalNormalisingFlowEstimator
+from rfi.backend.causality import StructuralEquationModel, LinearGaussianNoiseSEM
+from rfi.backend.cnf import NormalisingFlowEstimator
 from rfi.backend.gaussian.gaussian_estimator import GaussianConditionalEstimator
 
 logger = logging.getLogger(__name__)
@@ -22,11 +22,12 @@ class ConditionalGoodnessOfFit:
     name: str
 
     # TODO Calculation not with test_df, but with fixed error tolerance
-    def __call__(self, estimator: Union[ConditionalNormalisingFlowEstimator, GaussianConditionalEstimator],
+    def __call__(self, estimator: Union[NormalisingFlowEstimator, GaussianConditionalEstimator],
                  sem: StructuralEquationModel,
                  target_var: str,
                  context_vars: Tuple[str],
                  exp_args: DictConfig,
+                 conditioning_mode: str = 'all',
                  test_df: pd.DataFrame = None):
 
         logger.info(f"Calculating {self.name} for {target_var} / {context_vars}")
@@ -36,10 +37,15 @@ class ConditionalGoodnessOfFit:
         context_size = len(test_df)
 
         logger.info("Initializing SEM conditional distributions")
-        if exp_args.conditioning_mode == 'true_parents':
+        if conditioning_mode == 'true_parents':
             data_log_prob = sem.parents_conditional_distribution(target_var, parents_context=context).log_prob
-        elif exp_args.conditioning_mode == 'true_markov_blanket' or exp_args.conditioning_mode == 'all':
+        elif conditioning_mode == 'true_markov_blanket' or conditioning_mode == 'all':
             data_log_prob = sem.mb_conditional_log_prob(target_var, global_context=context, **exp_args.mb_dist)
+        elif conditioning_mode == 'arbitrary' and isinstance(sem, LinearGaussianNoiseSEM):
+            data_log_prob = sem.conditional_distribution(target_var, context=context).log_prob
+        else:
+            raise NotImplementedError('Unknown conditioning type!')
+
 
         def data_log_prob_from_np(value):
             value = torch.tensor([[value]])
@@ -53,7 +59,7 @@ class ConditionalGoodnessOfFit:
         def model_log_prob_from_np(value):
             value = torch.tensor([[value]])
             with torch.no_grad():
-                if isinstance(estimator, ConditionalNormalisingFlowEstimator):
+                if isinstance(estimator, NormalisingFlowEstimator):
                     return model_cond_dist(value.repeat(context_size, 1)).squeeze()
                 else:
                     return model_cond_dist(value.repeat(1, context_size)).squeeze()
@@ -107,6 +113,13 @@ class ConditionalGoodnessOfFit:
 
         else:
             raise NotImplementedError()
+
+        # Bounds check
+        assert (result >= 0.0).all()
+        if self.name == 'conditional_js_divergence':
+            assert (result <= np.log(2)).all()
+        elif self.name == 'conditional_hellinger_distance':
+            assert (result <= 1.0).all()
 
         return result.mean()
 

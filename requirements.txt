@@ -17,3 +17,4 @@ coloredlogs
 hydra-core
 hydra_colorlog
 mlflow
+lightgbm

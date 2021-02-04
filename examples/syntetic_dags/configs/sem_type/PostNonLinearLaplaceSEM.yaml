@@ -5,5 +5,5 @@ sem_type: PostNonLinearLaplaceSEM
 data_generator:
   sem_type: ${sem_type}
   sem:
-    interpolation_switch:
+    interpolation_switch: ${data.n_train}
     default_noise_std_bounds: [0.0, 1.0]

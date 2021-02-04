@@ -1,5 +1,5 @@
 # @package _global_
-estimator_type: ConditionalNormalisingFlowEstimator
+estimator_type: NormalisingFlowEstimator
 
 # Estimating model specific params
 estimator:

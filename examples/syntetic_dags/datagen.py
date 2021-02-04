@@ -109,7 +109,7 @@ print(quad_vec(integrand, *gauss_anm.sem.support_bounds, epsabs=1e-4))
 
 # estimator = GaussianConditionalEstimator()
 # estimator.fit(train_inputs=y_train, train_context=X_train)
-# # estimator = ConditionalNormalisingFlowEstimator(len(context_vars))
+# # estimator = NormalisingFlowEstimator(len(context_vars))
 # # estimator.fit_by_cv(train_inputs=y_train, train_context=X_train)
 # sns.kdeplot(y_test, label='data')
 # sns.kdeplot(estimator.sample(X_test).flatten(), label='estimator')

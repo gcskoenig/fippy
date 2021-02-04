@@ -1,1 +1,1 @@
-from rfi.backend.cnf.cnf_estimator import ConditionalNormalisingFlowEstimator
+from rfi.backend.cnf.cnf_estimator import NormalisingFlowEstimator
