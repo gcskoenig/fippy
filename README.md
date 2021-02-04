@@ -28,6 +28,8 @@ python setup.py install --user
 import rfi.samplers.gaussian as gaussian
 import rfi.explainers.explainer as explainer
 import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error
+import numpy as np
 
 fsoi = np.array([0, 1, 2, 3], dtype=np.int16)
 names = np.array(names)
