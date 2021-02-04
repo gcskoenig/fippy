@@ -28,9 +28,6 @@ class CNFSampler(Sampler):
             logger.info(f'Fitting sampler for features {J}. Fitting method: {self.fit_method}. '
                         f'Fitting parameters: {self.fit_params}')
 
-            if len(J) > 1:
-                raise NotImplementedError()
-
             cnf = NormalisingFlowEstimator(inputs_size=len(J), context_size=len(G))
             getattr(cnf, self.fit_method)(train_inputs=self.X_train[:, J], train_context=self.X_train[:, G],
                                           **self.fit_params)
@@ -44,25 +41,3 @@ class CNFSampler(Sampler):
 
         else:
             return None
-        #
-        #     if self.X_val is not None:
-        #         val_log_prob = cnf.log_prob(inputs=self.X_val[:, j], context=self.X_val[:, G]).mean()
-        #         val_log_probs.append(val_log_prob)
-        #
-        # elif self.X_val is not None:
-        #     val_log_probs.append(None)
-        #
-        # if len(J) > 1:
-        #
-        #     def samplefunc(X_test, **kwargs):
-        #         sampled_data = []
-        #         for j in J:
-        #             j = Sampler._to_array([j])
-        #             G_key, j_key = Sampler._to_key(G), Sampler._to_key(j)
-        #             sampled_data.append(np.squeeze(self._trained_sampling_funcs[(j_key, G_key)](X_test, **kwargs)))
-        #         return np.stack(sampled_data, axis=-1)
-        #
-        #     self._store_samplefunc(J, G, samplefunc, verbose=verbose)
-        #
-        # if self.X_val is not None:
-        #     return val_log_probs

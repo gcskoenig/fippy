@@ -7,7 +7,6 @@ from torch.distributions import Normal, MultivariateNormal, Distribution
 from statsmodels.stats.correlation_tools import cov_nearest
 
 
-
 class GaussianConditionalEstimator(Distribution):
     """
     Conditional density estimation for joint normal distribution
@@ -73,15 +72,15 @@ class GaussianConditionalEstimator(Distribution):
             log_probs[j] = np.log(multivariate_normal.pdf(inputs[j], mean=mu, cov=self.Sigma))
         return log_probs
 
-    def conditional_distribution(self, context: np.array = None) -> List[Distribution]:
+    def conditional_distribution(self, context: np.array = None) -> Distribution:
         mu_part2 = self.RegrCoeff @ context.T
         mu = self.mu_part + mu_part2
-        if len(self.inp_ind) == 1:
-            return Normal(torch.tensor(mu[0]), torch.sqrt(torch.tensor(self.Sigma[0, 0])))
-        else:
-            return MultivariateNormal(torch.tensor(mu), torch.tensor(self.Sigma))
+        # if len(self.inp_ind) == 1:
+        #     return Normal(torch.tensor(mu[0]), torch.sqrt(torch.tensor(self.Sigma[0, 0])))
+        # else:
+        return MultivariateNormal(torch.tensor(mu), torch.tensor(self.Sigma))
 
-    def sample(self, context: np.array, num_samples=1):
+    def sample(self, context: np.array, num_samples=1) -> np.array:
         res = np.zeros((context.shape[0], num_samples, self.inp_ind.shape[0]))
         mu_part2 = self.RegrCoeff @ context.T
         for j in range(len(context)):
