@@ -200,7 +200,7 @@ class Explainer():
             perturbed_reconstr[jj, :, :, :] = sample
 
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
-        breakpoint()
+        
         # compute observasitonwise loss differences for all runs and fois
         for jj in np.arange(0, self.fsoi.shape[0], 1):
             for kk in np.arange(0, nr_runs, 1):
@@ -284,10 +284,10 @@ class Explainer():
                     X_test_perturbed[:, impute] = impute_sample
                     # sample replacement, create replacement matrix
                     y_hat_new = self.model(X_test_perturbed)
-                    lss[self.fsoi[ordering[jj-1]], kk, :, ii] = loss(y_hat_new, y_hat_base)
+                    lss[self.fsoi[ordering[jj-1]], kk, :, ii] = loss(y_hat_base, y_test) - loss(y_hat_new, y_test)
                     y_hat_base = y_hat_new
                 y_hat_new = self.model(X_test)
-                lss[self.fsoi[ordering[-1]], kk, :, ii] = loss(y_hat_new, y_hat_base)
+                lss[self.fsoi[ordering[-1]], kk, :, ii] = loss(y_hat_base, y_test) - loss(y_hat_new, y_test)
 
         ex_name = 'SAGE'
         result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi])

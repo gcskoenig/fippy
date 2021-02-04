@@ -6,7 +6,7 @@ from rfi.plots._utils import hbar_text_position, coord_height_to_pixels, get_lin
 textformat='{:5.2f}' # TODO(gcsk): remove this line
 
 
-def fi_hbarplot(ex, textformat='{:5.2f}', ax=None):
+def fi_hbarplot(ex, textformat='{:5.2f}', ax=None, figsize=None):
     '''Function that plots the result of an RFI computation
     as a barplot
 
@@ -19,7 +19,7 @@ def fi_hbarplot(ex, textformat='{:5.2f}', ax=None):
     names = ex.fsoi_names
 
     if ax is None:
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=figsize)
 
     ixs = np.arange(rfis.shape[0] + 0.5, 0.5, -1)
 
