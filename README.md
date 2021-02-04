@@ -33,8 +33,7 @@ fsoi = np.array([0, 1, 2, 3], dtype=np.int16)
 names = np.array(names)
 
 sampler = gaussian.GaussianSampler(X_train)
-rfi_explainer = explainer.Explainer(model.predict, fsoi, X_train, sampler=sampler, loss=mean_squared_error,
-									fs_names=names)
+rfi_explainer = explainer.Explainer(model.predict, fsoi, X_train, sampler=sampler, loss=mean_squared_error, fs_names=names)
                   
 G = np.array([1])
 for f in fsoi:
