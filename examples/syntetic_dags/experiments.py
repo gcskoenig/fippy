@@ -6,6 +6,7 @@ import importlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import inspect
 
 from rfi.backend.causality import DirectedAcyclicGraph, LinearGaussianNoiseSEM
 from rfi.backend.goodness_of_fit import *
@@ -22,6 +23,13 @@ def main(args: DictConfig):
 
     # Non-strict access to fields
     OmegaConf.set_struct(args, False)
+
+    # Adding default estimator params
+    default_names, _, _, default_values, _, _, _ = inspect.getfullargspec(instantiate(args.estimator, context_size=0).__class__.__init__)
+    if default_values is not None:
+        args.estimator['defaults'] = {
+            n: str(v) for (n, v) in zip(default_names[len(default_names)-len(default_values):], default_values)
+        }
     logger.info(OmegaConf.to_yaml(args, resolve=True))
 
     # Data generator init
@@ -122,9 +130,12 @@ def main(args: DictConfig):
                         estimator.log_prob(inputs=X_test[:, f], context=X_test[:, G]).mean()
 
                     # Advanced conditional GoF metrics
-                    if sem.get_markov_blanket(f_var).issubset(set(G_vars)) or isinstance(sem, LinearGaussianNoiseSEM):
-                        cond_mode = 'arbitrary' if isinstance(sem, LinearGaussianNoiseSEM) else 'all'
+                    if sem.get_markov_blanket(f_var).issubset(set(G_vars)):
+                        cond_mode = 'all'
+                    elif isinstance(sem, LinearGaussianNoiseSEM):
+                        cond_mode = 'arbitrary'
 
+                    if sem.get_markov_blanket(f_var).issubset(set(G_vars)) or isinstance(sem, LinearGaussianNoiseSEM):
                         rfi_gof_results[f'rfi/gof/{prefix}_kld'] = \
                             conditional_kl_divergence(estimator, sem, f_var, G_vars, args.exp, cond_mode, test_df)
                         rfi_gof_results[f'rfi/gof/{prefix}_hd'] = \

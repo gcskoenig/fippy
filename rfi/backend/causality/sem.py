@@ -193,6 +193,7 @@ class StructuralEquationModel:
             raise NotImplementedError()
 
         def cond_log_prob(value):
+            value = value.reshape(-1, context_size)
             result = self.parents_conditional_distribution(node, parents_context).log_prob(value)
 
             # Considering only inside-support values for conditional distributions of children_nodes

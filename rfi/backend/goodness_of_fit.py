@@ -47,30 +47,21 @@ class ConditionalGoodnessOfFit:
             raise NotImplementedError('Unknown conditioning type!')
 
 
-        def data_log_prob_from_np(value):
+        def log_prob_from_np(value, log_prob_func):
             value = torch.tensor([[value]])
             with torch.no_grad():
-                return data_log_prob(value.repeat(1, context_size)).squeeze()
+                return log_prob_func(value.repeat(context_size, 1)).squeeze()
 
 
         logger.info("Initializing estimator's conditional distributions")
-        model_cond_dist = estimator.conditional_distribution(test_df.loc[:, context_vars].values).log_prob
-
-        def model_log_prob_from_np(value):
-            value = torch.tensor([[value]])
-            with torch.no_grad():
-                if isinstance(estimator, NormalisingFlowEstimator):
-                    return model_cond_dist(value.repeat(context_size, 1)).squeeze()
-                else:
-                    return model_cond_dist(value.repeat(1, context_size)).squeeze()
-
+        model_log_prob = estimator.conditional_distribution(test_df.loc[:, context_vars].values).log_prob
 
         logger.info(f"Calculating integral")
         if self.name == 'conditional_kl_divergence' or self.name == 'conditional_hellinger_distance':
 
             def integrand(value):
-                data_log_p = data_log_prob_from_np(value)
-                model_log_p = model_log_prob_from_np(value)
+                data_log_p = log_prob_from_np(value, data_log_prob)
+                model_log_p = log_prob_from_np(value, model_log_prob)
 
                 if self.name == 'conditional_kl_divergence':
                     res = (data_log_p - model_log_p) * data_log_p.exp()
@@ -92,16 +83,16 @@ class ConditionalGoodnessOfFit:
 
             # functions to integrate
             def integrand1(value):
-                data_log_p = data_log_prob_from_np(value)
-                model_log_p = model_log_prob_from_np(value)
+                data_log_p = log_prob_from_np(value, data_log_prob)
+                model_log_p = log_prob_from_np(value, model_log_prob)
                 log_mixture = np.log(0.5) + torch.logsumexp(torch.stack([data_log_p, model_log_p]), 0)
                 res = (data_log_p - log_mixture) * data_log_p.exp()
                 res[torch.isnan(res)] = 0.0  # Out of support values
                 return res.numpy()
 
             def integrand2(value):
-                data_log_p = data_log_prob_from_np(value)
-                model_log_p = model_log_prob_from_np(value)
+                data_log_p = log_prob_from_np(value, data_log_prob)
+                model_log_p = log_prob_from_np(value, model_log_prob)
                 log_mixture = np.log(0.5) + torch.logsumexp(torch.stack([data_log_p, model_log_p]), 0)
                 res = (model_log_p - log_mixture) * model_log_p.exp()
                 res[torch.isnan(res)] = 0.0  # Out of support values

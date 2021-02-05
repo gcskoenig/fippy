@@ -78,7 +78,7 @@ class GaussianConditionalEstimator(Distribution):
         # if len(self.inp_ind) == 1:
         #     return Normal(torch.tensor(mu[0]), torch.sqrt(torch.tensor(self.Sigma[0, 0])))
         # else:
-        return MultivariateNormal(torch.tensor(mu), torch.tensor(self.Sigma))
+        return MultivariateNormal(torch.tensor(mu).T, torch.tensor(self.Sigma))
 
     def sample(self, context: np.array, num_samples=1) -> np.array:
         res = np.zeros((context.shape[0], num_samples, self.inp_ind.shape[0]))
