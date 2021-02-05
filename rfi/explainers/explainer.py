@@ -33,10 +33,9 @@ class Explainer():
         self.X_train = X_train
         self.loss = loss
         self.sampler = sampler
-        self.fs_names = fs_names
+        self.fs_names = np.array(fs_names)
         if self.fs_names is None:
-            names = [utils.ix_to_desc(jj) for jj in range(X_train.shape[1])]
-            self.fs_names = names
+            self.fs_names = np.array([utils.ix_to_desc(jj) for jj in range(X_train.shape[1])])
 
     def _sampler_specified(self):
         if self.sampler is None:
@@ -102,7 +101,7 @@ class Explainer():
         # sample perturbed versions
         for jj in range(len(self.fsoi)):
             perturbed_foiss[jj, :, :] = sampler.sample(X_test, [self.fsoi[jj]], G, num_samples=nr_runs).reshape((nr_obs, nr_runs)).T
-         
+            
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
 
         # compute observasitonwise loss differences for all runs and fois
@@ -113,12 +112,10 @@ class Explainer():
                 # replaced with perturbed
                 X_test_one_perturbed[:, self.fsoi[jj]] = perturbed_foiss[jj, kk, :]
                 # compute difference in observationwise loss
-                lss[jj, kk, :] = (loss(self.model(X_test_one_perturbed), y_test) -
-                                  loss(self.model(X_test), y_test))
+                lss[jj, kk, :] = (loss(self.model(X_test_one_perturbed), y_test) - loss(self.model(X_test), y_test))
 
         # return explanation object
-        ex_name = 'RFI'
-        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi])
+        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi], ex_name='RFI')
         if return_perturbed:
             logging.debug('Return both explanation and perturbed.')
             return result, perturbed_foiss
@@ -212,8 +209,7 @@ class Explainer():
                                   loss(self.model(X_test_reconstructed), y_test))
 
         # return explanation object
-        ex_name = 'si'
-        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi])
+        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi], ex_name='SI')
         if return_perturbed:
             raise NotImplementedError('Returning perturbed not implemented yet.')
             logging.debug('Return both explanation and perturbed.')
@@ -289,8 +285,7 @@ class Explainer():
                 y_hat_new = self.model(X_test)
                 lss[self.fsoi[ordering[-1]], kk, :, ii] = loss(y_hat_base, y_test) - loss(y_hat_new, y_test)
 
-        ex_name = 'SAGE'
-        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi])
+        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi], ex_name='SAGE')
 
         if return_orderings:
             raise NotImplementedError('Returning errors is not implemented yet.')

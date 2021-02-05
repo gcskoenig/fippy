@@ -1,0 +1,8 @@
+# @package _global_
+sem_type: PostNonLinearMultiplicativeHalfNormalSEM
+
+# SEM specific params
+data_generator:
+  sem_type: ${sem_type}
+  sem:
+    default_noise_std_bounds: [0.0, 1.0]

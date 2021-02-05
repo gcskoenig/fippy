@@ -1,0 +1,9 @@
+# @package _global_
+sem_type: PostNonLinearLaplaceSEM
+
+# SEM specific params
+data_generator:
+  sem_type: ${sem_type}
+  sem:
+    interpolation_switch: ${data.n_train}
+    default_noise_std_bounds: [0.0, 1.0]

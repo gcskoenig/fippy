@@ -1,0 +1,58 @@
+# Data generating mechanism setup
+data_generator:
+  dag:
+    model: nm  # np, nm
+    n: 5
+    p: 0.2
+    m_n_ratio: 1
+    seed: 42
+  sem_type: ???
+  sem:
+    _target_: rfi.backend.causality.${data_generator.sem_type}
+    seed: 42
+
+# Data sampling details
+data:
+  n_train: 1000
+  train_seed: 42
+  n_test: 100
+  test_seed: 4242
+
+# Conditional density estimator
+estimator:
+  _target_: ???
+  fit_method: ???
+  fit_params:
+  sampler: ???
+
+# Predictive model for RFI
+predictors:
+  risks:
+    - mean_squared_error
+    - r2_score
+    - mean_absolute_error
+  pred_models:
+    - _target_: sklearn.linear_model.LinearRegression
+    - _target_: sklearn.ensemble.RandomForestRegressor
+    - _target_: lightgbm.LGBMRegressor
+
+
+# Experiment parameters
+exp:
+  check_exisisting_hash: True
+  mlflow_uri: http://127.0.0.1:5000
+  metrics:
+    epsabs: 0.01
+  mb_dist:
+    method: mc  # quad, mc
+    quad_epsabs: 0.001
+    mc_size: 5000
+  rfi:
+    nr_runs: 50
+
+
+
+defaults:
+  - hydra/job_logging: colorlog
+  - hydra/hydra_logging: colorlog
+

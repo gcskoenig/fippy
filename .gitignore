@@ -5,3 +5,4 @@ rfi_gcsk.egg-info/
 .DS_Store
 */__pycache__/*
 /examples/chains/data/
+/examples/real_pseudoreal_dags/data/

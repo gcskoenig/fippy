@@ -7,12 +7,12 @@ import torch
 import torch.nn.init as init
 from typing import Optional, Tuple, List
 from torch import Tensor
-from nflows.transforms import Transform, CompositeTransform, AffineTransform
+from nflows.transforms import Transform, CompositeTransform, PointwiseAffineTransform
 
 
 class ContextualInvertableRadialTransform(Transform):
     """
-    Conditional Radial flow: z = f(y/x) = y + β(x) h(α(x), r)(y − γ(x))
+    Conditional Radial flow: z = f(y/x) = y + α(x) β(x) (y - γ(x)) / (α(x) + ||y − γ(x)||)
     [Rezende and Mohamed 2015]
 
     α and β are reparametrized, so that transformation is invertable
@@ -22,27 +22,28 @@ class ContextualInvertableRadialTransform(Transform):
         n_params (int): Number of parameters of transformation
     """
 
-    n_params = 3
-
-    def __init__(self, unconditional=False):
-        """
-        Args:
-            unconditional: If True, parameters are initialized as torch.nn.Parameter. Else - None
-        """
+    def __init__(self, inputs_size: int, conditional=True):
         super().__init__()
+        self.inputs_size = inputs_size
 
-        if unconditional:
-            self.gamma = nn.Parameter(torch.Tensor((1,)))
-            self.alpha_hat = nn.Parameter(torch.Tensor((1,)))
-            self.beta_hat = nn.Parameter(torch.Tensor((1,)))
-
-            init.normal_(self.gamma, 0.0, 1.0)
-            init.normal_(self.alpha_hat, 0.0, 1.0)
-            init.normal_(self.beta_hat, 0.0, 1.0)
+        if conditional:
+            self.alpha_hat, self.beta_hat, self.gamma = None, None, None  # Will be initialized from context
         else:
-            self.gamma = None
-            self.alpha_hat = None
-            self.beta_hat = None
+            gamma = torch.nn.Parameter(torch.Tensor((inputs_size,)))
+            alpha_hat = torch.nn.Parameter(torch.Tensor((1,)))
+            beta_hat = torch.nn.Parameter(torch.Tensor((1,)))
+
+            init.normal_(gamma, 0.0, 1.0)
+            init.normal_(alpha_hat, 0.0, 1.0)
+            init.normal_(beta_hat, 0.0, 1.0)
+
+            self.register_parameter("gamma", gamma)
+            self.register_parameter("alpha_hat", alpha_hat)
+            self.register_parameter("beta_hat", beta_hat)
+
+    @property
+    def n_params(self):
+        return 2 + self.inputs_size
 
     def _params_from_context(self, context: Tensor = None) -> Tuple[Tensor, Tensor, Tensor]:
         if context is not None:
@@ -50,11 +51,11 @@ class ContextualInvertableRadialTransform(Transform):
             if context.dim() == 2:
                 alpha_hat = context[:, 0:1]
                 beta_hat = context[:, 1:2]
-                gamma = context[:, 2:3]
+                gamma = context[:, 2:2+self.inputs_size]
             else:
                 alpha_hat = context[:, :, 0:1]
                 beta_hat = context[:, :, 1:2]
-                gamma = context[:, :, 2:3]
+                gamma = context[:, :, 2:2+self.inputs_size]
             return alpha_hat, beta_hat, gamma
         else:
             return self.alpha_hat, self.beta_hat, self.gamma
@@ -67,90 +68,112 @@ class ContextualInvertableRadialTransform(Transform):
 
     def forward(self, inputs, context=None):
         """
-        Given inputs (y) and context(x), returns transformed input (z = f(y/x)) and the abs log-determinant log|dz/dy|.
+        Given context_vars (y) and global_context(x), returns transformed input (z = f(y/x)) and the abs log-determinant log|dz/dy|.
         """
         self.alpha_hat, self.beta_hat, self.gamma = self._params_from_context(context)
         alpha, beta = self._alpha_beta_hat_to_alpha_beta(self.alpha_hat, self.beta_hat)
 
-        r = torch.norm(inputs - self.gamma, dim=1).unsqueeze(1)
-        h = 1 / (alpha + r)
+        r_norm = torch.linalg.norm(inputs - self.gamma, dim=1).unsqueeze(1)
+        h = 1 / (alpha + r_norm)
         z = inputs + alpha * beta * h * (inputs - self.gamma)
-        log_det = torch.log(1 + beta * alpha**2 * h**2)
+        # log_det = torch.log(1 + beta * alpha**2 * h**2)
+        log_det = (self.inputs_size - 1) * torch.log(1 + alpha * beta * h) + torch.log(1 + beta * alpha**2 * h**2)
         return z, log_det.squeeze()
 
     def inverse(self, z, context=None):
         """
-        Given inputs (z) and context(x), returns inverse transformed input (y = f^-1(z/x)).
+        Given context_vars (z) and global_context(x), returns inverse transformed input (y = f^-1(z/x)).
         """
         self.alpha_hat, self.beta_hat, self.gamma = self._params_from_context(context)
         alpha, beta = self._alpha_beta_hat_to_alpha_beta(self.alpha_hat, self.beta_hat)
 
-        det1 = (alpha * beta + alpha - self.gamma - z) ** 2 - 4 * (-alpha * beta * self.gamma - alpha * z + self.gamma * z)
-        inputs1 = 0.5 * (- alpha * beta - alpha + self.gamma + z + torch.sqrt(det1))
-        inputs1[torch.isnan(inputs1)] = 0.0
-        # inputs12 = 0.5 * (- alpha * beta - alpha + gamma + z - torch.sqrt(det1))
+        # det1 = (alpha * beta + alpha - self.gamma - z) ** 2 - 4 * (-alpha * beta * self.gamma - alpha * z + self.gamma * z)
+        # inputs1 = 0.5 * (- alpha * beta - alpha + self.gamma + z + torch.sqrt(det1))
+        # inputs1[torch.isnan(inputs1)] = 0.0
+        # # inputs12 = 0.5 * (- alpha * beta - alpha + gamma + z - torch.sqrt(det1))
+        #
+        # det2 = (alpha * beta + alpha + self.gamma + z) ** 2 - 4 * (alpha * beta * self.gamma + alpha * z + self.gamma * z)
+        # # inputs21 = 0.5 * (alpha * beta + alpha + gamma + z + torch.sqrt(det2))
+        # inputs2 = 0.5 * (alpha * beta + alpha + self.gamma + z - torch.sqrt(det2))
+        # inputs2[torch.isnan(inputs2)] = 0.0
+        #
+        # mask = (z >= self.gamma).float()
+        # inputs_merged = inputs1 * mask + inputs2 * (1.0 - mask)
 
-        det2 = (alpha * beta + alpha + self.gamma + z) ** 2 - 4 * (alpha * beta * self.gamma + alpha * z + self.gamma * z)
-        # inputs21 = 0.5 * (alpha * beta + alpha + gamma + z + torch.sqrt(det2))
-        inputs2 = 0.5 * (alpha * beta + alpha + self.gamma + z - torch.sqrt(det2))
-        inputs2[torch.isnan(inputs2)] = 0.0
-
-        mask = (z >= self.gamma).float()
-        inputs_merged = inputs1 * mask + inputs2 * (1.0 - mask)
-
+        z_min_gamma = z - self.gamma
+        z_min_gamma_norm = torch.linalg.norm(z_min_gamma, dim=1).unsqueeze(1)
+        det = (alpha + alpha * beta - z_min_gamma_norm) ** 2 + 4 * alpha * z_min_gamma_norm
+        r_norm = 0.5 * (-(alpha + alpha * beta - z_min_gamma_norm) + torch.sqrt(det))
+        inputs = (alpha + r_norm) / (alpha + r_norm + alpha * beta) * z_min_gamma + self.gamma
         log_det = 0.0  # Too complex and not needed for sampling
-        return inputs_merged, log_det
+        return inputs, log_det
 
 
-class ContextualAffineTransform(AffineTransform):
+class ContextualPointwiseAffineTransform(Transform):
     """
     Affine flow: z = f(y/x) = y * scale(x) + shift(x)
     scale is exponentiated, so no worries about devision on zero
-
-    Attributes:
-        n_params (int): Number of parameters of transformation
     """
 
-    n_params = 2
+    def __init__(self, inputs_size: int, conditional=True):
+        super().__init__()
+        self.inputs_size = inputs_size
+
+        if conditional:
+            self.shift, self.scale = None, None
+        else:
+            shift = torch.nn.Parameter(torch.zeros((1, inputs_size)))
+            scale = torch.nn.Parameter(torch.ones((1, inputs_size)))
+
+            self.register_parameter("shift", shift)
+            self.register_parameter("scale", scale)
+
+    @property
+    def n_params(self):
+        return self.inputs_size + self.inputs_size
 
     def _params_from_context(self, context: Tensor = None) -> Tuple[Tensor, Tensor]:
         if context is not None:
             assert context.shape[-1] == self.n_params
             if context.dim() == 2:
-                scale = context[:, 0:1]
-                shift = context[:, 1:2]
+                log_scale = context[:, 0:self.inputs_size]
+                shift = context[:, self.inputs_size:(self.inputs_size + self.inputs_size)]
             else:
-                scale = context[:, :, 0:1]
-                shift = context[:, :, 1:2]
-            return scale, shift
+                log_scale = context[:, :, 0:self.inputs_size]
+                shift = context[:, :, self.inputs_size:(self.inputs_size + self.inputs_size)]
+            return torch.exp(log_scale), shift
         else:
-            return self._scale, self._shift
+            return self.scale, self.shift
+
+    @property
+    def _log_scale(self) -> Tensor:
+        return torch.log(self.scale)
 
     def forward(self, inputs: Tensor, context=Optional[Tensor]) -> Tuple[Tensor, Tensor]:
         """
-        Given inputs (y) and context(x), returns transformed input (z = f(y/x)) and the abs log-determinant log|dz/dy|.
+        Given context_vars (y) and global_context(x), returns transformed input (z = f(y/x))
+        and the abs log-determinant log|dz/dy|.
         """
-        log_scale, self._shift = self._params_from_context(context)
-        self._scale = torch.exp(log_scale)
+        self.scale, self.shift = self._params_from_context(context)
         # RuntimeError here means shift/scale not broadcastable to input.
-        outputs = inputs * self._scale + self._shift
-        logabsdet = self._log_scale.squeeze()
+        outputs = inputs * self.scale + self.shift
+        logabsdet = self._log_scale.sum(1) + torch.zeros((len(inputs), ))
         return outputs, logabsdet
 
     def inverse(self, inputs: Tensor, context=Optional[Tensor]) -> Tuple[Tensor, Tensor]:
         """
-        Given inputs (z) and context(x), returns inverse transformed input (y = f^-1(z/x)) and the abs log-determinant log|dy/dz|.
+        Given context_vars (z) and global_context(x), returns inverse transformed input (y = f^-1(z/x))
+        and the abs log-determinant log|dy/dz|.
         """
-        log_scale, self._shift = self._params_from_context(context)
-        self._scale = torch.exp(log_scale)
-        outputs = (inputs - self._shift) / self._scale
-        logabsdet = - self._log_scale.squeeze()
+        self.scale, self.shift = self._params_from_context(context)
+        outputs = (inputs - self.shift) / self.scale
+        logabsdet = - self._log_scale.sum(1) + torch.zeros((len(inputs), ))
         return outputs, logabsdet
 
 
 class ContextualCompositeTransform(CompositeTransform):
     """
-    Composition of different transformations, embedded context is tiled for each transformation.
+    Composition of different transformations, embedded global_context is tiled for each transformation.
 
     Attributes:
         n_params (int): Number of parameters of transformation
@@ -176,7 +199,7 @@ class ContextualCompositeTransform(CompositeTransform):
         if forward:
             ind_acc = 0
             for func in funcs:
-                # Splitting context along transformations
+                # Splitting global_context along transformations
                 context_tile = context[:, ind_acc:ind_acc + func.n_params] if context.dim() == 2 else \
                     context[:, :, ind_acc:ind_acc + func.n_params]
                 ind_acc += func.n_params
@@ -185,7 +208,7 @@ class ContextualCompositeTransform(CompositeTransform):
         else:
             ind_acc = context.shape[-1]
             for func in funcs[::-1]:
-                # Splitting context along transformations
+                # Splitting global_context along transformations
                 context_tile = context[:, ind_acc - func.n_params:ind_acc] if context.dim() == 2 else \
                     context[:, ind_acc - func.n_params:ind_acc]
                 ind_acc -= func.n_params

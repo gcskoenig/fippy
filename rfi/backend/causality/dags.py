@@ -4,6 +4,9 @@ from networkx import nx
 import matplotlib.pyplot as plt
 
 
+from rfi.utils import search_nonsorted
+
+
 class DirectedAcyclicGraph:
     """
     Directed acyclic graph, used to define Structural Equation Model
@@ -24,6 +27,24 @@ class DirectedAcyclicGraph:
 
         self.var_names = np.array(var_names, dtype=str)
 
+    def get_markov_blanket(self, node: str) -> set:
+        return self.get_parents(node) | self.get_children(node) | self.get_spouses(node)
+
+    def get_parents(self, node: str) -> set:
+        node_ind = search_nonsorted(self.var_names, [node])[0]
+        parents = tuple(self.DAG.predecessors(node_ind))
+        return set([self.var_names[node] for node in parents])
+
+    def get_children(self, node: str) -> set:
+        node_ind = search_nonsorted(self.var_names, [node])[0]
+        children = tuple(self.DAG.successors(node_ind))
+        return set([self.var_names[node] for node in children])
+
+    def get_spouses(self, node: str) -> set:
+        node_ind = search_nonsorted(self.var_names, [node])[0]
+        children = tuple(self.DAG.successors(node_ind))
+        spouses = tuple([par for child in children for par in tuple(self.DAG.predecessors(child)) if par != node_ind])
+        return set([self.var_names[node] for node in spouses])
 
     def plot_dag(self, ax=None):
         """
@@ -38,20 +59,27 @@ class DirectedAcyclicGraph:
                          arrowsize=15, edgecolors='b', node_size=800)
 
     @staticmethod
-    def random_dag(n, p, seed=None):
+    def random_dag(n, p=None, m_n_ratio=None, seed=None, model='np'):
         """
         Creates random Erdős-Rényi graph from G(size, p) sem
         (see https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93R%C3%A9nyi_model)
 
         Args:
-            seed: Random seed
+            seed: Random mc_seed
             n: Number of nodes
-            p: Probability of creating an edge
+            p: Probability of creating an edge in 'np' model
+            m_n_ratio: m/n ratio, m is the number of edges in 'nm' model
+            model: 'np' - G(n, p) / 'nm' - G(n, m)
 
         Returns: DirectedAcyclicGraph instance
 
         """
-        G = nx.gnp_random_graph(n, p, seed, directed=True)
+        if model == 'np':
+            G = nx.gnp_random_graph(n, p, seed, directed=True)
+        elif model == 'nm':
+            G = nx.gnm_random_graph(n, int(m_n_ratio * n), seed, directed=True)
+        else:
+            raise NotImplementedError('Unknown model type')
         G.remove_edges_from([(u, v) for (u, v) in G.edges() if u > v])
         adjacency_matrix = nx.linalg.graphmatrix.adjacency_matrix(G).todense().astype(int)
         var_names = [f'x{i}' for i in range(n)]

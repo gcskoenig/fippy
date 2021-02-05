@@ -1,3 +1,1 @@
-import coloredlogs
 
-coloredlogs.install()

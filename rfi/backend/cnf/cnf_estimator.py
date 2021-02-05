@@ -6,11 +6,13 @@ from nflows.flows.base import Flow, Distribution
 from nflows.distributions import StandardNormal
 from torch import optim, Tensor
 import numpy as np
-from typing import Type, Union, Tuple
+from nflows.transforms import CompositeTransform, PointwiseAffineTransform
+from typing import Type, Union, Tuple, List
 import torch
+from copy import deepcopy
 
 from rfi.backend.cnf.context_embedding import ContextEmbedding
-from rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualAffineTransform, \
+from rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform, \
     ContextualCompositeTransform
 
 from sklearn.model_selection import KFold
@@ -18,61 +20,71 @@ import logging
 from ray import tune
 import ray
 
+logger = logging.getLogger(__name__)
 
-class ConditionalNormalisingFlowEstimator(Flow):
+
+class NormalisingFlowEstimator(Flow):
     """
     Conditional density estimator based on Normalising Flows
     """
 
     default_hparam_grid = {
-        'n_epochs': tune.grid_search([500, 1000]),
-        'hidden_units': tune.grid_search([(8,), (16,), (32,)]),
-        'transform_classes': tune.grid_search([2 * (ContextualInvertableRadialTransform,) + (ContextualAffineTransform,),
-                                               4 * (ContextualInvertableRadialTransform,) + (ContextualAffineTransform,),
-                                               6 * (ContextualInvertableRadialTransform,) + (ContextualAffineTransform,)]),
+        'n_epochs': tune.grid_search([500, 1000, 1500]),
+        'hidden_units': tune.grid_search([(8,), (16,)]),
+        'transform_classes': tune.grid_search([(ContextualPointwiseAffineTransform,),
+                                               2 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,)]),
         'context_noise_std': tune.grid_search([0.1, 0.2, 0.3]),
-        'input_noise_std': tune.grid_search([0.01, 0.02, 0.05, 0.1]),
+        'input_noise_std': tune.grid_search([0.01, 0.05, 0.1]),
         'weight_decay': tune.grid_search([0.0, 1e-4])
     }
 
     def __init__(self,
                  context_size: int,
-                 transform_classes: Tuple[Type] = 5 * (ContextualInvertableRadialTransform,) + (ContextualAffineTransform,),
+                 inputs_size: int = 1,
+                 transform_classes: Tuple[Type] = 2 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,),
                  hidden_units: Tuple[int] = (16,),
                  n_epochs: int = 1000,
                  lr: float = 0.001,
                  weight_decay: float = 0.0,
-                 input_noise_std: float = 0.0,
-                 context_noise_std: float = 0.0,
+                 input_noise_std: float = 0.05,
+                 context_noise_std: float = 0.1,
                  base_distribution: Distribution = StandardNormal(shape=[1]),
                  context_normalization=True,
                  inputs_normalization=True,
-                 device='cpu'):
+                 device='cpu',
+                 **kwargs):
         """
-        PyTorch implementation of Noise Regularization for Conditional Density Estimation
+        PyTorch implementation of Noise Regularization for Conditional Density Estimation. Also works unconditionally
         (https://github.com/freelunchtheorem/Conditional_Density_Estimation)
          [Rothfuss et al, 2020; https://arxiv.org/pdf/1907.08982.pdf]
-        Args:       
-            context_size: Dimensionality of context
+        Args:
+            context_size: Dimensionality of global_context
             transform_classes: Contextual transformations list
-            hidden_units: Tuple of hidden sizes for context embedding network
+            hidden_units: Tuple of hidden sizes for global_context embedding network
             n_epochs: Number of training epochs
             lr: Learning rate
             weight_decay: Weight decay (not applied to bias)
             input_noise_std: Noise regularisation for input
-            context_noise_std: Noise regularisation for context
+            context_noise_std: Noise regularisation for global_context
             base_distribution: Base distribution of normalising flow
-            context_normalization: Mean-std normalisation of context
-            inputs_normalization: Mean-std normalisation of inputs
+            context_normalization: Mean-std normalisation of global_context
+            inputs_normalization: Mean-std normalisation of context_vars
             device: cpu / cuda
         """
-        # Constructing composite transformation
-        transform = ContextualCompositeTransform([transform_cls() for transform_cls in transform_classes])
-
-        # Initialisation of context embedding network
+        self.inputs_size = inputs_size
         self.context_size = context_size
-        embedding_net = ContextEmbedding(transform, input_units=context_size, hidden_units=hidden_units)
 
+        # Constructing composite transformation & Initialisation of global_context embedding network
+        if context_size > 0:
+            transform = ContextualCompositeTransform(
+                [transform_cls(inputs_size=inputs_size) for transform_cls in transform_classes])
+            embedding_net = ContextEmbedding(transform, input_units=context_size, hidden_units=hidden_units)
+        else:
+            transform = CompositeTransform(
+                [transform_cls(inputs_size=inputs_size, conditional=False) for transform_cls in transform_classes])
+            embedding_net = None
+
+        assert base_distribution._shape[0] == inputs_size
         super().__init__(transform, base_distribution, embedding_net)
 
         # Training
@@ -101,14 +113,18 @@ class ConditionalNormalisingFlowEstimator(Flow):
         self.optimizer = optim.Adam(optimizer_grouped_parameters, betas=(0.9, 0.99), lr=lr)
 
     def _input_to_tensor(self, inputs: np.array, context: np.array) -> [Tensor, Tensor]:
-        if inputs is not None and context is not None:
-            inputs = torch.tensor(inputs, dtype=torch.float32, device=self.device).reshape(-1, 1)
-            context = torch.tensor(context, dtype=torch.float32, device=self.device)
+        if inputs is not None:
+            inputs = torch.tensor(inputs, dtype=torch.float32, device=self.device).reshape(-1, self.inputs_size)
+        if context is not None:
+            context = torch.tensor(context, dtype=torch.float32, device=self.device).reshape(-1, self.context_size)
         return inputs, context
 
     @staticmethod
     def _add_noise(data: Tensor, std: float) -> Tensor:
-        return data + torch.randn(data.size()).type_as(data) * std
+        if data is not None:
+            return data + torch.randn(data.size()).type_as(data) * std
+        else:
+            return None
 
     def _fit_transform_normalise(self, train_inputs: Tensor, train_context: Tensor):
         if train_inputs is not None and self.inputs_normalization:
@@ -138,19 +154,20 @@ class ConditionalNormalisingFlowEstimator(Flow):
 
     def fit(self,
             train_inputs: Union[np.array, Tensor],
-            train_context: Union[np.array, Tensor],
+            train_context: Union[np.array, Tensor] = None,
             verbose=False,
             val_inputs: Union[np.array, Tensor] = None,
             val_context: Union[np.array, Tensor] = None,
-            log_frequency: int = 100):
+            log_frequency: int = 100,
+            **kwargs):
         """
         Method to fit Conditional Normalizing Flow density estimator
         Args:
             train_inputs: Train input
-            train_context: Train conditioning context
-            verbose: True - prints train (val) log-likelihood every log_frequency epoch
+            train_context: Train conditioning global_context
+            verbose: True - prints train (value) log-likelihood every log_frequency epoch
             val_inputs: Validation input
-            val_context: Validation conditioning context
+            val_context: Validation conditioning global_context
             log_frequency: Frequency of logging, only works, when verbose == True
 
         Returns: self
@@ -176,16 +193,16 @@ class ConditionalNormalisingFlowEstimator(Flow):
                 with torch.no_grad():
                     train_log_lik = self.log_prob(inputs=train_inputs, context=train_context, data_normalization=False).mean()
 
-                    if val_inputs is not None and val_context is not None:
+                    if val_inputs is not None:
                         val_log_lik = self.log_prob(inputs=val_inputs, context=val_context, data_normalization=False).mean()
-                        print(f'{i}: train log-likelihood: {train_log_lik}, val log likelihood: {val_log_lik}')
+                        logger.info(f'{i}: train log-likelihood: {train_log_lik}, val log-likelihood: {val_log_lik}')
                     else:
-                        print(f'{i}: train log-likelihood: {train_log_lik}')
+                        logger.info(f'{i}: train log-likelihood: {train_log_lik}')
 
         return self
 
     def fit_by_cv(self, train_inputs: Union[np.array, Tensor], train_context: Union[np.array, Tensor],
-                  hparam_grid=None, n_splits=5, resources_per_trial={"cpu": 0.5}, time_budget_s=None):
+                  hparam_grid=None, n_splits=5, resources_per_trial={"cpu": 0.5}, time_budget_s=None, num_cpus=15):
         """
         Method for hyper-parameter search for Conditional Normalizing Flow density estimator, performs K-fold cross-validation.
         After the hyper-parameter search, fits the best sem on full train dataset.
@@ -193,19 +210,21 @@ class ConditionalNormalisingFlowEstimator(Flow):
 
         Args:
             train_inputs: Train input
-            train_context: Train conditioning context
+            train_context: Train conditioning global_context
             hparam_grid: Hyper-parameter grid. If None, default is used
             n_splits: Number of splits for K-Fold cross-validation
             resources_per_trial: Ray tune parameter
             time_budget_s: Total time budget (Ray tune parameter)
+            num_cpus: Number of CPUs to employ
 
         Returns: self
         """
 
-        ray.init(logging_level=logging.ERROR)
+        ray.init(logging_level=logging.WARN, num_cpus=num_cpus)
+        logger.info(f'Start fitting, using {n_splits}-fold split, time budget: {time_budget_s}')
 
         if hparam_grid is None:
-            hparam_grid = ConditionalNormalisingFlowEstimator.default_hparam_grid
+            hparam_grid = NormalisingFlowEstimator.default_hparam_grid
 
         def ray_fit(config):
             val_log_liks = []
@@ -214,7 +233,8 @@ class ConditionalNormalisingFlowEstimator(Flow):
                 train_inputs_, train_context_ = train_inputs[train_ind], train_context[train_ind]
                 val_inputs_, val_context_ = train_inputs[val_ind], train_context[val_ind]
 
-                flow = ConditionalNormalisingFlowEstimator(context_size=self.context_size, device=self.device, **config)
+                flow = NormalisingFlowEstimator(inputs_size=self.inputs_size,
+                                                context_size=self.context_size, device=self.device, **config)
                 flow.fit(train_inputs_, train_context_, False)
                 val_log_liks.append(flow.log_prob(val_inputs_, val_context_).mean())
 
@@ -232,22 +252,22 @@ class ConditionalNormalisingFlowEstimator(Flow):
         )
         ray.shutdown()
 
-        print(f"Models evaluated: {result.results_df['done'].sum()} / {len(result.results_df)}, "
-              f"Best config: {result.get_best_config()}. Refitting the best sem.")
+        logger.info(f"Models evaluated: {result.results_df['done'].sum()} / {len(result.results_df)}, "
+                    f"Best config: {result.get_best_config()}. Refitting the best model.")
         self.__init__(self.context_size, device=self.device, **result.get_best_config())
         self.fit(train_inputs, train_context)
         return self
 
-    def log_prob(self, inputs: Union[np.array, Tensor], context: Union[np.array, Tensor],
+    def log_prob(self, inputs: Union[np.array, Tensor], context: Union[np.array, Tensor] = None,
                  data_normalization=True) -> Union[np.array, Tensor]:
         """
         Log pdf function
         Args:
             inputs: Input
-            context: Conditioning context
+            context: Conditioning global_context
             data_normalization: Perform data normalisation
 
-        Returns: np.array or Tensor with shape (inputs_dim, )
+        Returns: np.array or Tensor with shape (inputs_size, )
 
         """
         return_numpy = False
@@ -261,28 +281,52 @@ class ConditionalNormalisingFlowEstimator(Flow):
         result = super().log_prob(inputs, context)
 
         if self.inputs_normalization:
-            result -= torch.log(self.inputs_std)
+            result -= torch.log(self.inputs_std).sum()
 
         if return_numpy:
             return result.detach().cpu().numpy()
         else:
             return result
 
-    def sample(self, context: Union[np.array, Tensor], num_samples=1, data_normalization=True) -> Union[np.array, Tensor]:
+    def conditional_distribution(self, context: Union[np.array, Tensor], data_normalization=True) -> Flow:
+        if not isinstance(context, torch.Tensor):
+            context = torch.tensor(context, dtype=torch.float32, device=self.device)
+
+        if data_normalization:
+            _, context = self._transform_normalise(None, context)
+
+        # for cont in context:
+        transforms_list = torch.nn.ModuleList()
+
+        if self.inputs_normalization:
+            # Inverse normalisation
+            transforms_list.append(PointwiseAffineTransform(shift=-self.inputs_mean / self.inputs_std,
+                                                            scale=1 / self.inputs_std))
+
+        # Forward pass, to init conditional parameters
+        with torch.no_grad():
+            _ = super().log_prob(torch.zeros(len(context), 1), context)
+
+        transforms_list.extend(deepcopy(self._transform._transforms))
+        cond_dist = Flow(CompositeTransform(transforms_list), self._distribution)
+        return cond_dist
+
+
+    def sample(self, context: Union[np.array, Tensor] = None, num_samples=1, data_normalization=True) -> Union[np.array, Tensor]:
         """
         Sampling from conditional distribution
 
         Args:
-            num_samples: Number of samples per context
-            context: Conditioning context
+            num_samples: Number of samples per global_context
+            context: Conditioning global_context
             data_normalization: Perform data normalisation
 
-        Returns: np.array or Tensor with shape (context.shape[0], num_samples)
+        Returns: np.array or Tensor with shape (global_context.shape[0], num_samples)
 
         """
         return_numpy = False
         if not isinstance(context, torch.Tensor):
-            context = torch.tensor(context, dtype=torch.float32)
+            _, context = self._input_to_tensor(None, context)
             return_numpy = True
 
         if data_normalization:
