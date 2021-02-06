@@ -10,6 +10,8 @@ from rfi.samplers._utils import sample_id, sample_perm
 import logging
 from typing import Union
 
+logger = logging.getLogger(__name__)
+
 
 class Sampler:
     """Can be used to resample perturbed versions of a variable conditional on
@@ -72,14 +74,14 @@ class Sampler:
 
         # are we conditioning on zero elements?
         if G.size == 0:
-            logging.debug('Degenerate Training: Empty G')
+            logger.debug('Degenerate Training: Empty G')
             self._store_samplefunc(J, G, sample_perm(J))
         # are all elements in G being conditioned upon?
         elif np.sum(1 - np.isin(J, G)) == 0:
-            logging.debug('Degenerate Training: J subseteq G')
+            logger.debug('Degenerate Training: J subseteq G')
             self._store_samplefunc(J, G, sample_id(J))
         else:
-            logging.debug('Training not degenerate.')
+            logger.debug('Training not degenerate.')
             degenerate = False
 
         return degenerate
@@ -95,7 +97,7 @@ class Sampler:
         """
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
         self._trained_sampling_funcs[(J_key, G_key)] = samplefunc
-        logging.info('Training ended. Sampler saved.')
+        logger.info('Training ended. Sampler saved.')
 
     def train(self, J, G, verbose=True):
         """Trains sampler using the training dataset to resample
@@ -109,7 +111,7 @@ class Sampler:
             Nothing. Now the sample function can be used
             to resample on seen or unseen data.
         """
-        logging.info('Training Sampler for: {} | {}'.format(J, G))
+        logger.info('Training Sampler for: {} | {}'.format(J, G))
 
     def sample(self, X_test, J, G, num_samples=1):
         """Sample features of interest using trained resampler.

@@ -103,11 +103,18 @@ class ConditionalGoodnessOfFit:
             raise NotImplementedError()
 
         # Bounds check
-        assert (result + exp_args.metrics.epsabs >= 0.0).all()
-        if self.name == 'conditional_js_divergence':
-            assert (result - exp_args.metrics.epsabs <= np.log(2)).all()
-        elif self.name == 'conditional_hellinger_distance':
-            assert (result - exp_args.metrics.epsabs <= 1.0).all()
+        if not ((result + exp_args.metrics.epsabs) >= 0.0).all():
+            logger.warning(f'{((result + exp_args.metrics.epsabs) < 0.0).sum()} contexts have negative distances, '
+                           f'Please increase cond distribution estimation accuracy. Negative values will be ignored.')
+            result = result[(result + exp_args.metrics.epsabs) >= 0.0]
+        if self.name == 'conditional_js_divergence' and not (result - exp_args.metrics.epsabs <= np.log(2)).all():
+            logger.warning(f'{(result - exp_args.metrics.epsabs > np.log(2)).sum()} contexts have distances, larger than log(2), '
+                           f'please increase cond distribution estimation accuracy. Larger values will be ignored.')
+            result = result[(result - exp_args.metrics.epsabs) <= np.log(2)]
+        elif self.name == 'conditional_hellinger_distance' and not ((result - exp_args.metrics.epsabs) <= 1.0).all():
+            logger.warning(f'{((result - exp_args.metrics.epsabs) > 1.0).sum()} contexts have distances, larger than 1.0, '
+                           f'please increase cond distribution estimation accuracy. Larger values will be ignored.')
+            result = result[(result - exp_args.metrics.epsabs) <= 1.0]
 
         return result.mean()
 

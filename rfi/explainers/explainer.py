@@ -9,8 +9,10 @@ import rfi.utils as utils
 import rfi.explanation.explanation as explanation
 import logging
 
+logger = logging.getLogger(__name__)
 
-class Explainer():
+
+class Explainer:
     """Implements a number of feature importance algorithms
 
     Default samplers or loss function can be defined.
@@ -75,12 +77,12 @@ class Explainer():
         if sampler is None:
             if self._sampler_specified():
                 sampler = self.sampler
-                logging.debug("Using class specified sampler.")
+                logger.debug("Using class specified sampler.")
 
         if loss is None:
             if self._loss_specified():
                 loss = self.loss
-                logging.debug("Using class specified loss.")
+                logger.debug("Using class specified loss.")
 
         # check whether the sampler is trained for each fsoi conditional on G
         for f in self.fsoi:
@@ -88,11 +90,11 @@ class Explainer():
                 # train if allowed, otherwise raise error
                 if train_allowed:
                     sampler.train([f], G)
-                    logging.info('Training sampler on {}|{}'.format([f], G))
+                    logger.info('Training sampler on {}|{}'.format([f], G))
                 else:
                     raise RuntimeError('Sampler is not trained on {}|{}'.format([f], G))
             else:
-                logging.debug('\tCheck passed: Sampler is already trained on {}|{}'.format([f], G))
+                logger.debug('\tCheck passed: Sampler is already trained on {}|{}'.format([f], G))
 
         # initialize array for the perturbed samples
         nr_fsoi, nr_obs = self.fsoi.shape[0], X_test.shape[0]
@@ -118,10 +120,10 @@ class Explainer():
         # return explanation object
         result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi], ex_name='RFI')
         if return_perturbed:
-            logging.debug('Return both explanation and perturbed.')
+            logger.debug('Return both explanation and perturbed.')
             return result, perturbed_foiss
         else:
-            logging.debug('Return explanation object only')
+            logger.debug('Return explanation object only')
             return result
 
     def si(self, X_test, y_test, K, sampler=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
@@ -150,12 +152,12 @@ class Explainer():
         if sampler is None:
             if self._sampler_specified():  # may throw an error
                 sampler = self.sampler
-                logging.debug("Using class specified sampler.")
+                logger.debug("Using class specified sampler.")
 
         if loss is None:
             if self._loss_specified():  # may throw an error
                 loss = self.loss
-                logging.debug("Using class specified loss.")
+                logger.debug("Using class specified loss.")
 
         all_fs = np.arange(X_test.shape[1])
 
@@ -164,11 +166,11 @@ class Explainer():
             # train if allowed, otherwise raise error
             if train_allowed:
                 sampler.train(all_fs, [])
-                logging.info('Training sampler on {}|{}'.format(all_fs, []))
+                logger.info('Training sampler on {}|{}'.format(all_fs, []))
             else:
                 raise RuntimeError('Sampler is not trained on {}|{}'.format(all_fs, []))
         else:
-            logging.debug('\tCheck passed: Sampler is already trained on {}|{}'.format(all_fs, []))
+            logger.debug('\tCheck passed: Sampler is already trained on {}|{}'.format(all_fs, []))
 
         # check for each of the features of interest
         for f in self.fsoi:
@@ -176,11 +178,11 @@ class Explainer():
                 # train if allowed, otherwise raise error
                 if train_allowed:
                     sampler.train(K, [f])
-                    logging.info('Training sampler on {}|{}'.format(K, [f]))
+                    logger.info('Training sampler on {}|{}'.format(K, [f]))
                 else:
                     raise RuntimeError('Sampler is not trained on {}|{}'.format(K, [f]))
             else:
-                logging.debug('\tCheck passed: Sampler is already trained on {}|{}'.format(K, [f]))
+                logger.debug('\tCheck passed: Sampler is already trained on {}|{}'.format(K, [f]))
 
         # initialize array for the perturbed samples
         nr_fsoi, nr_obs, nr_features = self.fsoi.shape[0], X_test.shape[0], len(all_fs)
@@ -212,10 +214,10 @@ class Explainer():
         result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi], ex_name='SI')
         if return_perturbed:
             raise NotImplementedError('Returning perturbed not implemented yet.')
-            logging.debug('Return both explanation and perturbed.')
-            return result, perturbed_baseline, perturbed_reconstr
+            # logger.debug('Return both explanation and perturbed.')
+            # return result, perturbed_baseline, perturbed_reconstr
         else:
-            logging.debug('Return explanation object only')
+            logger.debug('Return explanation object only')
             return result
 
     def sage(self, X_test, y_test, nr_orderings, nr_runs=10, sampler=None, loss=None, train_allowed=True, return_orderings=False):
@@ -240,19 +242,19 @@ class Explainer():
         # the method is currently not build for situations where we are only interested in
         # a subset of the model's features
         if X_test.shape[1] != self.fsoi.shape[0]:
-            logging.debug('self.fsoi: {}'.format(self.fsoi))
-            logging.debug('#features in model: {}'.format(X_test.shape[1]))
+            logger.debug('self.fsoi: {}'.format(self.fsoi))
+            logger.debug('#features in model: {}'.format(X_test.shape[1]))
             raise RuntimeError('self.fsoi is not identical to all features')
 
         if sampler is None:
             if self._sampler_specified():
                 sampler = self.sampler
-                logging.debug("Using class specified sampler.")
+                logger.debug("Using class specified sampler.")
 
         if loss is None:
             if self._loss_specified():
                 loss = self.loss
-                logging.debug("Using class specified loss.")
+                logger.debug("Using class specified loss.")
 
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0], nr_orderings))
 
@@ -267,12 +269,12 @@ class Explainer():
                     # store the result in the right place
                     # validate training of sampler
                     impute, fixed = self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]]
-                    logging.debug('{}:{}:{}: fixed, impute: {}|{}'.format(ii, kk, jj, impute, fixed))
+                    logger.debug('{}:{}:{}: fixed, impute: {}|{}'.format(ii, kk, jj, impute, fixed))
                     if not sampler.is_trained(impute, fixed):
                         # train if allowed, otherwise raise error
                         if train_allowed:
                             sampler.train(impute, fixed)
-                            logging.info('Training sampler on {}|{}'.format(impute, fixed))
+                            logger.info('Training sampler on {}|{}'.format(impute, fixed))
                         else:
                             raise RuntimeError('Sampler is not trained on {}|{}'.format(impute, fixed))
                     X_test_perturbed = np.array(X_test)
