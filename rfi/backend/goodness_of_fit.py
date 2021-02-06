@@ -103,11 +103,11 @@ class ConditionalGoodnessOfFit:
             raise NotImplementedError()
 
         # Bounds check
-        assert np.testing.(result >= 0.0).all()
+        assert (result + exp_args.metrics.EPSABS >= 0.0).all()
         if self.name == 'conditional_js_divergence':
-            assert (result <= np.log(2)).all()
+            assert (result - exp_args.metrics.EPSABS <= np.log(2)).all()
         elif self.name == 'conditional_hellinger_distance':
-            assert (result <= 1.0).all()
+            assert (result - exp_args.metrics.EPSABS <= 1.0).all()
 
         return result.mean()
 
