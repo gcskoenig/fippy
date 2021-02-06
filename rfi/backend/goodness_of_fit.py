@@ -46,17 +46,15 @@ class ConditionalGoodnessOfFit:
         else:
             raise NotImplementedError('Unknown conditioning type!')
 
-
         def log_prob_from_np(value, log_prob_func):
             value = torch.tensor([[value]])
             with torch.no_grad():
                 return log_prob_func(value.repeat(context_size, 1)).squeeze()
 
-
         logger.info("Initializing estimator's conditional distributions")
         model_log_prob = estimator.conditional_distribution(test_df.loc[:, context_vars].values).log_prob
 
-        logger.info(f"Calculating integral")
+        logger.info("Calculating integral")
         if self.name == 'conditional_kl_divergence' or self.name == 'conditional_hellinger_distance':
 
             def integrand(value):
@@ -72,9 +70,9 @@ class ConditionalGoodnessOfFit:
                 return res.numpy()
 
             if self.name == 'conditional_kl_divergence':
-                result = integrate.quad_vec(integrand, *sem.support_bounds, epsabs=exp_args.metrics.epsabs)[0]
+                result = integrate.quad_vec(integrand, *sem.support_bounds, epsabs=exp_args.metrics.EPSABS)[0]
             else:
-                result = integrate.quad_vec(integrand, -np.inf, np.inf, epsabs=exp_args.metrics.epsabs)[0]
+                result = integrate.quad_vec(integrand, -np.inf, np.inf, epsabs=exp_args.metrics.EPSABS)[0]
 
             if self.name == 'conditional_hellinger_distance':
                 result = np.sqrt(0.5 * result)
@@ -98,9 +96,8 @@ class ConditionalGoodnessOfFit:
                 res[torch.isnan(res)] = 0.0  # Out of support values
                 return res.numpy()
 
-
-            result = 0.5 * (integrate.quad_vec(integrand1, -np.inf, np.inf, epsabs=exp_args.metrics.epsabs)[0] +
-                            integrate.quad_vec(integrand2, -np.inf, np.inf, epsabs=exp_args.metrics.epsabs)[0])
+            result = 0.5 * (integrate.quad_vec(integrand1, -np.inf, np.inf, epsabs=exp_args.metrics.EPSABS)[0] +
+                            integrate.quad_vec(integrand2, -np.inf, np.inf, epsabs=exp_args.metrics.EPSABS)[0])
 
         else:
             raise NotImplementedError()

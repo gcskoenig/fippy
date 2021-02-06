@@ -11,12 +11,11 @@ import torch
 
 from rfi.backend.causality import DirectedAcyclicGraph, PostNonLinearLaplaceSEM, PostNonLinearMultiplicativeHalfNormalSEM, \
     LinearGaussianNoiseSEM, RandomGPGaussianNoiseSEM
-from rfi.backend.goodness_of_fit import *
+from rfi.backend.goodness_of_fit import conditional_js_divergence, conditional_kl_divergence, conditional_hellinger_distance
 from rfi.examples import SyntheticExample
 
 
-gauss_anm = SyntheticExample(sem=RandomGPGaussianNoiseSEM(dag=DirectedAcyclicGraph.random_dag(6, 0.5, seed=42), seed=42,
-                                                          ))
+gauss_anm = SyntheticExample(sem=RandomGPGaussianNoiseSEM(dag=DirectedAcyclicGraph.random_dag(6, 0.5, seed=42), seed=42))
 
 gauss_anm.sem.dag.plot_dag()
 plt.show(block=False)
@@ -50,61 +49,56 @@ plt.show()
 integrand = lambda val: mc_prob(torch.tensor([[val]]).repeat(1, len(sample))).exp().numpy()
 print(quad_vec(integrand, *gauss_anm.sem.support_bounds, epsabs=1e-4))
 
-    # Slider
-    # sliders = {}
-    # for i, node in enumerate(gauss_anm.var_names):
-    #     if node != var:
-    #         sliders[node] = Slider(plt.axes([0.25, .22 - i * 0.04, 0.50, 0.02]), node, sample[:, i].min(), sample[:, i].max(),
-    #                                valinit=global_context[node])
-    #
-    # mc_size_slider = Slider(plt.axes([0.25, .28, 0.50, 0.02]), 'MC size', 10, 1000, valinit=mc_size)
-    #
-    # def update(val):
-    #     # amp is the current value of the slider
-    #     for node, slider in sliders.items():
-    #         global_context[node] = torch.tensor([slider.val])
-    #
-    #     mc_prob = gauss_anm.sem.mb_conditional_log_prob(var, global_context=global_context, mc_size=int(mc_size_slider.val))
-    #     mc_plot.set_ydata(mc_prob(value).exp())
-    #
-    #     # real_prob = linear_gauss.sem.conditional_distribution(var, global_context=global_context)[0]
-    #     # real_plot.set_ydata(real_prob.log_prob(value).exp())
-    #
-    #
-    #     # update curve
-    #     # redraw canvas while idle
-    #     fig.canvas.draw_idle()
-    #
-    #     # def f1(value):
-    #     #     value = torch.tensor([value])
-    #     #     return mc_prob(value).exp().numpy()
-    #     #
-    #     # def f2(value):
-    #     #     value = torch.tensor([value])
-    #     #     return real_prob.log_prob(value).exp().numpy()
-    #     #
-    #     # print(np.abs(quad(f1, -np.inf, np.inf, epsabs=1e-7)[0] - quad(f2, -np.inf, np.inf, epsabs=1e-7)[0]))
-    #
-    #
-    # # call update function on slider value change
-    # for slider in sliders.values():
-    #     slider.on_changed(update)
-    # mc_size_slider.on_changed(update)
-    #
-    # fig.subplots_adjust(bottom=0.4)
-
-
-
+# Slider
+# sliders = {}
+# for i, node in enumerate(gauss_anm.var_names):
+#     if node != var:
+#         sliders[node] = Slider(plt.axes([0.25, .22 - i * 0.04, 0.50, 0.02]), node, sample[:, i].min(), sample[:, i].max(),
+#                                valinit=global_context[node])
+#
+# mc_size_slider = Slider(plt.axes([0.25, .28, 0.50, 0.02]), 'MC size', 10, 1000, valinit=mc_size)
+#
+# def update(val):
+#     # amp is the current value of the slider
+#     for node, slider in sliders.items():
+#         global_context[node] = torch.tensor([slider.val])
+#
+#     mc_prob = gauss_anm.sem.mb_conditional_log_prob(var, global_context=global_context, mc_size=int(mc_size_slider.val))
+#     mc_plot.set_ydata(mc_prob(value).exp())
+#
+#     # real_prob = linear_gauss.sem.conditional_distribution(var, global_context=global_context)[0]
+#     # real_plot.set_ydata(real_prob.log_prob(value).exp())
+#
+#
+#     # update curve
+#     # redraw canvas while idle
+#     fig.canvas.draw_idle()
+#
+#     # def f1(value):
+#     #     value = torch.tensor([value])
+#     #     return mc_prob(value).exp().numpy()
+#     #
+#     # def f2(value):
+#     #     value = torch.tensor([value])
+#     #     return real_prob.log_prob(value).exp().numpy()
+#     #
+#     # print(np.abs(quad(f1, -np.inf, np.inf, EPSABS=1e-7)[0] - quad(f2, -np.inf, np.inf, EPSABS=1e-7)[0]))
+#
+#
+# # call update function on slider value change
+# for slider in sliders.values():
+#     slider.on_changed(update)
+# mc_size_slider.on_changed(update)
+#
+# fig.subplots_adjust(bottom=0.4)
 
 # print(gauss_anm.sem.joint_log_prob(sample).exp().mean())
-
-
 
 # target_var = 'x3'
 # context_vars = linear_gauss.sem.model[target_var]['parents']
 # context_vars = ['x4', 'x5']
-# X_train, y_train, X_test, y_test = linear_gauss.get_train_test_data(context_vars=context_vars, target_var=target_var, n_train=10 ** 3, n_test=10 ** 3,
-#                                                                    mc_seed=300)
+# X_train, y_train, X_test, y_test = linear_gauss.get_train_test_data(context_vars=context_vars, target_var=target_var,
+# n_train=10 ** 3, n_test=10 ** 3, mc_seed=300)
 
 
 # estimator = GaussianConditionalEstimator()
@@ -118,13 +112,14 @@ print(quad_vec(integrand, *gauss_anm.sem.support_bounds, epsabs=1e-4))
 # model_cond_dist = estimator.conditional_distribution(X_test)
 # data_cond_dist = linear_gauss.sem.parents_conditional_distribution(target_var)
 # data_cond_dist = linear_gauss.sem.parents_conditional_distribution(target_var, global_context={node: torch.tensor()})
-# data_cond_dist = linear_gauss.sem.parents_conditional_distribution(target_var, global_context={par: torch.tensor(X_test[:, par_ind]) for (par_ind, par) in enumerate(context_vars)})
+# data_cond_dist = linear_gauss.sem.parents_conditional_distribution(target_var,
+# global_context={par: torch.tensor(X_test[:, par_ind]) for (par_ind, par) in enumerate(context_vars)})
 
 # print(conditional_js_divergence(model_distributions=model_cond_dist, data_distributions=data_cond_dist))
 # print(conditional_kl_divergence(model_distributions=model_cond_dist, data_distributions=data_cond_dist))
 # print(conditional_hellinger_distance(model_distributions=model_cond_dist, data_distributions=data_cond_dist))
-# data_pdf = lambda cont: gauss_anm.sem.parents_conditional_distribution(node=target_var, global_context={par: torch.tensor(cont[par_ind])
-#                                                                              for (par_ind, par) in enumerate(context_vars)})
+# data_pdf = lambda cont: gauss_anm.sem.parents_conditional_distribution(node=target_var,
+# global_context={par: torch.tensor(cont[par_ind]) for (par_ind, par) in enumerate(context_vars)})
 #
 # print(conditional_hellinger_distance(model_pdf, data_pdf, X_test))
 

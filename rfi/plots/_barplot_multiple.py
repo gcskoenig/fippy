@@ -1,9 +1,8 @@
-import matplotib.pyplot as plt
+import matplotlib.pyplot as plt
 import numpy as np
 
-# good resource: https://matplotlib.org/3.1.1/gallery/lines_bars_and_markers/horizontal_barchart_distribution.html#sphx-glr-gallery-lines-bars-and-markers-horizontal-barchart-distribution-py
-
-
+# good resource:
+# https://matplotlib.org/3.1.1/gallery/lines_bars_and_markers/horizontal_barchart_distribution.html#sphx-glr-gallery-lines-bars-and-markers-horizontal-barchart-distribution-py
 
 
 # def plot_rfis(rfis, fnames, rfinames, savepath, figsize=(16,10), textformat='{:5.2f}'):
@@ -19,7 +18,7 @@ import numpy as np
 #     rects = []
 #     for rfi_ind in np.arange(0, len(rfinames), 1):
 #         print(rfi_ind)
-#         rects_inx = ax.bar(ind + width*(rfi_ind+0.5), rfis[rfi_ind][0], width, 
+#         rects_inx = ax.bar(ind + width*(rfi_ind+0.5), rfis[rfi_ind][0], width,
 #         	yerr=rfis[rfi_ind][1], label=rfinames[rfi_ind])
 #         rects.append(rects_inx)
 
@@ -38,7 +37,7 @@ import numpy as np
 #             height = rect.get_height()
 #             ax.annotate(textformat.format(height),
 #                         xy=(rect.get_x(), height),
-#                         xytext=(3, 4),  # use 3 points offset 
+#                         xytext=(3, 4),  # use 3 points offset
 #                         #previously in xpos of xytext: +rect.get_width()/2
 #                         textcoords="offset points",  # in both directions
 #                         va='bottom')

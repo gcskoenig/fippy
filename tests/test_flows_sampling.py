@@ -16,8 +16,9 @@ from rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, Cont
 
 
 logging.basicConfig(level=logging.INFO)
-epsabs = 0.001
-assert_decimal = 2
+EPSABS = 0.001
+ASSERT_DECIMAL = 2
+DEFAULT_TRANSFORMS = 4 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,)
 
 
 def test_univar_uncond():  # =================  Univarite unconditional density with Boston dataset ==================
@@ -26,15 +27,13 @@ def test_univar_uncond():  # =================  Univarite unconditional density 
     # Train/test splits
     y_train, y_test = train_test_split(y, random_state=10)
 
-
-    flow = NormalisingFlowEstimator(context_size=0, n_epochs=5000, input_noise_std=0.07,
-                                    transform_classes=4 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,), )
+    flow = NormalisingFlowEstimator(context_size=0, n_epochs=5000, input_noise_std=0.07, transform_classes=DEFAULT_TRANSFORMS)
     flow.fit(train_inputs=y_train, verbose=True, val_inputs=y_test, log_frequency=1000)
 
     # Density check
     int_res = integrate.quad(lambda x: np.exp(flow.log_prob(x)), -np.inf, np.inf, limit=100)[0]
     logging.info(f'Integral of density: {int_res}')
-    np.testing.assert_almost_equal(int_res, 1.0, assert_decimal)
+    np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
 
     # Density plotting
     fig, ax = plt.subplots()
@@ -61,18 +60,16 @@ def test_univar_cond():  # =================  Univarite unconditional density wi
     # Train/test splits
     y_train, y_test, X_train, X_test = train_test_split(y, X, random_state=10)
 
-
     flow = NormalisingFlowEstimator(context_size=X_train.shape[1], n_epochs=5000, input_noise_std=0.3, context_noise_std=0.1,
-                                    lr=0.01,
-                                    transform_classes=2 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,), )
+                                    lr=0.01, transform_classes=DEFAULT_TRANSFORMS)
     flow.fit(train_inputs=y_train, train_context=X_train, verbose=True, val_inputs=y_test, val_context=X_test, log_frequency=1000)
 
     # Density check
     # for cont in X_test:
     int_res = integrate.quad_vec(lambda x: np.exp(flow.log_prob(np.repeat(x, len(X_test)), context=X_test)),
-                                 -np.inf, np.inf, epsabs=epsabs)[0]
+                                 -np.inf, np.inf, epsabs=EPSABS)[0]
     logging.info(f'Mean integral of cond density: {int_res.mean()}')
-    np.testing.assert_array_almost_equal(int_res, np.ones(len(X_test)), assert_decimal)
+    np.testing.assert_array_almost_equal(int_res, np.ones(len(X_test)), ASSERT_DECIMAL)
 
     # Sampling
     with torch.no_grad():
@@ -90,15 +87,14 @@ def test_bivar_uncond():  # =================  Bivariate unconditional density w
     data_train, data_test = train_test_split(data, random_state=42)
 
     flow = NormalisingFlowEstimator(inputs_size=2, context_size=0, n_epochs=5000, input_noise_std=0.2, lr=0.02,
-                                    base_distribution=StandardNormal(shape=[2]),
-                                    transform_classes=5 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,), )
+                                    base_distribution=StandardNormal(shape=[2]), transform_classes=DEFAULT_TRANSFORMS)
     flow.fit(train_inputs=data_train, verbose=True, val_inputs=data_test, log_frequency=1000)
 
     # Density check
     int_res = integrate.dblquad(lambda x, y: np.exp(flow.log_prob(np.array([x, y]))), -np.inf, np.inf, -np.inf, np.inf,
-                                epsabs=epsabs)[0]
+                                epsabs=EPSABS)[0]
     logging.info(f'Integral of density: {int_res}')
-    np.testing.assert_almost_equal(int_res, 1.0, assert_decimal)
+    np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
 
     # Density plotting
     fig, ax = plt.subplots()
@@ -136,19 +132,18 @@ def test_bivar_cond():  # =================  Bivariate conditional density with 
     y_train, y_test, X_train, X_test = train_test_split(y, X, random_state=42)
 
     flow = NormalisingFlowEstimator(inputs_size=2, context_size=1, n_epochs=5000, input_noise_std=0.2, lr=0.02,
-                                    base_distribution=StandardNormal(shape=[2]),
-                                    transform_classes=5 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,), )
+                                    base_distribution=StandardNormal(shape=[2]), transform_classes=DEFAULT_TRANSFORMS)
     flow.fit(train_inputs=y_train, train_context=X_train, verbose=True, val_inputs=y_test, val_context=X_test, log_frequency=1000)
 
     # Density check
     int_res = integrate.dblquad(lambda x, y: np.exp(flow.log_prob(np.array([x, y]), context=np.zeros(1))),
                                 -np.inf, np.inf, -np.inf, np.inf, epsabs=0.001)[0]
     logging.info(f'Integral of conditional density (X = 0): {int_res}')
-    np.testing.assert_almost_equal(int_res, 1.0, assert_decimal)
+    np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
     int_res = integrate.dblquad(lambda x, y: np.exp(flow.log_prob(np.array([x, y]), context=np.ones(1))),
                                 -np.inf, np.inf, -np.inf, np.inf, epsabs=0.001)[0]
     logging.info(f'Integral of conditional density (X = 0): {int_res}')
-    np.testing.assert_almost_equal(int_res, 1.0, assert_decimal)
+    np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
 
     # Density plotting
     fig, ax = plt.subplots()
@@ -175,7 +170,6 @@ def test_bivar_cond():  # =================  Bivariate conditional density with 
     ax.scatter(y_test[:, 0], y_test[:, 1], zorder=1, alpha=0.1, color='Black', label='Test sample')
     fig.legend()
     plt.show()
-
 
     # Sampling
     with torch.no_grad():

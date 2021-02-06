@@ -4,18 +4,19 @@ import math
 
 name = 'chain2'
 
-N=10**5
+N = 10**5
 dataset = np.loadtxt('tests/data/{}.csv'.format(name), dtype=np.float32)
 D = np.arange(0, 4)
 
-splitpoint = math.floor(N*0.5)
+splitpoint = math.floor(N * 0.5)
 ix_train = np.arange(0, splitpoint, 1)
 ix_test = np.arange(splitpoint, N, 1)
 
-X_train, y_train = dataset[ix_train, :-1], dataset[ix_train,-1]
-X_test, y_test = dataset[ix_test, :-1], dataset[ix_test,-1]
+X_train, y_train = dataset[ix_train, :-1], dataset[ix_train, -1]
+X_test, y_test = dataset[ix_test, :-1], dataset[ix_test, -1]
 
-J, G = [0,1], [2, 3] # TODO(gcsk): remove before release
+J, G = [0, 1], [2, 3]  # TODO(gcsk): remove before release
+
 
 class TestGaussian:
     rtol = 1e-1
@@ -49,7 +50,7 @@ class TestGaussian:
         G = np.array([1])
 
         X_orig, X_recov = self.compute_sample(J, G)
-        
+
         self.assert_cov_mean_allclose(X_orig, X_recov)
 
     def test_cov_1d_distinct(self):
@@ -57,7 +58,7 @@ class TestGaussian:
         G = np.array([1])
 
         X_orig, X_recov = self.compute_sample(J, G)
-        
+
         self.assert_cov_mean_allclose(X_orig, X_recov)
 
     def test_cov_2d_distinct(self):

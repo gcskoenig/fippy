@@ -51,11 +51,11 @@ class ContextualInvertableRadialTransform(Transform):
             if context.dim() == 2:
                 alpha_hat = context[:, 0:1]
                 beta_hat = context[:, 1:2]
-                gamma = context[:, 2:2+self.inputs_size]
+                gamma = context[:, 2:2 + self.inputs_size]
             else:
                 alpha_hat = context[:, :, 0:1]
                 beta_hat = context[:, :, 1:2]
-                gamma = context[:, :, 2:2+self.inputs_size]
+                gamma = context[:, :, 2:2 + self.inputs_size]
             return alpha_hat, beta_hat, gamma
         else:
             return self.alpha_hat, self.beta_hat, self.gamma
@@ -68,7 +68,8 @@ class ContextualInvertableRadialTransform(Transform):
 
     def forward(self, inputs, context=None):
         """
-        Given context_vars (y) and global_context(x), returns transformed input (z = f(y/x)) and the abs log-determinant log|dz/dy|.
+        Given context_vars (y) and global_context(x), returns transformed input (z = f(y/x))
+        and the abs log-determinant log|dz/dy|.
         """
         self.alpha_hat, self.beta_hat, self.gamma = self._params_from_context(context)
         alpha, beta = self._alpha_beta_hat_to_alpha_beta(self.alpha_hat, self.beta_hat)

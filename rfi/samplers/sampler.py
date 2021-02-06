@@ -29,12 +29,11 @@ class Sampler:
         self._trained_sampling_funcs = {}
         self._trained_estimators = {}
 
-
     @staticmethod
     def _to_key(S):
-        '''
+        """
         Converts array to key for trainedGs Dict
-        '''
+        """
         return utils.to_key(S)
 
     @staticmethod
@@ -55,23 +54,22 @@ class Sampler:
             a set G.
 
         """
-        G_key, J_key = Sampler._to_key(G), Sampler._to_key(J) # transform into hashable form
+        G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)  # transform into hashable form
         trained = (J_key, G_key) in self._trained_sampling_funcs
         return trained
 
     def _train_J_degenerate(self, J, G, verbose=True):
         """Training function that takes care of degenerate cases
         where either j is in G or G is empty.
-        
         Args:
             J: features of interest
             G: relative feature set
 
         Returns:
             Whether a degenerate case was present.
-        """        
+        """
         degenerate = True
-        
+
         # are we conditioning on zero elements?
         if G.size == 0:
             logging.debug('Degenerate Training: Empty G')
@@ -127,7 +125,7 @@ class Sampler:
             np.array with shape (X_test.shape[0], #num_samples, # features of interest)
         """
         # initialize numpy matrix
-        #sampled_data = np.zeros((X_test.shape[0], num_samples, J.shape[0]))
+        # sampled_data = np.zeros((X_test.shape[0], num_samples, J.shape[0]))
 
         # sample
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)

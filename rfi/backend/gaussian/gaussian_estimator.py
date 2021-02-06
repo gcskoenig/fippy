@@ -3,7 +3,7 @@ from typing import Type, Union, Tuple, List
 import numpy as np
 from scipy.stats import multivariate_normal
 import torch
-from torch.distributions import Normal, MultivariateNormal, Distribution
+from torch.distributions import Normal, MultivariateNormal
 from statsmodels.stats.correlation_tools import cov_nearest
 
 
@@ -23,7 +23,7 @@ class GaussianConditionalEstimator(Distribution):
             train_context: conditioning set
         """
         # make sure arrays are 2d and concatenate into one array
-        train_inputs = train_inputs.reshape((train_inputs.shape[0], -1)) 
+        train_inputs = train_inputs.reshape((train_inputs.shape[0], -1))
         train_context = train_context.reshape((train_context.shape[0], -1))
         X_train = np.concatenate([train_inputs, train_context], axis=1)
 
@@ -31,7 +31,7 @@ class GaussianConditionalEstimator(Distribution):
         cov = np.cov(X_train.T)
 
         n_in, n_co = train_inputs.shape[1], train_context.shape[1]
-        inp_ind, cont_ind = np.arange(0, n_in, 1), np.arange(n_in, n_in+n_co, 1)
+        inp_ind, cont_ind = np.arange(0, n_in, 1), np.arange(n_in, n_in + n_co, 1)
 
         self.fit_mean_cov(mean, cov, inp_ind, cont_ind)
 
@@ -72,7 +72,7 @@ class GaussianConditionalEstimator(Distribution):
             log_probs[j] = np.log(multivariate_normal.pdf(inputs[j], mean=mu, cov=self.Sigma))
         return log_probs
 
-    def conditional_distribution(self, context: np.array = None) -> Distribution:
+    def conditional_distribution(self, context: np.array = None) -> torch.distributions.Distribution:
         mu_part2 = self.RegrCoeff @ context.T
         mu = self.mu_part + mu_part2
         # if len(self.inp_ind) == 1:
