@@ -70,9 +70,9 @@ class ConditionalGoodnessOfFit:
                 return res.numpy()
 
             if self.name == 'conditional_kl_divergence':
-                result = integrate.quad_vec(integrand, *sem.support_bounds, epsabs=exp_args.metrics.EPSABS)[0]
+                result = integrate.quad_vec(integrand, *sem.support_bounds, epsabs=exp_args.metrics.epsabs)[0]
             else:
-                result = integrate.quad_vec(integrand, -np.inf, np.inf, epsabs=exp_args.metrics.EPSABS)[0]
+                result = integrate.quad_vec(integrand, -np.inf, np.inf, epsabs=exp_args.metrics.epsabs)[0]
 
             if self.name == 'conditional_hellinger_distance':
                 result = np.sqrt(0.5 * result)
@@ -96,18 +96,18 @@ class ConditionalGoodnessOfFit:
                 res[torch.isnan(res)] = 0.0  # Out of support values
                 return res.numpy()
 
-            result = 0.5 * (integrate.quad_vec(integrand1, -np.inf, np.inf, epsabs=exp_args.metrics.EPSABS)[0] +
-                            integrate.quad_vec(integrand2, -np.inf, np.inf, epsabs=exp_args.metrics.EPSABS)[0])
+            result = 0.5 * (integrate.quad_vec(integrand1, -np.inf, np.inf, epsabs=exp_args.metrics.epsabs)[0] +
+                            integrate.quad_vec(integrand2, -np.inf, np.inf, epsabs=exp_args.metrics.epsabs)[0])
 
         else:
             raise NotImplementedError()
 
         # Bounds check
-        assert (result + exp_args.metrics.EPSABS >= 0.0).all()
+        assert (result + exp_args.metrics.epsabs >= 0.0).all()
         if self.name == 'conditional_js_divergence':
-            assert (result - exp_args.metrics.EPSABS <= np.log(2)).all()
+            assert (result - exp_args.metrics.epsabs <= np.log(2)).all()
         elif self.name == 'conditional_hellinger_distance':
-            assert (result - exp_args.metrics.EPSABS <= 1.0).all()
+            assert (result - exp_args.metrics.epsabs <= 1.0).all()
 
         return result.mean()
 

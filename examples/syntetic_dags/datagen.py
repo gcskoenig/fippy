@@ -82,7 +82,7 @@ print(quad_vec(integrand, *gauss_anm.sem.support_bounds, epsabs=1e-4))
 #     #     value = torch.tensor([value])
 #     #     return real_prob.log_prob(value).exp().numpy()
 #     #
-#     # print(np.abs(quad(f1, -np.inf, np.inf, EPSABS=1e-7)[0] - quad(f2, -np.inf, np.inf, EPSABS=1e-7)[0]))
+#     # print(np.abs(quad(f1, -np.inf, np.inf, epsabs=1e-7)[0] - quad(f2, -np.inf, np.inf, EPSABS=1e-7)[0]))
 #
 #
 # # call update function on slider value change

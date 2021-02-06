@@ -137,11 +137,11 @@ def test_bivar_cond():  # =================  Bivariate conditional density with 
 
     # Density check
     int_res = integrate.dblquad(lambda x, y: np.exp(flow.log_prob(np.array([x, y]), context=np.zeros(1))),
-                                -np.inf, np.inf, -np.inf, np.inf, epsabs=0.001)[0]
+                                -np.inf, np.inf, -np.inf, np.inf, epsabs=EPSABS)[0]
     logging.info(f'Integral of conditional density (X = 0): {int_res}')
     np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
     int_res = integrate.dblquad(lambda x, y: np.exp(flow.log_prob(np.array([x, y]), context=np.ones(1))),
-                                -np.inf, np.inf, -np.inf, np.inf, epsabs=0.001)[0]
+                                -np.inf, np.inf, -np.inf, np.inf, epsabs=EPSABS)[0]
     logging.info(f'Integral of conditional density (X = 0): {int_res}')
     np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
 

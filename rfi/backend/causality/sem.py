@@ -154,7 +154,7 @@ class StructuralEquationModel:
             method: 'mc' or 'quad', method to compute normalisation constant (Monte-Carlo integration or quadrature integration)
             mc_size: if method == 'mc', MC samples for integration
             mc_seed: mc_seed for MC sampling
-            quad_epsabs: EPSABS for scipy.integrate.quad
+            quad_epsabs: epsabs for scipy.integrate.quad
         Returns:
 
         """
