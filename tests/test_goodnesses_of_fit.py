@@ -26,7 +26,7 @@ GOF_ARGS = {
     'metrics': {'epsabs': 0.05},
     'mb_dist': {
         'method': 'mc',
-        'mc_size': 10000
+        'mc_size': 5000
     }
 }
 
@@ -121,7 +121,7 @@ class TestConditionalGoF:
             self.assert_metrics(test_df1, test_df2, sem, estimator, conditional_hellinger_distance)
 
     def test_post_nonlinear_multiplicative_half_normal_sem_conditional_kl_divergence(self):
-        sem =  PostNonLinearMultiplicativeHalfNormalSEM(DAG, seed=SEED)
+        sem = PostNonLinearMultiplicativeHalfNormalSEM(DAG, seed=SEED)
         train_df, test_df1, test_df2 = self.get_train_test_dfs(sem)
 
         for estimator in ESTIMATORS:
@@ -129,7 +129,7 @@ class TestConditionalGoF:
             self.assert_metrics(test_df1, test_df2, sem, estimator, conditional_kl_divergence)
 
     def test_post_nonlinear_multiplicative_half_normal_sem_conditional_js_divergence(self):
-        sem =  PostNonLinearMultiplicativeHalfNormalSEM(DAG, seed=SEED)
+        sem = PostNonLinearMultiplicativeHalfNormalSEM(DAG, seed=SEED)
         train_df, test_df1, test_df2 = self.get_train_test_dfs(sem)
 
         for estimator in ESTIMATORS:
@@ -137,7 +137,7 @@ class TestConditionalGoF:
             self.assert_metrics(test_df1, test_df2, sem, estimator, conditional_js_divergence)
 
     def test_post_nonlinear_multiplicative_half_normal_sem_conditional_hellinger_distance(self):
-        sem =  PostNonLinearMultiplicativeHalfNormalSEM(DAG, seed=SEED)
+        sem = PostNonLinearMultiplicativeHalfNormalSEM(DAG, seed=SEED)
         train_df, test_df1, test_df2 = self.get_train_test_dfs(sem)
 
         for estimator in ESTIMATORS:
