@@ -37,4 +37,4 @@ jobs:
     - name: Test with pytest
       run: |
         # assuming we start within the package root, execute tests
-        PYTHONPATH=. pytest -n 2 tests/
+        PYTHONPATH=. pytest -n 10 tests/

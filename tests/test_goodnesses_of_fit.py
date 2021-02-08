@@ -24,7 +24,7 @@ GOF_ARGS = {
     'metrics': {'epsabs': 0.05},
     'mb_dist': {
         'method': 'mc',
-        'mc_size': 5000
+        'mc_size': 10000
     }
 }
 
