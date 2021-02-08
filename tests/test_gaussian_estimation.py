@@ -4,8 +4,8 @@ import math
 
 name = 'chain2'
 
-N = 10**5
-dataset = np.loadtxt('tests/data/{}.csv'.format(name), dtype=np.float32)
+N = 10 ** 5
+dataset = np.loadtxt(f'tests/data/{name}.csv', dtype=np.float32)
 D = np.arange(0, 4)
 
 splitpoint = math.floor(N * 0.5)
@@ -16,11 +16,10 @@ X_train, y_train = dataset[ix_train, :-1], dataset[ix_train, -1]
 X_test, y_test = dataset[ix_test, :-1], dataset[ix_test, -1]
 
 J, G = [0, 1], [2, 3]  # TODO(gcsk): remove before release
+ASSERT_DECIMAL = 2
 
 
 class TestGaussian:
-    rtol = 1e-1
-    atol = 1e-2
 
     def compute_sample(self, J, G):
         X_G = X_test[:, G]
@@ -42,8 +41,8 @@ class TestGaussian:
         mean_orig = np.mean(X_orig, axis=0)
         mean_recov = np.mean(X_recov, axis=0)
 
-        assert np.allclose(cov_orig, cov_recov, rtol=self.rtol)
-        assert np.allclose(mean_orig, mean_recov, rtol=self.rtol, atol=self.atol)
+        np.testing.assert_array_almost_equal(cov_orig, cov_recov, decimal=ASSERT_DECIMAL)
+        np.testing.assert_array_almost_equal(mean_orig, mean_recov, decimal=ASSERT_DECIMAL)
 
     def test_cov_1d_same(self):
         J = np.array([1])

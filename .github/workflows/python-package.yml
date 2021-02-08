@@ -26,7 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install flake8 pytest
+        python -m pip install flake8 pytest-xdist
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Lint with flake8
       run: |
@@ -37,4 +37,4 @@ jobs:
     - name: Test with pytest
       run: |
         # assuming we start within the package root, execute tests
-        PYTHONPATH=. pytest tests/
+        PYTHONPATH=. pytest -n 5 tests/
