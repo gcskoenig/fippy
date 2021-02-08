@@ -59,7 +59,6 @@ class TestNormalizingFlows:
         g.fig.suptitle('Uni-variate unconditional sampling')
         plt.show()
 
-
     def test_univar_cond(self):  # =================  Univarite unconditional density with Boston dataset ==================
         X, y = load_boston(return_X_y=True)
 
@@ -68,7 +67,8 @@ class TestNormalizingFlows:
 
         flow = NormalisingFlowEstimator(context_size=X_train.shape[1], n_epochs=5000, input_noise_std=0.3, context_noise_std=0.1,
                                         lr=0.01, transform_classes=DEFAULT_TRANSFORMS)
-        flow.fit(train_inputs=y_train, train_context=X_train, verbose=True, val_inputs=y_test, val_context=X_test, log_frequency=1000)
+        flow.fit(train_inputs=y_train, train_context=X_train, verbose=True, val_inputs=y_test, val_context=X_test,
+                 log_frequency=1000)
 
         # Density check
         # for cont in X_test:
@@ -83,7 +83,6 @@ class TestNormalizingFlows:
         g = self._plot_univariate(y_test, y_sampled)
         g.fig.suptitle('Uni-variate conditional sampling')
         plt.show()
-
 
     def test_bivar_uncond(self):  # =================  Bivariate unconditional density with moons dataset ==================
         data = make_moons(n_samples=2000, noise=0.1, random_state=41)[0]
@@ -128,14 +127,14 @@ class TestNormalizingFlows:
         fig.legend()
         plt.show()
 
-
     def test_bivar_cond(self):  # =================  Bivariate conditional density with moons dataset ==================
         y, X = make_moons(n_samples=2000, noise=0.1, random_state=41)
         y_train, y_test, X_train, X_test = train_test_split(y, X, random_state=42)
 
         flow = NormalisingFlowEstimator(inputs_size=2, context_size=1, n_epochs=5000, input_noise_std=0.2, lr=0.02,
                                         base_distribution=StandardNormal(shape=[2]), transform_classes=DEFAULT_TRANSFORMS)
-        flow.fit(train_inputs=y_train, train_context=X_train, verbose=True, val_inputs=y_test, val_context=X_test, log_frequency=1000)
+        flow.fit(train_inputs=y_train, train_context=X_train, verbose=True, val_inputs=y_test, val_context=X_test,
+                 log_frequency=1000)
 
         # Density check
         int_res = integrate.dblquad(lambda x, y: np.exp(flow.log_prob(np.array([x, y]), context=np.zeros(1))),

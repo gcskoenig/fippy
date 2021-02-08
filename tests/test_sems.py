@@ -89,7 +89,6 @@ class TestSEMs:
         mc_plot, = plt.plot(values, mc_prob_vals, c='blue')
         plt.title(f'Density of {var} / {[node for node in synt_ex.var_names if node != var]}')
 
-
         # Slider
         sliders = {}
         for i, node in enumerate(synt_ex.var_names):
@@ -134,7 +133,6 @@ class TestSEMs:
         self._plot_and_test_mb_cond_dist(laplace_sem, 2, 'mc')
         self._plot_and_test_mb_cond_dist(laplace_sem, 2, 'quad')
         self._plot_sliders(laplace_sem, 2, SAMPLE_SIZE - 1, 'quad')
-
 
     def test_randomgp_gaussian_noise_sem(self):
         gp_anm = SyntheticExample(sem=RandomGPGaussianNoiseSEM(dag=DAG, seed=SEED, interpolation_switch=INTERPOLATION_SWITCH))
