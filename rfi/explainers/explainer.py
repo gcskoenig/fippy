@@ -117,7 +117,7 @@ class Explainer():
                                   loss(self.model(X_test), y_test))
 
         # return explanation object
-        ex_name = 'RFI'
+        ex_name = 'RFI^{}'.format(G)
         result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi])
         if return_perturbed:
             logging.debug('Return both explanation and perturbed.')

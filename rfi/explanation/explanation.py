@@ -40,6 +40,14 @@ class Explanation:
             logging.debug('lss shape: {}'.format(lss.shape))
             raise RuntimeError('Lss has incorrect shape.')
 
+    def fi_vals(self):
+        """ Computes the sample-wide RFI for each run
+        
+        Returns:
+            (#fsoi, #runs)
+        """
+        return np.mean(np.mean(self.lss, axis=3), axis=2)
+
     def fi_means(self):
         """Computes Mean RFI over all runs
 
