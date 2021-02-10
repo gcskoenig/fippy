@@ -32,27 +32,30 @@ class NormalisingFlowEstimator(Flow):
         'n_epochs': tune.grid_search([500, 1000, 1500]),
         'hidden_units': tune.grid_search([(8,), (16,)]),
         'transform_classes': tune.grid_search([(ContextualPointwiseAffineTransform,),
-                                               2 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,)]),
+                                               2 * (ContextualInvertableRadialTransform,) + (
+                                               ContextualPointwiseAffineTransform,)]),
         'context_noise_std': tune.grid_search([0.1, 0.2, 0.3]),
         'input_noise_std': tune.grid_search([0.01, 0.05, 0.1]),
         'weight_decay': tune.grid_search([0.0, 1e-4])
     }
 
-    def __init__(self,
-                 context_size: int,
-                 inputs_size: int = 1,
-                 transform_classes: Tuple[Type] = 2 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,),
-                 hidden_units: Tuple[int] = (16,),
-                 n_epochs: int = 1000,
-                 lr: float = 0.001,
-                 weight_decay: float = 0.0,
-                 input_noise_std: float = 0.05,
-                 context_noise_std: float = 0.1,
-                 base_distribution: Distribution = StandardNormal(shape=[1]),
-                 context_normalization=True,
-                 inputs_normalization=True,
-                 device='cpu',
-                 **kwargs):
+    def __init__(
+            self,
+            context_size: int,
+            inputs_size: int = 1,
+            transform_classes: Tuple[Type] = 2 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,),
+            hidden_units: Tuple[int] = (16,),
+            n_epochs: int = 1000,
+            lr: float = 0.001,
+            weight_decay: float = 0.0,
+            input_noise_std: float = 0.05,
+            context_noise_std: float = 0.1,
+            base_distribution: Distribution = StandardNormal(shape=[1]),
+            context_normalization=True,
+            inputs_normalization=True,
+            device='cpu',
+            **kwargs
+    ):
         """
         PyTorch implementation of Noise Regularization for Conditional Density Estimation. Also works unconditionally
         (https://github.com/freelunchtheorem/Conditional_Density_Estimation)
@@ -310,7 +313,6 @@ class NormalisingFlowEstimator(Flow):
         transforms_list.extend(deepcopy(self._transform._transforms))
         cond_dist = Flow(CompositeTransform(transforms_list), self._distribution)
         return cond_dist
-
 
     def sample(self, context: Union[np.array, Tensor] = None, num_samples=1, data_normalization=True) -> Union[np.array, Tensor]:
         """

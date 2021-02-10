@@ -54,7 +54,6 @@ def main(args: DictConfig):
     mlflow.log_param('data/n_train', len(train_df))
     mlflow.log_param('data/n_test', len(test_df))
 
-
     # Saving artifacts
     train_df.to_csv(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/train.csv'), index=False)
     test_df.to_csv(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/test.csv'), index=False)
@@ -80,7 +79,7 @@ def main(args: DictConfig):
         model = instantiate(args.pred_model)
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
-        risk_func = getattr(importlib.import_module(f'sklearn.metrics'), args.exp.rfi.risk)
+        risk_func = getattr(importlib.import_module('sklearn.metrics'), args.exp.rfi.risk)
         risk = risk_func(y_test, y_pred)
         rfi_results = {'test_loss': risk}
 

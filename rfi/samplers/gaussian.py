@@ -22,12 +22,10 @@ class GaussianSampler(Sampler):
     def __init__(self, X_train, X_val=None, **kwargs):
         """Initialize Sampler with X_train and mask."""
         super().__init__(X_train, X_val)
-            
 
     def train(self, J, G, verbose=True):
-        """Trains sampler using dataset to resample
-        variable jj relative to G.
-
+        """
+        Trains sampler using dataset to resample variable jj relative to G.
         Args:
             J: features of interest
             G: arbitrary set of variables

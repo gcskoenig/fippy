@@ -20,7 +20,6 @@ from rfi.utils import search_nonsorted
 logger = logging.getLogger(__name__)
 
 
-
 class StructuralEquationModel:
     """
     Semi-abstract class for Structural Equation Model, defined by DAG. Specific assignments should be redefined in subclasses
@@ -45,7 +44,7 @@ class StructuralEquationModel:
             parents = dag.DAG.predecessors(node)
             children = dag.DAG.successors(node)
             node, parents, children = dag.var_names[node], [dag.var_names[par] for par in parents], \
-                                      [dag.var_names[par] for par in children]
+                [dag.var_names[par] for par in children]
 
             self.model[node] = {
                 'parents': tuple(parents),
@@ -106,7 +105,6 @@ class StructuralEquationModel:
 
         dist.log_prob = new_log_prob_method
 
-
     def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None) -> Distribution:
         """
         Conditional probability distribution of node, conditioning only on parent nodes
@@ -134,7 +132,8 @@ class StructuralEquationModel:
     def children_log_prob(self, node, value: Tensor, global_context: Dict[str, Tensor] = None):
         log_prob = torch.zeros_like(value)
         for child in self.model[node]['children_nodes']:
-            child_par_context = {par: global_context[par].repeat(len(value)) for par in self.model[child]['parents'] if par != node}
+            child_par_context = {par: global_context[par].repeat(len(value))
+                                 for par in self.model[child]['parents'] if par != node}
             child_par_context[node] = value.flatten()
             cond_dist = self.parents_conditional_distribution(child, parents_context=child_par_context)
 
@@ -176,13 +175,14 @@ class StructuralEquationModel:
         elif method == 'quad':
             normalisation_constant = []
             for cont_ind in tqdm(range(context_size)):
-                global_context_slice = {node: value[cont_ind:cont_ind+1] for (node, value) in global_context.items()}
+                global_context_slice = {node: value[cont_ind:cont_ind + 1] for (node, value) in global_context.items()}
                 parents_context_slice = {par: global_context_slice[par] for par in self.model[node]['parents']}
 
                 def integrand(value):
                     value = torch.tensor([value])
                     parents_cond_dist = self.parents_conditional_distribution(node, parents_context_slice)
-                    unnorm_log_prob = parents_cond_dist.log_prob(value) + self.children_log_prob(node, value, global_context_slice)
+                    unnorm_log_prob = parents_cond_dist.log_prob(value) + \
+                        self.children_log_prob(node, value, global_context_slice)
                     return unnorm_log_prob.exp().item()
 
                 normalisation_constant.append(quad_vec(integrand, *self.support_bounds, epsabs=quad_epsabs)[0])

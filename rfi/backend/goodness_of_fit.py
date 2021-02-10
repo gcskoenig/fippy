@@ -26,7 +26,7 @@ class ConditionalGoodnessOfFit:
                  sem: StructuralEquationModel,
                  target_var: str,
                  context_vars: Tuple[str],
-                 exp_args: DictConfig,
+                 exp_args: Union[DictConfig, dict],
                  conditioning_mode: str = 'all',
                  test_df: pd.DataFrame = None):
 
@@ -40,23 +40,21 @@ class ConditionalGoodnessOfFit:
         if conditioning_mode == 'true_parents':
             data_log_prob = sem.parents_conditional_distribution(target_var, parents_context=context).log_prob
         elif conditioning_mode == 'true_markov_blanket' or conditioning_mode == 'all':
-            data_log_prob = sem.mb_conditional_log_prob(target_var, global_context=context, **exp_args.mb_dist)
+            data_log_prob = sem.mb_conditional_log_prob(target_var, global_context=context, **exp_args['mb_dist'])
         elif conditioning_mode == 'arbitrary' and isinstance(sem, LinearGaussianNoiseSEM):
             data_log_prob = sem.conditional_distribution(target_var, context=context).log_prob
         else:
             raise NotImplementedError('Unknown conditioning type!')
-
 
         def log_prob_from_np(value, log_prob_func):
             value = torch.tensor([[value]])
             with torch.no_grad():
                 return log_prob_func(value.repeat(context_size, 1)).squeeze()
 
-
         logger.info("Initializing estimator's conditional distributions")
         model_log_prob = estimator.conditional_distribution(test_df.loc[:, context_vars].values).log_prob
 
-        logger.info(f"Calculating integral")
+        logger.info("Calculating integral")
         if self.name == 'conditional_kl_divergence' or self.name == 'conditional_hellinger_distance':
 
             def integrand(value):
@@ -72,9 +70,9 @@ class ConditionalGoodnessOfFit:
                 return res.numpy()
 
             if self.name == 'conditional_kl_divergence':
-                result = integrate.quad_vec(integrand, *sem.support_bounds, epsabs=exp_args.metrics.epsabs)[0]
+                result = integrate.quad_vec(integrand, *sem.support_bounds, epsabs=exp_args['metrics']['epsabs'])[0]
             else:
-                result = integrate.quad_vec(integrand, -np.inf, np.inf, epsabs=exp_args.metrics.epsabs)[0]
+                result = integrate.quad_vec(integrand, -np.inf, np.inf, epsabs=exp_args['metrics']['epsabs'])[0]
 
             if self.name == 'conditional_hellinger_distance':
                 result = np.sqrt(0.5 * result)
@@ -98,19 +96,28 @@ class ConditionalGoodnessOfFit:
                 res[torch.isnan(res)] = 0.0  # Out of support values
                 return res.numpy()
 
-
-            result = 0.5 * (integrate.quad_vec(integrand1, -np.inf, np.inf, epsabs=exp_args.metrics.epsabs)[0] +
-                            integrate.quad_vec(integrand2, -np.inf, np.inf, epsabs=exp_args.metrics.epsabs)[0])
+            result = 0.5 * (integrate.quad_vec(integrand1, -np.inf, np.inf, epsabs=exp_args['metrics']['epsabs'])[0] +
+                            integrate.quad_vec(integrand2, -np.inf, np.inf, epsabs=exp_args['metrics']['epsabs'])[0])
 
         else:
             raise NotImplementedError()
 
         # Bounds check
-        assert (result >= 0.0).all()
-        if self.name == 'conditional_js_divergence':
-            assert (result <= np.log(2)).all()
-        elif self.name == 'conditional_hellinger_distance':
-            assert (result <= 1.0).all()
+        if not ((result + exp_args['metrics']['epsabs']) >= 0.0).all():
+            logger.warning(f'{((result + exp_args["metrics"]["epsabs"]) < 0.0).sum()} contexts have negative distances, '
+                           f'Please increase cond distribution estimation accuracy. Negative values will be ignored.')
+            result = result[(result + exp_args['metrics']['epsabs']) >= 0.0]
+
+        if self.name == 'conditional_js_divergence' and not (result - exp_args["metrics"]["epsabs"] <= np.log(2)).all():
+            logger.warning(f'{(result - exp_args["metrics"]["epsabs"] > np.log(2)).sum()} contexts have distances, '
+                           f'larger than log(2), '
+                           f'please increase cond distribution estimation accuracy. Larger values will be ignored.')
+            result = result[(result - exp_args["metrics"]["epsabs"]) <= np.log(2)]
+
+        elif self.name == 'conditional_hellinger_distance' and not ((result - exp_args["metrics"]["epsabs"]) <= 1.0).all():
+            logger.warning(f'{((result - exp_args["metrics"]["epsabs"]) > 1.0).sum()} contexts have distances, larger than 1.0, '
+                           f'please increase cond distribution estimation accuracy. Larger values will be ignored.')
+            result = result[(result - exp_args.metrics.epsabs) <= 1.0]
 
         return result.mean()
 

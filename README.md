@@ -1,5 +1,7 @@
 # A Python Library for Relative Feature Importance (RFI)
 
+![Python package](https://github.com/gcskoenig/rfi/workflows/Python%20package/badge.svg?branch=master)
+
 In this library we offer an implementation of Relative Feature Importance including:
 
 - a variety of conditional sampling techniques

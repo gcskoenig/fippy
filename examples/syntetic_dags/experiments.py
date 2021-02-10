@@ -6,10 +6,12 @@ import importlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import numpy as np
 import inspect
+import logging
 
 from rfi.backend.causality import DirectedAcyclicGraph, LinearGaussianNoiseSEM
-from rfi.backend.goodness_of_fit import *
+from rfi.backend.goodness_of_fit import conditional_hellinger_distance, conditional_kl_divergence, conditional_js_divergence
 from rfi.backend.utils import flatten_dict
 from rfi.utils import search_nonsorted, calculate_hash
 import rfi.explainers.explainer as explainer
@@ -25,10 +27,11 @@ def main(args: DictConfig):
     OmegaConf.set_struct(args, False)
 
     # Adding default estimator params
-    default_names, _, _, default_values, _, _, _ = inspect.getfullargspec(instantiate(args.estimator, context_size=0).__class__.__init__)
+    default_names, _, _, default_values, _, _, _ = \
+        inspect.getfullargspec(instantiate(args.estimator, context_size=0).__class__.__init__)
     if default_values is not None:
         args.estimator['defaults'] = {
-            n: str(v) for (n, v) in zip(default_names[len(default_names)-len(default_values):], default_values)
+            n: str(v) for (n, v) in zip(default_names[len(default_names) - len(default_values):], default_values)
         }
     logger.info(OmegaConf.to_yaml(args, resolve=True))
 
@@ -46,9 +49,11 @@ def main(args: DictConfig):
     if args.exp.check_exisisting_hash:
         args.hash = calculate_hash(args)
 
-        existing_runs = mlflow.search_runs(filter_string=f"params.hash = '{args.hash}'",
-                                           run_view_type=mlflow.tracking.client.ViewType.ACTIVE_ONLY,
-                                           experiment_ids=mlflow.get_experiment_by_name(args.data_generator.sem_type).experiment_id)
+        existing_runs = mlflow.search_runs(
+            filter_string=f"params.hash = '{args.hash}'",
+            run_view_type=mlflow.tracking.client.ViewType.ACTIVE_ONLY,
+            experiment_ids=mlflow.get_experiment_by_name(args.data_generator.sem_type).experiment_id
+        )
         if len(existing_runs) > 0:
             logger.info('Skipping existing run.')
             return
@@ -87,7 +92,7 @@ def main(args: DictConfig):
         # Initialising risks
         risks = {}
         for risk in args.predictors.risks:
-            risks[risk] = getattr(importlib.import_module(f'sklearn.metrics'), risk)
+            risks[risk] = getattr(importlib.import_module('sklearn.metrics'), risk)
 
         # Fitting predictive model
         models = {}
@@ -98,7 +103,7 @@ def main(args: DictConfig):
             y_pred = model.predict(X_test)
             models[pred_model._target_] = model
             for risk, risk_func in risks.items():
-                var_results[f'test_{risk}_{pred_model._target_}']  = risk_func(y_test, y_pred)
+                var_results[f'test_{risk}_{pred_model._target_}'] = risk_func(y_test, y_pred)
 
         sampler = instantiate(args.estimator.sampler, X_train=X_train,
                               fit_method=args.estimator.fit_method, fit_params=args.estimator.fit_params)
@@ -132,7 +137,7 @@ def main(args: DictConfig):
                     # Advanced conditional GoF metrics
                     if sem.get_markov_blanket(f_var).issubset(set(G_vars)):
                         cond_mode = 'all'
-                    elif isinstance(sem, LinearGaussianNoiseSEM):
+                    if isinstance(sem, LinearGaussianNoiseSEM):
                         cond_mode = 'arbitrary'
 
                     if sem.get_markov_blanket(f_var).issubset(set(G_vars)) or isinstance(sem, LinearGaussianNoiseSEM):
@@ -167,7 +172,6 @@ def main(args: DictConfig):
 
         metrics = {k: metrics.get(k, []) + [var_results.get(k, np.nan)]
                    for k in set(list(metrics.keys()) + list(var_results.keys()))}
-
 
     # Logging mean statistics
     mlflow.log_metrics({k: np.nanmean(v) for (k, v) in metrics.items()}, step=len(dag.var_names))
