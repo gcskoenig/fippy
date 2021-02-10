@@ -5,10 +5,6 @@ conditional distribution.
 """
 from rfi.samplers.sampler import Sampler
 from rfi.backend.gaussian import GaussianConditionalEstimator
-import rfi.utils as utils
-# from DeepKnockoffs import GaussianKnockoffs
-import numpy as np
-import logging
 
 
 class GaussianSampler(Sampler):

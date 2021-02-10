@@ -81,8 +81,15 @@ class ConditionalDistributionEstimator(nn.Module):
         else:
             return None
 
-    def fit_by_cv(self, train_inputs: Union[np.array, Tensor], train_context: Union[np.array, Tensor] = None,
-                  hparam_grid=None, n_splits=5, resources_per_trial={"cpu": 0.5}, time_budget_s=None, num_cpus=15):
+    def fit_by_cv(self,
+                  train_inputs: Union[np.array, Tensor],
+                  train_context: Union[np.array, Tensor] = None,
+                  hparam_grid=None,
+                  n_splits=5,
+                  resources_per_trial={"cpu": 0.5},
+                  time_budget_s=None,
+                  num_cpus=15,
+                  **kwargs):
         """
         Method for hyper-parameter search for Conditional Normalizing Flow density estimator, performs K-fold cross-validation.
         After the hyper-parameter search, fits the best sem on full train dataset.

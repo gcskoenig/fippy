@@ -112,8 +112,14 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
         self.input_noise_std = input_noise_std
         self.context_noise_std = context_noise_std
 
-    def fit(self, train_inputs: Union[np.array, Tensor], train_context: [np.array, Tensor] = None, verbose=False,
-            val_inputs: Union[np.array, Tensor] = None, val_context: Union[np.array, Tensor] = None, log_frequency: int = 100):
+    def fit(self,
+            train_inputs: Union[np.array, Tensor],
+            train_context: [np.array, Tensor] = None,
+            verbose=False,
+            val_inputs: Union[np.array, Tensor] = None,
+            val_context: Union[np.array, Tensor] = None,
+            log_frequency: int = 100,
+            **kwargs):
         """
         Method to fit Conditional Normalizing Flow density estimator
         Args:
