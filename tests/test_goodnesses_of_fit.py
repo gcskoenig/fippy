@@ -8,6 +8,7 @@ from rfi.backend.causality import DirectedAcyclicGraph, PostNonLinearLaplaceSEM,
     LinearGaussianNoiseSEM, RandomGPGaussianNoiseSEM, StructuralEquationModel
 from rfi.backend.gaussian import GaussianConditionalEstimator
 from rfi.backend.cnf import NormalisingFlowEstimator
+from rfi.backend.mdn import MixtureDensityNetworkEstimator
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,7 +20,11 @@ DAG_P = 0.5
 DAG = DirectedAcyclicGraph.random_dag(DAG_N, DAG_P, seed=SEED)
 TARGET_VAR = 'x2'
 CONTEXT_VARS = DAG.get_markov_blanket(TARGET_VAR)
-ESTIMATORS = [GaussianConditionalEstimator(), NormalisingFlowEstimator(context_size=len(CONTEXT_VARS))]
+ESTIMATORS = [
+    GaussianConditionalEstimator(),
+    NormalisingFlowEstimator(context_size=len(CONTEXT_VARS)),
+    # MixtureDensityNetworkEstimator(context_size=len(CONTEXT_VARS))
+]
 GOF_ARGS = {
     'metrics': {'epsabs': 0.05},
     'mb_dist': {

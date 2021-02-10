@@ -12,7 +12,7 @@ from nflows.transforms import Transform, CompositeTransform, PointwiseAffineTran
 
 class ContextualInvertableRadialTransform(Transform):
     """
-    Conditional Radial flow: z = f(y/x) = y + α(x) β(x) (y - γ(x)) / (α(x) + ||y − γ(x)||)
+    Conditional Radial flow: z = f(y/context) = y + α(context) β(context) (y - γ(context)) / (α(context) + ||y − γ(context)||)
     [Rezende and Mohamed 2015]
 
     α and β are reparametrized, so that transformation is invertable
@@ -29,9 +29,9 @@ class ContextualInvertableRadialTransform(Transform):
         if conditional:
             self.alpha_hat, self.beta_hat, self.gamma = None, None, None  # Will be initialized from context
         else:
-            gamma = torch.nn.Parameter(torch.Tensor((inputs_size,)))
-            alpha_hat = torch.nn.Parameter(torch.Tensor((1,)))
-            beta_hat = torch.nn.Parameter(torch.Tensor((1,)))
+            gamma = torch.nn.Parameter(torch.empty((inputs_size,)))
+            alpha_hat = torch.nn.Parameter(torch.empty((1,)))
+            beta_hat = torch.nn.Parameter(torch.empty((1,)))
 
             init.normal_(gamma, 0.0, 1.0)
             init.normal_(alpha_hat, 0.0, 1.0)
@@ -68,7 +68,7 @@ class ContextualInvertableRadialTransform(Transform):
 
     def forward(self, inputs, context=None):
         """
-        Given context_vars (y) and global_context(x), returns transformed input (z = f(y/x))
+        Given context_vars (y) and global_context(context), returns transformed input (z = f(y/context))
         and the abs log-determinant log|dz/dy|.
         """
         self.alpha_hat, self.beta_hat, self.gamma = self._params_from_context(context)
@@ -83,7 +83,7 @@ class ContextualInvertableRadialTransform(Transform):
 
     def inverse(self, z, context=None):
         """
-        Given context_vars (z) and global_context(x), returns inverse transformed input (y = f^-1(z/x)).
+        Given context_vars (z) and global_context(context), returns inverse transformed input (y = f^-1(z/context)).
         """
         self.alpha_hat, self.beta_hat, self.gamma = self._params_from_context(context)
         alpha, beta = self._alpha_beta_hat_to_alpha_beta(self.alpha_hat, self.beta_hat)
@@ -112,7 +112,7 @@ class ContextualInvertableRadialTransform(Transform):
 
 class ContextualPointwiseAffineTransform(Transform):
     """
-    Affine flow: z = f(y/x) = y * scale(x) + shift(x)
+    Affine flow: z = f(y/context) = y * scale(context) + shift(context)
     scale is exponentiated, so no worries about devision on zero
     """
 
@@ -152,7 +152,7 @@ class ContextualPointwiseAffineTransform(Transform):
 
     def forward(self, inputs: Tensor, context=Optional[Tensor]) -> Tuple[Tensor, Tensor]:
         """
-        Given context_vars (y) and global_context(x), returns transformed input (z = f(y/x))
+        Given context_vars (y) and global_context(context), returns transformed input (z = f(y/context))
         and the abs log-determinant log|dz/dy|.
         """
         self.scale, self.shift = self._params_from_context(context)
@@ -163,7 +163,7 @@ class ContextualPointwiseAffineTransform(Transform):
 
     def inverse(self, inputs: Tensor, context=Optional[Tensor]) -> Tuple[Tensor, Tensor]:
         """
-        Given context_vars (z) and global_context(x), returns inverse transformed input (y = f^-1(z/x))
+        Given context_vars (z) and global_context(context), returns inverse transformed input (y = f^-1(z/context))
         and the abs log-determinant log|dy/dz|.
         """
         self.scale, self.shift = self._params_from_context(context)
