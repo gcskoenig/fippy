@@ -11,7 +11,7 @@ import numpy as np
 
 #     '''
 
-#     ind = np.arange(len(fnames))  # the x locations for the groups
+#     ind = np.arange(len(fnames))  # the context locations for the groups
 #     width = (1/len(rfinames)*0.95)  # the width of the bars
 
 #     fig, ax = plt.subplots()

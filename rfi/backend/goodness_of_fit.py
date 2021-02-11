@@ -11,8 +11,7 @@ from dataclasses import dataclass
 import logging
 
 from rfi.backend.causality import StructuralEquationModel, LinearGaussianNoiseSEM
-from rfi.backend.cnf import NormalisingFlowEstimator
-from rfi.backend.gaussian.gaussian_estimator import GaussianConditionalEstimator
+from rfi.backend import ConditionalDistributionEstimator
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ class ConditionalGoodnessOfFit:
     name: str
 
     # TODO Calculation not with test_df, but with fixed error tolerance
-    def __call__(self, estimator: Union[NormalisingFlowEstimator, GaussianConditionalEstimator],
+    def __call__(self, estimator: ConditionalDistributionEstimator,
                  sem: StructuralEquationModel,
                  target_var: str,
                  context_vars: Tuple[str],

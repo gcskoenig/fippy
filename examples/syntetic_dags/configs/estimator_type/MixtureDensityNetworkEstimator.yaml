@@ -1,0 +1,11 @@
+# @package _global_
+estimator_type: MixtureDensityNetworkEstimator
+
+# Estimating model specific params
+estimator:
+  _target_: rfi.backend.mdn.${estimator_type}
+  fit_method: fit
+  fit_params:
+    time_budget_s:
+  sampler:
+    _target_: rfi.samplers.mdn.MDNSampler
