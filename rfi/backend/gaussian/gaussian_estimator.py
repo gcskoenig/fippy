@@ -72,8 +72,30 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         log_probs = np.zeros((context.shape[0],))
         for j in range(len(context)):
             mu = self.mu_part + mu_part2[:, j]
-            log_probs[j] = np.log(multivariate_normal.pdf(inputs[j], mean=mu, cov=self.Sigma))
+            log_probs[j] = np.log(multivariate_normal.pdf(inputs[j], mean=mu, cov=self.Sigma)) 
         return log_probs
+
+    def cdf(self, inputs: np.array, context: np.array) -> np.array:
+        """Calulates the quantile (cumulative distribution function)
+
+        Args:
+            inputs: np.array with values, shape = (-1, d_inputs)
+            context: np.array with context values, shape = (-1, d_context)
+        """
+        distr = self.conditional_distribution(context)
+        quantiles = distr.cdf(torch.tensor(inputs))
+        return quantiles.numpy()
+
+    def icdf(self, quantiles: np.array, context: np.array) -> np.array:
+        """Calulates the quantile (cumulative distribution function)
+
+        Args:
+            inputs: np.array with quantiles, shape = (-1, d_inputs)
+            context: np.array with context values, shape = (-1, d_context)
+        """
+        distr = self.conditional_distribution(context)
+        values = distr.icdf(torch.tensor(quantiles))
+        return values.numpy()
 
     def conditional_distribution(self, context: np.array = None) -> Distribution:
         mu_part2 = self.RegrCoeff @ context.T
