@@ -8,9 +8,12 @@ import rfi.utils as utils
 import numpy as np
 from rfi.samplers._utils import sample_id, sample_perm
 import logging
+from typing import Union
+
+logger = logging.getLogger(__name__)
 
 
-class Sampler():
+class Sampler:
     """Can be used to resample perturbed versions of a variable conditional on
     any set of variables G.
 
@@ -18,21 +21,21 @@ class Sampler():
 
     Attributes:
         X_train: reference to training data.
-        fsoi: features of interest.
-        _trainedGs: dictionary with (fsoi, G) as key and callable sampler as value
+        _trained_sampling_funcs: dictionary with (fsoi, G) as key and callable sampler as value
     """
 
-    def __init__(self, X_train):
+    def __init__(self, X_train, X_val=None):
         """Initialize Sampler with X_train and mask."""
         self.X_train = X_train
-        self._trainedGs = {}
-
+        self.X_val = X_val
+        self._trained_sampling_funcs = {}
+        self._trained_estimators = {}
 
     @staticmethod
     def _to_key(S):
-        '''
+        """
         Converts array to key for trainedGs Dict
-        '''
+        """
         return utils.to_key(S)
 
     @staticmethod
@@ -53,33 +56,32 @@ class Sampler():
             a set G.
 
         """
-        G_key, J_key = Sampler._to_key(G), Sampler._to_key(J) # transform into hashable form
-        trained = (J_key, G_key) in self._trainedGs
+        G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)  # transform into hashable form
+        trained = (J_key, G_key) in self._trained_sampling_funcs
         return trained
 
     def _train_J_degenerate(self, J, G, verbose=True):
         """Training function that takes care of degenerate cases
         where either j is in G or G is empty.
-        
         Args:
             J: features of interest
             G: relative feature set
 
         Returns:
             Whether a degenerate case was present.
-        """        
+        """
         degenerate = True
-        
+
         # are we conditioning on zero elements?
         if G.size == 0:
-            logging.debug('Degenerate Training: Empty G')
+            logger.debug('Degenerate Training: Empty G')
             self._store_samplefunc(J, G, sample_perm(J))
         # are all elements in G being conditioned upon?
         elif np.sum(1 - np.isin(J, G)) == 0:
-            logging.debug('Degenerate Training: J subseteq G')
+            logger.debug('Degenerate Training: J subseteq G')
             self._store_samplefunc(J, G, sample_id(J))
         else:
-            logging.debug('Training not degenerate.')
+            logger.debug('Training not degenerate.')
             degenerate = False
 
         return degenerate
@@ -94,8 +96,8 @@ class Sampler():
             verbose: printing or not
         """
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
-        self._trainedGs[(J_key, G_key)] = samplefunc
-        logging.info('Training ended. Sampler saved.')
+        self._trained_sampling_funcs[(J_key, G_key)] = samplefunc
+        logger.info('Training ended. Sampler saved.')
 
     def train(self, J, G, verbose=True):
         """Trains sampler using the training dataset to resample
@@ -109,7 +111,7 @@ class Sampler():
             Nothing. Now the sample function can be used
             to resample on seen or unseen data.
         """
-        logging.info('Training Sampler for: {} | {}'.format(J, G))
+        logger.info('Training Sampler for: {} | {}'.format(J, G))
 
     def sample(self, X_test, J, G, num_samples=1):
         """Sample features of interest using trained resampler.
@@ -125,7 +127,7 @@ class Sampler():
             np.array with shape (X_test.shape[0], #num_samples, # features of interest)
         """
         # initialize numpy matrix
-        #sampled_data = np.zeros((X_test.shape[0], num_samples, J.shape[0]))
+        # sampled_data = np.zeros((X_test.shape[0], num_samples, J.shape[0]))
 
         # sample
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
@@ -133,6 +135,6 @@ class Sampler():
         if not self.is_trained(J, G):
             raise RuntimeError("Sampler not trained on {} | {}".format(J, G))
         else:
-            sample_func = self._trainedGs[(J_key, G_key)]
+            sample_func = self._trained_sampling_funcs[(J_key, G_key)]
             sampled_data = sample_func(X_test, num_samples=num_samples)
             return sampled_data
