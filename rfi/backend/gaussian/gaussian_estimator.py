@@ -32,9 +32,9 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
                         + '= {}. Continue.'.format(self.Sigma.shape[0]))
 
     def __check_positive_variance(self, adjust=False):
-        all_positive = np.prod(np.diag(self.Sigma) >= 0) == 1
+        all_positive = np.prod(np.diag(self.Sigma) > 0) == 1
         if not all_positive and adjust: # take absolute values on diagonal
-            self.Sigma[np.diag_indices(self.Sigma.shape[0], ndim=2)] = np.abs(np.diag(self.Sigma))
+            self.Sigma[np.diag_indices(self.Sigma.shape[0], ndim=2)] = np.abs(np.diag(self.Sigma)) + np.finfo(float).eps
         return all_positive
 
     def fit(self, train_inputs: np.array, train_context: np.array, **kwargs):
