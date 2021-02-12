@@ -1,12 +1,14 @@
 from typing import Type, Union, Tuple, List
 import numpy as np
-from scipy.stats import multivariate_normal
+from scipy.stats import norm, multivariate_normal
 import torch
 from torch.distributions import Normal, MultivariateNormal, Distribution
 from statsmodels.stats.correlation_tools import cov_nearest
+import logging
 
 from rfi.backend import ConditionalDistributionEstimator
 
+logger = logging.getLogger(__name__)
 
 class GaussianConditionalEstimator(ConditionalDistributionEstimator):
     """
@@ -16,6 +18,15 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
 
     def __init__(self, **kwargs):
         super(GaussianConditionalEstimator, self).__init__()
+
+    def __check_target_1d(self):
+        if np.prod(self.Sigma.shape[0] != 1):
+            raise RuntimeError('The target distribution is required to be univariate. ' 
+                               + 'Dimensionality of the target distribution: '
+                               + '{}'.format(self.Sigma.shape[0]))
+        else:
+            logger.info('Passed: Target distribution dimensionality ' 
+                        + '= {}. Continue.'.format(self.Sigma.shape[0]))
 
     def fit(self, train_inputs: np.array, train_context: np.array, **kwargs):
         """Fit Gaussian Sampler.
@@ -77,25 +88,36 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
 
     def cdf(self, inputs: np.array, context: np.array) -> np.array:
         """Calulates the quantile (cumulative distribution function)
+        Only works for 1d inputs/targets
 
         Args:
-            inputs: np.array with values, shape = (-1, d_inputs)
+            inputs: np.array with values, shape = (-1)
             context: np.array with context values, shape = (-1, d_context)
         """
-        distr = self.conditional_distribution(context)
-        quantiles = distr.cdf(torch.tensor(inputs))
-        return quantiles.numpy()
+        self.__check_target_1d()
+        quantiles = np.zeros(inputs.shape[0])
+        mu_part2 = self.RegrCoeff @ context.T
+        for j in range(len(context)):
+            mu = self.mu_part + mu_part2[:, j]
+            quantiles[j] = norm.cdf(inputs[j], loc=mu, scale=np.sqrt(self.Sigma)) #scipy.stats
+        return quantiles
+
 
     def icdf(self, quantiles: np.array, context: np.array) -> np.array:
         """Calulates the quantile (cumulative distribution function)
+        Only works for 1d inputs/targets
 
         Args:
-            inputs: np.array with quantiles, shape = (-1, d_inputs)
+            inputs: np.array with quantiles, shape = (-1)
             context: np.array with context values, shape = (-1, d_context)
         """
-        distr = self.conditional_distribution(context)
-        values = distr.icdf(torch.tensor(quantiles))
-        return values.numpy()
+        self.__check_target_1d()
+        values = np.zeros(quantiles.shape[0])
+        mu_part2 = self.RegrCoeff @ context.T
+        for j in range(len(context)):
+            mu = self.mu_part + mu_part2[:, j]
+            values[j] = norm.ppf(q=quantiles[j], loc=mu, scale=np.sqrt(self.Sigma)) #scipy.stats
+        return values
 
     def conditional_distribution(self, context: np.array = None) -> Distribution:
         mu_part2 = self.RegrCoeff @ context.T
