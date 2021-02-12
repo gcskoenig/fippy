@@ -20,6 +20,9 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         super(GaussianConditionalEstimator, self).__init__()
 
     def __check_target_1d(self):
+        """Assess whether target distribution is univariate.
+        Throws an RuntimeError if not.
+        """
         if np.prod(self.Sigma.shape[0] != 1):
             raise RuntimeError('The target distribution is required to be univariate. ' 
                                + 'Dimensionality of the target distribution: '
@@ -27,6 +30,12 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         else:
             logger.info('Passed: Target distribution dimensionality ' 
                         + '= {}. Continue.'.format(self.Sigma.shape[0]))
+
+    def __check_positive_variance(self, adjust=False):
+        all_positive = np.prod(np.diag(self.Sigma) >= 0) == 1
+        if not all_positive and adjust: # take absolute values on diagonal
+            self.Sigma[np.diag_indices(self.Sigma.shape[0], ndim=2)] = np.abs(np.diag(self.Sigma))
+        return all_positive
 
     def fit(self, train_inputs: np.array, train_context: np.array, **kwargs):
         """Fit Gaussian Sampler.
@@ -66,6 +75,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         self.Sigma = joint_cov[np.ix_(inp_ind, inp_ind)] - self.RegrCoeff @ joint_cov[np.ix_(cont_ind, inp_ind)]
         # self.Sigma = cov_nearest(self.Sigma, threshold=1e-16)
         self.mu_part = joint_mean[inp_ind] - self.RegrCoeff @ joint_mean[cont_ind]
+
         return self
 
     def log_prob(self, inputs: np.array, context: np.array = None) -> np.array:
@@ -95,6 +105,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
             context: np.array with context values, shape = (-1, d_context)
         """
         self.__check_target_1d()
+        self.__check_positive_variance(adjust=True)
         quantiles = np.zeros(inputs.shape[0])
         mu_part2 = self.RegrCoeff @ context.T
         for j in range(len(context)):
@@ -112,6 +123,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
             context: np.array with context values, shape = (-1, d_context)
         """
         self.__check_target_1d()
+        self.__check_positive_variance(adjust=True)
         values = np.zeros(quantiles.shape[0])
         mu_part2 = self.RegrCoeff @ context.T
         for j in range(len(context)):
