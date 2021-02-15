@@ -48,7 +48,6 @@ def main(args: DictConfig):
         var_names = [f'x{i}' for i in range(len(adjacency_matrix))]
     dag = DirectedAcyclicGraph(adjacency_matrix, var_names)
 
-
     # Experiment tracking
     mlflow.set_tracking_uri(args.exp.mlflow_uri)
     mlflow.set_experiment(exp_name)
