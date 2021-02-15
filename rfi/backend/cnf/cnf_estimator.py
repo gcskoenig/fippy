@@ -86,10 +86,8 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
             embedding_net = None
 
         assert base_distribution._shape[0] == inputs_size
-        super().__init__(transform, base_distribution, embedding_net)
-
-        self.inputs_size = inputs_size
-        self.context_size = context_size
+        Flow.__init__(self, transform, base_distribution, embedding_net)
+        ConditionalDistributionEstimator.__init__(self, context_size, inputs_size, context_normalization, inputs_normalization)
 
         # Training
         self._init_optimizer(lr, weight_decay)
@@ -100,12 +98,6 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
         # Regularisation
         self.input_noise_std = input_noise_std
         self.context_noise_std = context_noise_std
-
-        # Normalisation
-        self.context_normalization = context_normalization
-        self.inputs_normalization = inputs_normalization
-        self.inputs_mean, self.inputs_std = None, None
-        self.context_mean, self.context_std = None, None
 
     def fit(self,
             train_inputs: Union[np.array, Tensor],
