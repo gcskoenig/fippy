@@ -28,7 +28,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
                                + 'Dimensionality of the target distribution: '
                                + '{}'.format(self.Sigma.shape[0]))
         else:
-            logger.info('Passed: Target distribution dimensionality ' 
+            logger.debug('Passed: Target distribution dimensionality ' 
                         + '= {}. Continue.'.format(self.Sigma.shape[0]))
 
     def __check_positive_variance(self, adjust=False):
