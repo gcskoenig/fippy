@@ -13,7 +13,7 @@ import logging
 from rfi.backend.causality import DirectedAcyclicGraph, LinearGaussianNoiseSEM
 from rfi.backend.goodness_of_fit import conditional_hellinger_distance, conditional_kl_divergence, conditional_js_divergence
 from rfi.backend.utils import flatten_dict
-from rfi.utils import search_nonsorted, calculate_hash
+from rfi.utils import search_nonsorted, check_existing_hash
 import rfi.explainers.explainer as explainer
 
 
@@ -46,24 +46,16 @@ def main(args: DictConfig):
     mlflow.set_experiment(args.data_generator.sem_type)
 
     # Checking if run exist
-    if args.exp.check_exisisting_hash:
-        args.hash = calculate_hash(args)
-
-        existing_runs = mlflow.search_runs(
-            filter_string=f"params.hash = '{args.hash}'",
-            run_view_type=mlflow.tracking.client.ViewType.ACTIVE_ONLY,
-            experiment_ids=mlflow.get_experiment_by_name(args.data_generator.sem_type).experiment_id
-        )
-        if len(existing_runs) > 0:
-            logger.info('Skipping existing run.')
-            return
-        else:
-            logger.info('No runs found - perfoming one.')
+    if check_existing_hash(args, args.data_generator.sem_type):
+        logger.info('Skipping existing run.')
+        return
+    else:
+        logger.info('No runs found - perfoming one.')
 
     mlflow.start_run()
     mlflow.log_params(flatten_dict(args))
 
-    # Generating dataframes
+    # Generating Train-test dataframes
     train_df = pd.DataFrame(sem.sample(size=args.data.n_train, seed=args.data.train_seed).numpy(), columns=dag.var_names)
     test_df = pd.DataFrame(sem.sample(size=args.data.n_test, seed=args.data.test_seed).numpy(), columns=dag.var_names)
 

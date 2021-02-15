@@ -51,7 +51,6 @@ exp:
     nr_runs: 50
 
 
-
 defaults:
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog

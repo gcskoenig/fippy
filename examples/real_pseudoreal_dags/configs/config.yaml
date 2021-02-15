@@ -4,6 +4,7 @@ data:
   sample_ind: 1  # For sachs_2005 - 1, for syntren - 1...10
   test_ratio: 0.2
   split_seed: 42
+  standard_normalize: Ture
 
 # Conditional density estimator
 estimator:
@@ -13,15 +14,22 @@ estimator:
   sampler: ???
 
 # Predictive model for RFI
-pred_model:
-  _target_: sklearn.linear_model.LinearRegression
+predictors:
+  risks:
+    - mean_squared_error
+    - r2_score
+    - mean_absolute_error
+  pred_models:
+    - _target_: sklearn.linear_model.LinearRegression
+    - _target_: sklearn.ensemble.RandomForestRegressor
+    - _target_: lightgbm.LGBMRegressor
 
 
 # Experiment parameters
 exp:
+  check_exisisting_hash: True
   mlflow_uri: http://127.0.0.1:5000
   rfi:
-    risk: mean_squared_error
     nr_runs: 50
 
 
