@@ -77,6 +77,9 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
             else:
                 Sigma_GG_inv = np.linalg.pinv(joint_cov[np.ix_(cont_ind, cont_ind)])
             self.RegrCoeff = (joint_cov[np.ix_(inp_ind, cont_ind)] @ Sigma_GG_inv).reshape((len(inp_ind), len(cont_ind)))
+
+        size = inp_ind.shape[0] + cont_ind.shape[0]
+        joint_cov = joint_cov.reshape((size, size))
         self.Sigma = joint_cov[np.ix_(inp_ind, inp_ind)] - self.RegrCoeff @ joint_cov[np.ix_(cont_ind, inp_ind)]
         # self.Sigma = cov_nearest(self.Sigma, threshold=1e-16)
         self.mu_part = joint_mean[inp_ind] - self.RegrCoeff @ joint_mean[cont_ind]

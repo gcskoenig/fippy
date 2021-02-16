@@ -201,7 +201,6 @@ class Explainer:
         for f in self.fsoi:
             if not decorrelator.is_trained(K, [f], []):
                 if train_allowed:
-                    breakpoint()
                     decorrelator.train(K, [f], [])
                     logger.info('Training decorrelator on {} idp {} | {}'.format(K, [f], []))
                 else:
