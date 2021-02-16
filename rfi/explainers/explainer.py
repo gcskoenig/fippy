@@ -135,9 +135,8 @@ class Explainer:
             logger.debug('Return explanation object only')
             return result
 
-   def rfa(self, X_test, y_test, K, sampler=None, decorrelator=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
+    def rfa(self, X_test, y_test, K, sampler=None, decorrelator=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
         """Computes Feature Association
-
         # TODO(gcsk): allow handing a sample as argument
         #             (without needing sampler)
 
@@ -202,6 +201,7 @@ class Explainer:
         for f in self.fsoi:
             if not decorrelator.is_trained(K, [f], []):
                 if train_allowed:
+                    breakpoint()
                     decorrelator.train(K, [f], [])
                     logger.info('Training decorrelator on {} idp {} | {}'.format(K, [f], []))
                 else:
@@ -222,8 +222,8 @@ class Explainer:
         for jj in range(len(self.fsoi)):
             sample = sampler.sample(X_test, all_fs, [self.fsoi[jj]], num_samples=nr_runs)
             for kk in np.arange(nr_runs):
-                sample_decorr = decorrelator.decorrelate(sample[jj, :, :, kk], K, [jj], [])
-                perturbed_reconstr[jj, :, :, kk] = sample_decorr
+                sample_decorr = decorrelator.decorrelate(sample[:, kk, :], K, [jj], [])
+                perturbed_reconstr[jj, :, kk, :] = sample_decorr
 
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
 
@@ -232,7 +232,7 @@ class Explainer:
             for kk in np.arange(0, nr_runs, 1):
                 # replaced with perturbe
                 X_test_reconstructed = np.array(perturbed_baseline[:, kk, :])
-                X_test_reconstructed[:, K] = perturbed_reconstr[jj, :, kk, :]
+                X_test_reconstructed = perturbed_reconstr[jj, :, kk, :]
                 # compute difference in observationwise loss
                 lss[jj, kk, :] = loss(self.model(perturbed_baseline[:, kk, :]), y_test) - \
                     loss(self.model(X_test_reconstructed), y_test)

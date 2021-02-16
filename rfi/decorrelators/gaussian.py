@@ -66,18 +66,14 @@ class GaussianDecorrelator(Decorrelator):
                 logger.debug('estimator cdf, Sigma: {}, RegrCoef: {}'.format(estimator_icdf.Sigma, estimator_icdf.RegrCoeff))
 
 
-
-            gaussian_estimator = GaussianConditionalEstimator()
-            gaussian_estimator.fit(train_inputs=self.X_train[:, J], train_context=self.X_train[:, C])
-
             def decorrelationfunc(X_test):
-                values_test = np.zeros(X_test.shape)
+                values_test = np.array(X_test)
                 
                 if K_intersect_J.shape[0] > 0:
-                    values_test[:, K_intersect_J] = np.transpose(intersectsampler.sample(X_test, K_intersect_J, C), (0, 1, 2)).reshape(values_test.shape[0], -1)
+                    values_test[:, K_intersect_J] = np.transpose(intersectsampler.sample(X_test, K_intersect_J, C), (0, 1, 2)).reshape(values_test.shape[0], K_intersect_J.shape[0])
 
-                if K_intersect_C.shape[0] > 0:
-                    values_test[:, K_intersect_C] = X_test[:, K_intersect_C]
+                #if K_intersect_C.shape[0] > 0:
+                #    values_test[:, K_intersect_C] = X_test[:, K_intersect_C]
 
                 for jj in np.arange(K_leftover.shape[0]):
                     estimator_cdf, estimator_icdf = estimators[jj]
@@ -94,6 +90,6 @@ class GaussianDecorrelator(Decorrelator):
 
             self._store_decorrelationfunc(K, J, C, decorrelationfunc, verbose=verbose)
 
-            return gaussian_estimator
+            return None # TODO implement returning/saving estimators
         else:
             return None

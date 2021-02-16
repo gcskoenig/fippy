@@ -10,6 +10,8 @@ from rfi.backend import ConditionalDistributionEstimator
 
 logger = logging.getLogger(__name__)
 
+# TODO(gcsk): make this work for empty context
+
 class GaussianConditionalEstimator(ConditionalDistributionEstimator):
     """
     Conditional density estimation for joint normal distribution
