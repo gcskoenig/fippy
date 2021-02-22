@@ -86,12 +86,11 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
 
         size = inp_ind.shape[0] + cont_ind.shape[0]
         joint_cov = joint_cov.reshape((size, size))
-        self.Sigma = (joint_cov[np.ix_(inp_ind, inp_ind)]
-                      - self.RegrCoeff @ joint_cov[np.ix_(cont_ind, inp_ind)])
-        # self.Sigma = cov_nearest(self.Sigma, threshold=1e-16)
-        self.mu_part = (joint_mean[inp_ind]
-                        - self.RegrCoeff @ joint_mean[cont_ind])
-
+        cov_inp = joint_cov[np.ix_(inp_ind, inp_ind)]
+        cov_cont_inp = joint_cov[np.ix_(cont_ind, inp_ind)]
+        self.Sigma = cov_inp - self.RegrCoeff @ cov_cont_inp
+        mean_inp, mean_cont = joint_mean[inp_ind], joint_mean[cont_ind]
+        self.mu_part = mean_inp - self.RegrCoeff @ mean_cont
         return self
 
     def log_prob(self, inputs: np.array, context: np.array = None) -> np.array:
@@ -130,7 +129,6 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
             mu = self.mu_part + mu_part2[:, j]
             qs[j] = norm.cdf(inputs[j], loc=mu, scale=np.sqrt(self.Sigma))
         return qs
-
 
     def icdf(self, quantiles: np.array, context: np.array) -> np.array:
         """Calulates the quantile (cumulative distribution function)
