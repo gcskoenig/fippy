@@ -8,7 +8,6 @@ import rfi.utils as utils
 import numpy as np
 import logging
 from typing import Union, Callable
-#from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,8 @@ class Decorrelator:
 
     Attributes:
         X_train: reference to the training data to be decorrelated
-        _trained_decorrelation_funcs: dictionary with (fsoi, C) as key and callable sampler as value
+        _trained_decorrelation_funcs: dictionary with (fsoi, C)
+            as key and callable sampler as value
     """
 
     def __init__(self, X_train, X_val=None):
@@ -54,7 +54,8 @@ class Decorrelator:
             a set C.
 
         """
-        K_key, C_key, J_key = Decorrelator._to_key(K), Decorrelator._to_key(C), Decorrelator._to_key(J)
+        K_key, C_key, J_key = Decorrelator._to_key(
+            K), Decorrelator._to_key(C), Decorrelator._to_key(J)
         trained = (K_key, J_key, C_key) in self._trained_decorrelation_funcs
         return trained
 
@@ -84,7 +85,9 @@ class Decorrelator:
 
     #     return degenerate
 
-    def _store_decorrelationfunc(self, K : np.array, J : np.array, C : np.array, samplefunc : Callable[[np.array], np.array], verbose=True):
+    def _store_decorrelationfunc(self, K: np.array, J: np.array, C: np.array,
+                                 samplefunc: Callable[[np.array], np.array],
+                                 verbose=True):
         """Storing a trained sample function
 
         Args:
@@ -94,11 +97,12 @@ class Decorrelator:
             C: relative feature set
             verbose: printing or not
         """
-        K_key, C_key, J_key = Decorrelator._to_key(K), Decorrelator._to_key(C), Decorrelator._to_key(J)
+        K_key, C_key, J_key = Decorrelator._to_key(
+            K), Decorrelator._to_key(C), Decorrelator._to_key(J)
         self._trained_decorrelation_funcs[(K_key, J_key, C_key)] = samplefunc
         logger.info('Training ended. Decorrelator saved.')
 
-    def train(self, K : np.array, J : np.array, C : np.array, verbose=True):
+    def train(self, K: np.array, J: np.array, C: np.array, verbose=True):
         """Trains decorrelator such that X_K idp X_J | X_C
 
         Args:
@@ -112,17 +116,20 @@ class Decorrelator:
         """
         logger.info('Training Decorrelator for: {} ⟂ {} | {}'.format(K, J, C))
         if (np.intersect1d(J, C).shape[0] > 0):
-            raise RuntimeError('J and C share indices, but should be dinjoint.')
+            raise RuntimeError(
+                'J and C share indices, but should be dinjoint.')
 
-    def decorrelate(self, X_test : np.array, K : np.array, J : np.array, C : np.array, 
-                    num_samples : int = 1):
+    def decorrelate(self, X_test: np.array, K: np.array, J: np.array,
+                    C: np.array, num_samples: int = 1):
         """Sample features of interest using trained resampler.
 
         Args:
             J: Set of features to sample
             C: relative feature set
-            X_test: Data for which sampling shall be performed. (format as self.X_train)
-            num_samples: number of resamples without retraining shall be computed
+            X_test: Data for which sampling shall be 
+                performed. (format as self.X_train)
+            num_samples: number of resamples without
+                retraining shall be computed
 
         Returns:
             Resampled data for the features of interest.
@@ -132,11 +139,14 @@ class Decorrelator:
         # sampled_data = np.zeros((X_test.shape[0], num_samples, J.shape[0]))
 
         # sample
-        K_key, C_key, J_key = Decorrelator._to_key(K), Decorrelator._to_key(C), Decorrelator._to_key(J)
+        K_key, C_key, J_key = Decorrelator._to_key(
+            K), Decorrelator._to_key(C), Decorrelator._to_key(J)
 
         if not self.is_trained(K, J, C):
-            raise RuntimeError("Decorrelator not trained for {} ⟂ {} | {}".format(K, J, C))
+            raise RuntimeError(
+                "Decorrelator not trained for {} ⟂ {} | {}".format(K, J, C))
         else:
-            decorrelationfunc = self._trained_decorrelation_funcs[(K_key, J_key, C_key)]
+            decorrelationfunc = self._trained_decorrelation_funcs[(
+                K_key, J_key, C_key)]
             decorrelated_data = decorrelationfunc(X_test)
             return decorrelated_data

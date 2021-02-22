@@ -8,7 +8,6 @@ import numpy as np
 import rfi.utils as utils
 import rfi.explanation.explanation as explanation
 import logging
-import typing
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ class Explainer:
         fs_names: list of strings with feature input_var_names
     """
 
-    def __init__(self, model, fsoi, X_train, sampler=None, decorrelator=None, 
+    def __init__(self, model, fsoi, X_train, sampler=None, decorrelator=None,
                  loss=None, fs_names=None):
         """Inits Explainer with sem, mask and potentially sampler and loss"""
         self.model = model
@@ -40,7 +39,8 @@ class Explainer:
         self.decorrelator = decorrelator
         self.fs_names = np.array(fs_names)
         if self.fs_names is None:
-            self.fs_names = np.array([utils.ix_to_desc(jj) for jj in range(X_train.shape[1])])
+            self.fs_names = np.array([utils.ix_to_desc(jj)
+                                      for jj in range(X_train.shape[1])])
 
     def _sampler_specified(self):
         if self.sampler is None:
@@ -60,7 +60,7 @@ class Explainer:
         else:
             return True
 
-    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10, 
+    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10,
             return_perturbed=False, train_allowed=True):
         """Computes Relative Feature importance
 
@@ -76,12 +76,15 @@ class Explainer:
             loss: choice of loss. Default None. Will throw an Error when
               both loss and self.loss are None.
             nr_runs: how often the experiment shall be run
-            return_perturbed: whether the sampled perturbed versions shall be returned
-            train_allowed: whether the explainer is allowed to train the sampler
+            return_perturbed: whether the sampled perturbed versions
+                shall be returned
+            train_allowed: whether the explainer is allowed to train
+                the sampler
 
         Returns:
             result: An explanation object with the RFI computation
-            perturbed_foiss (optional): perturbed features of interest if return_perturbed
+            perturbed_foiss (optional): perturbed features of
+                interest if return_perturbed
         """
 
         if sampler is None:
@@ -102,9 +105,12 @@ class Explainer:
                     sampler.train([f], G)
                     logger.info('Training sampler on {}|{}'.format([f], G))
                 else:
-                    raise RuntimeError('Sampler is not trained on {}|{}'.format([f], G))
+                    raise RuntimeError(
+                        'Sampler is not trained on {}|{}'.format([f], G))
             else:
-                logger.debug('\tCheck passed: Sampler is already trained on {}|{}'.format([f], G))
+                txt = '\tCheck passed: Sampler is already trained on'
+                txt = txt + '{}|{}'.format([f], G)
+                logger.debug(txt)
 
         # initialize array for the perturbed samples
         nr_fsoi, nr_obs = self.fsoi.shape[0], X_test.shape[0]
@@ -112,7 +118,8 @@ class Explainer:
 
         # sample perturbed versions
         for jj in range(len(self.fsoi)):
-            tmp = sampler.sample(X_test, [self.fsoi[jj]], G, num_samples=nr_runs)
+            tmp = sampler.sample(
+                X_test, [self.fsoi[jj]], G, num_samples=nr_runs)
             perturbed_foiss[jj, :, :] = tmp.reshape((nr_obs, nr_runs)).T
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
 
@@ -122,13 +129,19 @@ class Explainer:
             X_test_one_perturbed = np.array(X_test)
             for kk in np.arange(0, nr_runs, 1):
                 # replaced with perturbed
-                X_test_one_perturbed[:, self.fsoi[jj]] = perturbed_foiss[jj, kk, :]
+                X_test_one_perturbed[:, self.fsoi[jj]
+                                     ] = perturbed_foiss[jj, kk, :]
                 # compute difference in observationwise loss
-                lss[jj, kk, :] = (loss(self.model(X_test_one_perturbed), y_test) - loss(self.model(X_test), y_test))
+                loss_pert = loss(self.model(X_test_one_perturbed), y_test)
+                loss_orig = loss(self.model(X_test), y_test)
+                lss[jj, kk, :] = loss_pert - loss_orig
 
         # return explanation object
         ex_name = 'RFI^{}'.format(G)
-        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi], ex_name=ex_name)
+        result = explanation.Explanation(
+            self.fsoi, lss,
+            fsoi_names=self.fs_names[self.fsoi],
+            ex_name=ex_name)
 
         if return_perturbed:
             logger.debug('Return both explanation and perturbed.')
@@ -137,7 +150,7 @@ class Explainer:
             logger.debug('Return explanation object only')
             return result
 
-    def rfa(self, X_test, y_test, K, sampler=None, decorrelator=None, 
+    def rfa(self, X_test, y_test, K, sampler=None, decorrelator=None,
             loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
         """Computes Feature Association
         # TODO(gcsk): allow handing a sample as argument
@@ -152,12 +165,15 @@ class Explainer:
             loss: choice of loss. Default None. Will throw an Error when
               both loss and self.loss are None.
             nr_runs: how often the experiment shall be run
-            return_perturbed: whether the sampled perturbed versions shall be returned
-            train_allowed: whether the explainer is allowed to train the sampler
+            return_perturbed: whether the sampled perturbed
+                versions shall be returned
+            train_allowed: whether the explainer is allowed
+                to train the sampler
 
         Returns:
             result: An explanation object with the RFI computation
-            perturbed_foiss (optional): perturbed features of interest if return_perturbed
+            perturbed_foiss (optional): perturbed features of
+                interest if return_perturbed
         """
 
         if sampler is None:
@@ -166,7 +182,7 @@ class Explainer:
                 logger.debug("Using class specified sampler.")
 
         if decorrelator is None:
-            if self._decorrelator_specified(): # may throw error
+            if self._decorrelator_specified():  # may throw error
                 decorrelator = self.decorrelator
                 logger.debug("Using class specified decorrelator")
 
@@ -184,9 +200,12 @@ class Explainer:
                 sampler.train(all_fs, [])
                 logger.info('Training sampler on {}|{}'.format(all_fs, []))
             else:
-                raise RuntimeError('Sampler is not trained on {}|{}'.format(all_fs, []))
+                raise RuntimeError(
+                    'Sampler is not trained on {}|{}'.format(all_fs, []))
         else:
-            logger.debug('\tCheck passed: Sampler is already trained on {}|{}'.format(all_fs, []))
+            txt = '\tCheck passed: Sampler is already trained on '
+            txt = txt + '{}|{}'.format(all_fs, [])
+            logger.debug(txt)
 
         # check for each of the features of interest
         for f in self.fsoi:
@@ -194,25 +213,36 @@ class Explainer:
                 # train if allowed, otherwise raise error
                 if train_allowed:
                     sampler.train(all_fs, [f])
-                    logger.info('Training sampler on {}|{}'.format(all_fs, [f]))
+                    logger.info(
+                        'Training sampler on {}|{}'.format(all_fs, [f]))
                 else:
-                    raise RuntimeError('Sampler is not trained on {}|{}'.format(all_fs, [f]))
+                    raise RuntimeError(
+                        'Sampler is not trained on {}|{}'.format(all_fs, [f]))
             else:
-                logger.debug('\tCheck passed: Sampler is already trained on {}|{}'.format(all_fs, [f]))
+                txt = '\tCheck passed: Sampler is already trained on '
+                txt = txt + '{}|{}'.format(all_fs, [f])
+                logger.debug(txt)
 
         # check whether decorrelators have been trained
         for f in self.fsoi:
             if not decorrelator.is_trained(K, [f], []):
                 if train_allowed:
                     decorrelator.train(K, [f], [])
-                    logger.info('Training decorrelator on {} idp {} | {}'.format(K, [f], []))
+                    txt = 'Training decorrelator on '
+                    txt = txt + '{} idp {} | {}'.format(K, [f], [])
+                    logger.info(txt)
                 else:
-                    raise RuntimeError('Decorrelator is not trained on {} {} | {}'.format(K, [f], []))
+                    txt = 'Decorrelator is not trained on '
+                    txt = txt + '{} {} | {}'.format(K, [f], [])
+                    raise RuntimeError(txt)
             else:
-                logger.debug('\tCheck passed: Decorrelator is already trained on {} {} | {}'.format(K, [f], []))
+                logger.debug('\tCheck passed: '
+                             'Decorrelator is already trained on '
+                             '{} {} | {}'.format(K, [f], []))
 
         # initialize array for the perturbed samples
-        nr_fsoi, nr_obs, nr_features = self.fsoi.shape[0], X_test.shape[0], len(all_fs)
+        nr_fsoi, nr_features = self.fsoi.shape[0], len(all_fs)
+        nr_obs = X_test.shape[0]
         perturbed_reconstr = np.zeros((nr_fsoi, nr_obs, nr_runs, nr_features))
         perturbed_baseline = np.zeros((nr_obs, nr_runs, nr_features))
 
@@ -222,9 +252,11 @@ class Explainer:
 
         # sample perturbed versions
         for jj in range(len(self.fsoi)):
-            sample = sampler.sample(X_test, all_fs, [self.fsoi[jj]], num_samples=nr_runs)
+            sample = sampler.sample(
+                X_test, all_fs, [self.fsoi[jj]], num_samples=nr_runs)
             for kk in np.arange(nr_runs):
-                sample_decorr = decorrelator.decorrelate(sample[:, kk, :], K, [jj], [])
+                sample_decorr = decorrelator.decorrelate(
+                    sample[:, kk, :], K, [jj], [])
                 perturbed_reconstr[jj, :, kk, :] = sample_decorr
 
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
@@ -236,26 +268,28 @@ class Explainer:
                 X_test_reconstructed = np.array(perturbed_baseline[:, kk, :])
                 X_test_reconstructed = perturbed_reconstr[jj, :, kk, :]
                 # compute difference in observationwise loss
-                lss[jj, kk, :] = loss(self.model(perturbed_baseline[:, kk, :]), y_test) - \
-                    loss(self.model(X_test_reconstructed), y_test)
+                l_pb = loss(self.model(perturbed_baseline[:, kk, :]), y_test)
+                l_rc = loss(self.model(X_test_reconstructed), y_test)
+                lss[jj, kk, :] = l_pb - l_rc
 
         # return explanation object
-        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi], ex_name='SI')
+        result = explanation.Explanation(
+            self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi], ex_name='SI')
         if return_perturbed:
-            raise NotImplementedError('Returning perturbed not implemented yet.')
+            raise NotImplementedError(
+                'Returning perturbed not implemented yet.')
             # logger.debug('Return both explanation and perturbed.')
             # return result, perturbed_baseline, perturbed_reconstr
         else:
             logger.debug('Return explanation object only')
             return result
 
-
     def decomposition(self, imp_type, fsoi, partial_ordering, X_test, y_test,
                       nr_orderings=None, nr_runs=3):
         """
-        Given a partial ordering, this code allows to decompose feature importance
-        or feature association for a given set of features into its respective
-        indirect or direct components.
+        Given a partial ordering, this code allows to decompose
+        feature importance or feature association for a given set of
+        features into its respective indirect or direct components.
 
         Args:
             imp_type: Either 'rfi' or 'rfa'
@@ -264,7 +298,7 @@ class Explainer:
             partial_ordering: partial ordering for the decomposition
             X_test: test data
             y_test: test labels
-            nr_orderings: number of total orderings to sample 
+            nr_orderings: number of total orderings to sample
                 (given the partial) ordering
             nr_runs: number of runs for each feature importance score
                 computation
@@ -277,16 +311,18 @@ class Explainer:
         if nr_orderings is None:
             nr_orderings = len(utils.flatten(partial_ordering))**2
 
-        values = np.zeros((nr_orderings, nr_runs, len(utils.flatten(partial_ordering))+1 , len(fsoi)))
+        values = np.zeros((nr_orderings, nr_runs, len(
+            utils.flatten(partial_ordering)) + 1, len(fsoi)))
 
         for kk in np.arange(nr_orderings):
-            rfs = np.zeros((nr_runs, len(utils.flatten(partial_ordering))+1, len(fsoi)))
+            rfs = np.zeros(
+                (nr_runs, len(utils.flatten(partial_ordering)) + 1, len(fsoi)))
             sets = []
 
             ordering = utils.sample_partial(partial_ordering)
             logging.info('Ordering : {}'.format(ordering))
 
-            for jj in np.arange(len(ordering)+1):
+            for jj in np.arange(len(ordering) + 1):
                 G = ordering[:jj]
                 expl = None
                 if imp_type == 'rfi':
@@ -296,20 +332,21 @@ class Explainer:
                 rfs[:, jj, :] = expl.fi_vals().T
                 sets.append(G)
 
-            values[kk, :, -1, :] = rfs[:, -1, :] # conditioning on all items in partial ordering
+            # conditioning on all items in partial ordering
+            values[kk, :, -1, :] = rfs[:, -1, :]
 
             for jj in np.arange(1, len(sets), 1):
-                diffs = rfs[:, jj-1, :] - rfs[:, jj, :]
-                # TODO(gcsk): with this kind of assignment only works for fsoi of type (0, .. n)
-                values[kk, :, sets[jj][-1], :] = diffs 
-        
+                diffs = rfs[:, jj - 1, :] - rfs[:, jj, :]
+                # TODO(gcsk): with this kind of assignment
+                # only works for fsoi of type (0, .. n)
+                values[kk, :, sets[jj][-1], :] = diffs
+
         stds = np.std(values, axis=(0, 1))
         means = np.mean(values, axis=(0, 1))
 
         return means, stds
 
-
-    def fa(self, X_test, y_test, K, sampler=None, loss=None, nr_runs=10, 
+    def fa(self, X_test, y_test, K, sampler=None, loss=None, nr_runs=10,
            return_perturbed=False, train_allowed=True):
         """Computes Feature Association
 
@@ -325,12 +362,15 @@ class Explainer:
             loss: choice of loss. Default None. Will throw an Error when
               both loss and self.loss are None.
             nr_runs: how often the experiment shall be run
-            return_perturbed: whether the sampled perturbed versions shall be returned
-            train_allowed: whether the explainer is allowed to train the sampler
+            return_perturbed: whether the sampled perturbed
+                versions shall be returned
+            train_allowed: whether the explainer is allowed
+                to train the sampler
 
         Returns:
             result: An explanation object with the RFI computation
-            perturbed_foiss (optional): perturbed features of interest if return_perturbed
+            perturbed_foiss (optional): perturbed features of
+                interest if return_perturbed
         """
 
         if sampler is None:
@@ -352,9 +392,13 @@ class Explainer:
                 sampler.train(all_fs, [])
                 logger.info('Training sampler on {}|{}'.format(all_fs, []))
             else:
-                raise RuntimeError('Sampler is not trained on {}|{}'.format(all_fs, []))
+                raise RuntimeError(
+                    'Sampler is not trained on {}|{}'.format(all_fs, []))
         else:
-            logger.debug('\tCheck passed: Sampler is already trained on {}|{}'.format(all_fs, []))
+            logger.debug(
+                '\tCheck passed: '
+                'Sampler is already trained on '
+                '{}|{}'.format(all_fs, []))
 
         # check for each of the features of interest
         for f in self.fsoi:
@@ -364,12 +408,17 @@ class Explainer:
                     sampler.train(K, [f])
                     logger.info('Training sampler on {}|{}'.format(K, [f]))
                 else:
-                    raise RuntimeError('Sampler is not trained on {}|{}'.format(K, [f]))
+                    raise RuntimeError(
+                        'Sampler is not trained on {}|{}'.format(K, [f]))
             else:
-                logger.debug('\tCheck passed: Sampler is already trained on {}|{}'.format(K, [f]))
+                logger.debug(
+                    '\tCheck passed: '
+                    'Sampler is already trained on '
+                    '{}|{}'.format(K, [f]))
 
         # initialize array for the perturbed samples
-        nr_fsoi, nr_obs, nr_features = self.fsoi.shape[0], X_test.shape[0], len(all_fs)
+        nr_fsoi, nr_features = self.fsoi.shape[0], len(all_fs)
+        nr_obs = X_test.shape[0]
         perturbed_reconstr = np.zeros((nr_fsoi, nr_obs, nr_runs, len(K)))
         perturbed_baseline = np.zeros((nr_obs, nr_runs, nr_features))
 
@@ -379,7 +428,8 @@ class Explainer:
 
         # sample perturbed versions
         for jj in range(len(self.fsoi)):
-            sample = sampler.sample(X_test, K, [self.fsoi[jj]], num_samples=nr_runs)
+            sample = sampler.sample(
+                X_test, K, [self.fsoi[jj]], num_samples=nr_runs)
             perturbed_reconstr[jj, :, :, :] = sample
 
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
@@ -391,20 +441,25 @@ class Explainer:
                 X_test_reconstructed = np.array(perturbed_baseline[:, kk, :])
                 X_test_reconstructed[:, K] = perturbed_reconstr[jj, :, kk, :]
                 # compute difference in observationwise loss
-                lss[jj, kk, :] = loss(self.model(perturbed_baseline[:, kk, :]), y_test) - \
-                    loss(self.model(X_test_reconstructed), y_test)
+                l_pb = loss(self.model(perturbed_baseline[:, kk, :]), y_test)
+                l_rc = loss(self.model(X_test_reconstructed), y_test)
+                lss[jj, kk, :] = l_pb - l_rc
 
         # return explanation object
-        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi], ex_name='SI')
+        result = explanation.Explanation(
+            self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi], ex_name='SI')
         if return_perturbed:
-            raise NotImplementedError('Returning perturbed not implemented yet.')
+            raise NotImplementedError(
+                'Returning perturbed not implemented yet.')
             # logger.debug('Return both explanation and perturbed.')
             # return result, perturbed_baseline, perturbed_reconstr
         else:
             logger.debug('Return explanation object only')
             return result
 
-    def sage(self, X_test, y_test, nr_orderings, nr_runs=10, sampler=None, loss=None, train_allowed=True, return_orderings=False):
+    def sage(self, X_test, y_test, nr_orderings,
+             nr_runs=10, sampler=None, loss=None,
+             train_allowed=True, return_orderings=False):
         """
         Compute Shapley Additive Global Importance values.
         Args:
@@ -416,14 +471,18 @@ class Explainer:
               when sampler is None and self.sampler is None as well.
             loss: choice of loss. Default None. Will throw an Error when
               both loss and self.loss are None.
-            train_allowed: whether the explainer is allowed to train the sampler
+            train_allowed: whether the explainer is allowed to
+                train the sampler
 
         Returns:
-            result: an explanation object containing the respective pairwise lossdifferences
-            with shape (nr_fsoi, nr_runs, nr_obs, nr_orderings)
-            orderings (optional): an array containing the respective orderings if return_orderings
+            result: an explanation object containing the respective
+                pairwise lossdifferences with shape
+                (nr_fsoi, nr_runs, nr_obs, nr_orderings)
+            orderings (optional): an array containing the respective
+                orderings if return_orderings
         """
-        # the method is currently not build for situations where we are only interested in
+        # the method is currently not build for situations
+        # where we are only interested in
         # a subset of the model's features
         if X_test.shape[1] != self.fsoi.shape[0]:
             logger.debug('self.fsoi: {}'.format(self.fsoi))
@@ -440,40 +499,57 @@ class Explainer:
                 loss = self.loss
                 logger.debug("Using class specified loss.")
 
-        lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0], nr_orderings))
+        lss = np.zeros(
+            (self.fsoi.shape[0], nr_runs, X_test.shape[0], nr_orderings))
 
         for ii in range(nr_orderings):
             ordering = np.random.permutation(len(self.fsoi))
             # resample multiple times
             for kk in range(nr_runs):
                 # enter one feature at a time
-                y_hat_base = np.repeat(np.mean(self.model(X_test)), X_test.shape[0])
+                y_hat_base = np.repeat(
+                    np.mean(self.model(X_test)), X_test.shape[0])
                 for jj in np.arange(1, len(self.fsoi), 1):
-                    # compute change in performance by entering the respective feature
+                    # compute change in performance
+                    # by entering the respective feature
                     # store the result in the right place
                     # validate training of sampler
-                    impute, fixed = self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]]
-                    logger.debug('{}:{}:{}: fixed, impute: {}|{}'.format(ii, kk, jj, impute, fixed))
+                    impute, fixed = self.fsoi[ordering[jj:]
+                                              ], self.fsoi[ordering[:jj]]
+                    logger.debug('{}:{}:{}: fixed, impute: {}|{}'.format(
+                        ii, kk, jj, impute, fixed))
                     if not sampler.is_trained(impute, fixed):
                         # train if allowed, otherwise raise error
                         if train_allowed:
                             sampler.train(impute, fixed)
-                            logger.info('Training sampler on {}|{}'.format(impute, fixed))
+                            logger.info(
+                                'Training sampler on '
+                                '{}|{}'.format(impute, fixed))
                         else:
-                            raise RuntimeError('Sampler is not trained on {}|{}'.format(impute, fixed))
+                            raise RuntimeError(
+                                'Sampler is not trained on '
+                                '{}|{}'.format(impute, fixed))
                     X_test_perturbed = np.array(X_test)
-                    impute_sample = sampler.sample(X_test, impute, fixed, num_samples=1).reshape((X_test.shape[0], len(impute)))
-                    X_test_perturbed[:, impute] = impute_sample
+                    imps = sampler.sample(X_test, impute, fixed, num_samples=1)
+                    imps = imps.reshape((X_test.shape[0], len(impute)))
+                    X_test_perturbed[:, impute] = imps
                     # sample replacement, create replacement matrix
                     y_hat_new = self.model(X_test_perturbed)
-                    lss[self.fsoi[ordering[jj - 1]], kk, :, ii] = loss(y_hat_base, y_test) - loss(y_hat_new, y_test)
+                    lb = loss(y_hat_base, y_test)
+                    ln = loss(y_hat_new, y_test)
+                    lss[self.fsoi[ordering[jj - 1]], kk, :, ii] = lb - ln
                     y_hat_base = y_hat_new
                 y_hat_new = self.model(X_test)
-                lss[self.fsoi[ordering[-1]], kk, :, ii] = loss(y_hat_base, y_test) - loss(y_hat_new, y_test)
+                lss[self.fsoi[ordering[-1]], kk, :,
+                    ii] = loss(y_hat_base, y_test) - loss(y_hat_new, y_test)
 
-        result = explanation.Explanation(self.fsoi, lss, fsoi_names=self.fs_names[self.fsoi], ex_name='SAGE')
+        result = explanation.Explanation(
+            self.fsoi, lss,
+            fsoi_names=self.fs_names[self.fsoi],
+            ex_name='SAGE')
 
         if return_orderings:
-            raise NotImplementedError('Returning errors is not implemented yet.')
+            raise NotImplementedError(
+                'Returning errors is not implemented yet.')
 
         return result
