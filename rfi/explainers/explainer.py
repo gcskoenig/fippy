@@ -250,7 +250,7 @@ class Explainer:
             return result
 
 
-    def decomposition(self, imp_type, fois, partial_ordering, X_test, y_test,
+    def decomposition(self, imp_type, fsoi, partial_ordering, X_test, y_test,
                       nr_orderings=None, nr_runs=3):
         """
         Given a partial ordering, this code allows to decompose feature importance
@@ -274,10 +274,10 @@ class Explainer:
                 component and each feature. numpy.array with shape
                 (#components, #fsoi)
         """
-        if nr_orderings is None
-            nr_orderings = len(flatten(partial_ordering))**2
+        if nr_orderings is None:
+            nr_orderings = len(utils.flatten(partial_ordering))**2
 
-        values = np.zeros((nr_orderings, nr_runs, len(flatten(partial_ordering))+1 , len(fsoi)))
+        values = np.zeros((nr_orderings, nr_runs, len(utils.flatten(partial_ordering))+1 , len(fsoi)))
 
         for kk in np.arange(nr_orderings):
             rfs = np.zeros((nr_runs, len(utils.flatten(partial_ordering))+1, len(fsoi)))
@@ -300,7 +300,8 @@ class Explainer:
 
             for jj in np.arange(1, len(sets), 1):
                 diffs = rfs[:, jj-1, :] - rfs[:, jj, :]
-                values[kk, :, sets[jj][-1], :] = diffs
+                # TODO(gcsk): with this kind of assignment only works for fsoi of type (0, .. n)
+                values[kk, :, sets[jj][-1], :] = diffs 
         
         stds = np.std(values, axis=(0, 1))
         means = np.mean(values, axis=(0, 1))
