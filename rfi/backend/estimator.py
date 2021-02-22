@@ -18,8 +18,8 @@ class ConditionalDistributionEstimator(nn.Module):
     def __init__(self,
                  context_size: int = 0,
                  inputs_size: int = 1,
-                 context_normalization=True,
-                 inputs_normalization=True,
+                 context_normalization=False,
+                 inputs_normalization=False,
                  **kwargs):
         super().__init__()
         self.inputs_size = inputs_size

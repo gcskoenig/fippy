@@ -25,7 +25,7 @@ class MDNSampler(Sampler):
             logger.info(f'Fitting sampler for features {J}. Fitting method: {self.fit_method}. '
                         f'Fitting parameters: {self.fit_params}')
 
-            mdn = MixtureDensityNetworkEstimator(inputs_size=len(J), context_size=len(G))
+            mdn = MixtureDensityNetworkEstimator(inputs_size=len(J), context_size=len(G), **self.fit_params)
             getattr(mdn, self.fit_method)(train_inputs=self.X_train[:, J], train_context=self.X_train[:, G],
                                           **self.fit_params)
 

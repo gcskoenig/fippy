@@ -2,6 +2,7 @@ import numpy as np
 import hashlib
 from omegaconf import DictConfig, OmegaConf
 from copy import deepcopy
+import mlflow
 
 
 def to_key(G):
@@ -46,3 +47,16 @@ def calculate_hash(args: DictConfig):
     args_copy = deepcopy(args)
     args_copy.exp.pop('mlflow_uri')
     return hashlib.md5(str(args_copy).encode()).hexdigest()
+
+
+def check_existing_hash(args: DictConfig, exp_name: str) -> bool:
+
+    if args.exp.check_exisisting_hash:
+        args.hash = calculate_hash(args)
+
+        existing_runs = mlflow.search_runs(
+            filter_string=f"params.hash = '{args.hash}'",
+            run_view_type=mlflow.tracking.client.ViewType.ACTIVE_ONLY,
+            experiment_ids=mlflow.get_experiment_by_name(exp_name).experiment_id
+        )
+        return len(existing_runs) > 0
