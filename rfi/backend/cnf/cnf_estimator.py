@@ -86,8 +86,7 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
             embedding_net = None
 
         assert base_distribution._shape[0] == inputs_size
-        super().__init__(transform, base_distribution, embedding_net)
-
+        Flow.__init__(self, transform, base_distribution, embedding_net)
         self.inputs_size = inputs_size
         self.context_size = context_size
 

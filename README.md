@@ -2,6 +2,12 @@
 
 ![Python package](https://github.com/gcskoenig/rfi/workflows/Python%20package/badge.svg?branch=master)
 
+## Disclaimer
+
+The package is still under development and in early testing stages. Therefore, we do not guarantee stability. 
+
+## Functionality
+
 In this library we offer an implementation of Relative Feature Importance including:
 
 - a variety of conditional sampling techniques
