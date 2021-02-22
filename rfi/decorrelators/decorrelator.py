@@ -52,7 +52,6 @@ class Decorrelator:
         Returns:
             Whether the sampler was trained with respect to
             a set C.
-
         """
         K_key, C_key, J_key = Decorrelator._to_key(
             K), Decorrelator._to_key(C), Decorrelator._to_key(J)
@@ -126,14 +125,15 @@ class Decorrelator:
         Args:
             J: Set of features to sample
             C: relative feature set
-            X_test: Data for which sampling shall be 
+            X_test: Data for which sampling shall be
                 performed. (format as self.X_train)
             num_samples: number of resamples without
                 retraining shall be computed
 
         Returns:
             Resampled data for the features of interest.
-            np.array with shape (X_test.shape[0], #num_samples, # features of interest)
+            np.array with shape
+            (X_test.shape[0], #num_samples, # features of interest)
         """
         # initialize numpy matrix
         # sampled_data = np.zeros((X_test.shape[0], num_samples, J.shape[0]))

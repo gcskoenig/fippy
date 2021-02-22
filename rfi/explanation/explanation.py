@@ -8,8 +8,6 @@ import rfi.plots._barplot as _barplot
 import logging
 
 
-# TODO(gcsk): compute significance of the results using the multiple runs and marwin wright's procedure
-
 class Explanation:
     """Stores and provides access to results from Explainer.
 
@@ -42,7 +40,7 @@ class Explanation:
 
     def fi_vals(self):
         """ Computes the sample-wide RFI for each run
-        
+
         Returns:
             (#fsoi, #runs)
         """

@@ -41,7 +41,8 @@ def rfi_desc(G, fs_names=None):
 def search_nonsorted(arr, search_list):
     if len(arr) == 0 or len(search_list) == 0:
         return np.array([])
-    return np.argwhere(arr == np.array(search_list).reshape(len(search_list), 1))[:, 1]
+    sl_reshape = np.array(search_list).reshape(len(search_list), 1)
+    return np.argwhere(arr == sl_reshape)[:, 1]
 
 
 def calculate_hash(args: DictConfig):
@@ -49,15 +50,18 @@ def calculate_hash(args: DictConfig):
     args_copy.exp.pop('mlflow_uri')
     return hashlib.md5(str(args_copy).encode()).hexdigest()
 
-def flatten_gen(l):
-    for el in l:
+
+def flatten_gen(ls):
+    for el in ls:
         if isinstance(el, Iterable) and not isinstance(el, (str, bytes)):
             yield from flatten(el)
         else:
             yield el
 
-def flatten(l):
-    return list(flatten_gen(l))
+
+def flatten(ls):
+    return list(flatten_gen(ls))
+
 
 def sample_partial(partial_ordering):
     """ sample ordering from partial ordering
