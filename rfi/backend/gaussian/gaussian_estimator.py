@@ -10,8 +10,6 @@ from rfi.backend import ConditionalDistributionEstimator
 
 logger = logging.getLogger(__name__)
 
-# TODO(gcsk): make this work for empty context
-
 class GaussianConditionalEstimator(ConditionalDistributionEstimator):
     """
     Conditional density estimation for joint normal distribution
@@ -142,9 +140,6 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
     def conditional_distribution(self, context: np.array = None) -> Distribution:
         mu_part2 = self.RegrCoeff @ context.T
         mu = self.mu_part + mu_part2
-        # if len(self.inp_ind) == 1:
-        #     return Normal(torch.tensor(mu[0]), torch.sqrt(torch.tensor(self.Sigma[0, 0])))
-        # else:
         return MultivariateNormal(torch.tensor(mu).T, torch.tensor(self.Sigma))
 
     def sample(self, context: np.array = None, num_samples=1) -> np.array:
