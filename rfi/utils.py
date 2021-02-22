@@ -6,6 +6,7 @@ from collections.abc import Iterable
 import random
 import mlflow
 
+
 def to_key(G):
     """
     Translates list or numpy array into hashable form.
