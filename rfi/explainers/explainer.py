@@ -8,6 +8,7 @@ import numpy as np
 import rfi.utils as utils
 import rfi.explanation.explanation as explanation
 import logging
+import typing
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,8 @@ class Explainer:
         fs_names: list of strings with feature input_var_names
     """
 
-    def __init__(self, model, fsoi, X_train, sampler=None, decorrelator=None, loss=None, fs_names=None):
+    def __init__(self, model, fsoi, X_train, sampler=None, decorrelator=None, 
+                 loss=None, fs_names=None):
         """Inits Explainer with sem, mask and potentially sampler and loss"""
         self.model = model
         self.fsoi = fsoi
@@ -58,7 +60,8 @@ class Explainer:
         else:
             return True
 
-    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
+    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10, 
+            return_perturbed=False, train_allowed=True):
         """Computes Relative Feature importance
 
         # TODO(gcsk): allow handing a sample as argument
@@ -109,9 +112,8 @@ class Explainer:
 
         # sample perturbed versions
         for jj in range(len(self.fsoi)):
-            perturbed_foiss[jj, :, :] = sampler.sample(X_test, [self.fsoi[jj]], G, num_samples=nr_runs).reshape(
-                (nr_obs, nr_runs)).T
-
+            tmp = sampler.sample(X_test, [self.fsoi[jj]], G, num_samples=nr_runs)
+            perturbed_foiss[jj, :, :] = tmp.reshape((nr_obs, nr_runs)).T
         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0]))
 
         # compute observasitonwise loss differences for all runs and fois
@@ -135,7 +137,8 @@ class Explainer:
             logger.debug('Return explanation object only')
             return result
 
-    def rfa(self, X_test, y_test, K, sampler=None, decorrelator=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
+    def rfa(self, X_test, y_test, K, sampler=None, decorrelator=None, 
+            loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
         """Computes Feature Association
         # TODO(gcsk): allow handing a sample as argument
         #             (without needing sampler)
@@ -246,7 +249,67 @@ class Explainer:
             logger.debug('Return explanation object only')
             return result
 
-    def fa(self, X_test, y_test, K, sampler=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
+
+    def decomposition(self, imp_type, fois, partial_ordering, X_test, y_test,
+                      nr_orderings=None, nr_runs=3):
+        """
+        Given a partial ordering, this code allows to decompose feature importance
+        or feature association for a given set of features into its respective
+        indirect or direct components.
+
+        Args:
+            imp_type: Either 'rfi' or 'rfa'
+            fois: features, for which the importance scores (of type imp_type)
+                are to be decomposed
+            partial_ordering: partial ordering for the decomposition
+            X_test: test data
+            y_test: test labels
+            nr_orderings: number of total orderings to sample 
+                (given the partial) ordering
+            nr_runs: number of runs for each feature importance score
+                computation
+
+        Returns:
+            means, stds: means and standard deviations for each
+                component and each feature. numpy.array with shape
+                (#components, #fsoi)
+        """
+        if nr_orderings is None
+            nr_orderings = len(flatten(partial_ordering))**2
+
+        values = np.zeros((nr_orderings, nr_runs, len(flatten(partial_ordering))+1 , len(fsoi)))
+
+        for kk in np.arange(nr_orderings):
+            rfs = np.zeros((nr_runs, len(utils.flatten(partial_ordering))+1, len(fsoi)))
+            sets = []
+
+            ordering = utils.sample_partial(partial_ordering)
+            logging.info('Ordering : {}'.format(ordering))
+
+            for jj in np.arange(len(ordering)+1):
+                G = ordering[:jj]
+                expl = None
+                if imp_type == 'rfi':
+                    expl = self.rfi(X_test, y_test, G, nr_runs=nr_runs)
+                elif imp_type == 'rfa':
+                    expl = self.rfa(X_test, y_test, G, nr_runs=nr_runs)
+                rfs[:, jj, :] = expl.fi_vals().T
+                sets.append(G)
+
+            values[kk, :, -1, :] = rfs[:, -1, :] # conditioning on all items in partial ordering
+
+            for jj in np.arange(1, len(sets), 1):
+                diffs = rfs[:, jj-1, :] - rfs[:, jj, :]
+                values[kk, :, sets[jj][-1], :] = diffs
+        
+        stds = np.std(values, axis=(0, 1))
+        means = np.mean(values, axis=(0, 1))
+
+        return means, stds
+
+
+    def fa(self, X_test, y_test, K, sampler=None, loss=None, nr_runs=10, 
+           return_perturbed=False, train_allowed=True):
         """Computes Feature Association
 
         # TODO(gcsk): allow handing a sample as argument

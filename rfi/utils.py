@@ -2,6 +2,7 @@ import numpy as np
 import hashlib
 from omegaconf import DictConfig, OmegaConf
 from copy import deepcopy
+from collections.abc import Iterable
 
 
 def to_key(G):
@@ -46,3 +47,34 @@ def calculate_hash(args: DictConfig):
     args_copy = deepcopy(args)
     args_copy.exp.pop('mlflow_uri')
     return hashlib.md5(str(args_copy).encode()).hexdigest()
+
+def flatten_gen(l):
+    for el in l:
+        if isinstance(el, Iterable) and not isinstance(el, (str, bytes)):
+            yield from flatten(el)
+        else:
+            yield el
+
+def flatten(l):
+    return list(flatten_gen(l))
+
+def sample_partial(partial_ordering):
+    """ sample ordering from partial ordering
+
+    Args:
+        partial_ordering: [1, (2, 4), 3]
+
+    Returns:
+        ordering, np.array
+    """
+    ordering = []
+    for elem in partial_ordering:
+        if type(elem) is int:
+            ordering.append(elem)
+        elif type(elem) is tuple:
+            perm = list(elem)
+            random.shuffle(perm)
+            ordering = ordering + perm
+        else:
+            raise RuntimeError('Element neither int nor tuple')
+    return np.array(ordering)
