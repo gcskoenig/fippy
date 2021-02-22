@@ -50,6 +50,7 @@ def calculate_hash(args: DictConfig):
     args_copy.exp.pop('mlflow_uri')
     return hashlib.md5(str(args_copy).encode()).hexdigest()
 
+
 def flatten_gen(ls):
     for el in ls:
         if isinstance(el, Iterable) and not isinstance(el, (str, bytes)):
@@ -82,15 +83,16 @@ def sample_partial(partial_ordering):
         else:
             raise RuntimeError('Element neither int nor tuple')
     return np.array(ordering)
-  
-def check_existing_hash(args: DictConfig, exp_name: str) -> bool:
 
+
+def check_existing_hash(args: DictConfig, exp_name: str) -> bool:
     if args.exp.check_exisisting_hash:
         args.hash = calculate_hash(args)
 
+        ids = mlflow.get_experiment_by_name(exp_name).experiment_id
         existing_runs = mlflow.search_runs(
             filter_string=f"params.hash = '{args.hash}'",
             run_view_type=mlflow.tracking.client.ViewType.ACTIVE_ONLY,
-            experiment_ids=mlflow.get_experiment_by_name(exp_name).experiment_id
+            experiment_ids=ids
         )
         return len(existing_runs) > 0
