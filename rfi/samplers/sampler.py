@@ -17,8 +17,6 @@ class Sampler:
     """Can be used to resample perturbed versions of a variable conditional on
     any set of variables G.
 
-    # TODO(gcsk): potentially allow storing training on multiple sets G.
-
     Attributes:
         X_train: reference to training data.
         _trained_sampling_funcs: dictionary with (fsoi, G) as key and callable sampler as value

@@ -8,8 +8,6 @@ import rfi.plots._barplot as _barplot
 import logging
 
 
-# TODO(gcsk): compute significance of the results using the multiple runs and marwin wright's procedure
-
 class Explanation:
     """Stores and provides access to results from Explainer.
 
@@ -40,6 +38,14 @@ class Explanation:
             logging.debug('lss shape: {}'.format(lss.shape))
             raise RuntimeError('Lss has incorrect shape.')
 
+    def fi_vals(self):
+        """ Computes the sample-wide RFI for each run
+
+        Returns:
+            (#fsoi, #runs)
+        """
+        return np.mean(self.lss, axis=(3, 2))
+
     def fi_means(self):
         """Computes Mean RFI over all runs
 
@@ -47,7 +53,7 @@ class Explanation:
             A np.array with the relative feature importance value for
             features of interest.
         """
-        return np.mean(np.mean(np.mean(self.lss, axis=3), axis=2), axis=1)
+        return np.mean(self.lss, axis=(3, 2, 1))
 
     def fi_stds(self):
         """Computes std of RFI over all runs
@@ -55,7 +61,7 @@ class Explanation:
         Returns:
             A np.array with the std of RFI value for the features of interest
         """
-        return np.std(np.mean(np.mean(self.lss, axis=3), axis=2), axis=1)
+        return np.mean(self.lss, axis=(3, 2, 1))
 
     def barplot(self, ax=None, figsize=None):
         return _barplot.fi_hbarplot(self, ax=ax, figsize=figsize)
