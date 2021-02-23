@@ -74,4 +74,3 @@ class DecompositionExplanation(Explanation):
 
         """
         return fi_sns_gbarplot(self, figsize=figsize, ax=ax)
-

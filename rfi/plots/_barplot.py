@@ -114,5 +114,4 @@ def fi_sns_gbarplot(dex, ax=None, figsize=None):
 #             ax.text(0, ty_upper, textformat.format(patches[kk].get_width()),
 #                     va='center', ha='left', size=pix_height)
 #             # ax.text(tx, ty_lower, '+-'+ textformat.format(errbar_length), va='center', ha='center', size=pix_height)
-
 #     plt.show()
