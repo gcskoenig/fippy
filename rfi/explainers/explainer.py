@@ -8,6 +8,7 @@ import numpy as np
 import rfi.utils as utils
 import rfi.explanation.explanation as explanation
 import logging
+import rfi.explanation.decomposition as decomposition_ex
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class Explainer:
         self.loss = loss
         self.sampler = sampler
         self.decorrelator = decorrelator
+        # TODO(gcsk): all features or just features of interest?
         self.fs_names = np.array(fs_names)
         if self.fs_names is None:
             self.fs_names = np.array([utils.ix_to_desc(jj)
@@ -311,13 +313,16 @@ class Explainer:
         if nr_orderings is None:
             nr_orderings = len(utils.flatten(partial_ordering))**2
 
-        values = np.zeros((nr_orderings, nr_runs, len(
-            utils.flatten(partial_ordering)) + 1, len(fsoi)))
+        # values (nr_perm, nr_runs, nr_components, nr_fsoi)
+        # components are: (elements of ordering,..., remainder)
+        # elements of ordering are sorted in increasing order
+        nr_components = len(utils.flatten(partial_ordering)) + 1
+        values = np.zeros((len(fsoi), nr_components, nr_orderings, nr_runs))
+        # values = np.zeros((nr_orderings, nr_runs, nr_components, len(fsoi)))
 
         for kk in np.arange(nr_orderings):
             rfs = np.zeros(
                 (nr_runs, len(utils.flatten(partial_ordering)) + 1, len(fsoi)))
-            sets = []
 
             ordering = utils.sample_partial(partial_ordering)
             logging.info('Ordering : {}'.format(ordering))
@@ -329,22 +334,26 @@ class Explainer:
                     expl = self.rfi(X_test, y_test, G, nr_runs=nr_runs)
                 elif imp_type == 'rfa':
                     expl = self.rfa(X_test, y_test, G, nr_runs=nr_runs)
-                rfs[:, jj, :] = expl.fi_vals().T
-                sets.append(G)
+                rfs[:, jj, :] = expl.fi_vals(return_np=True).T
 
             # conditioning on all items in partial ordering
-            values[kk, :, -1, :] = rfs[:, -1, :]
+            values[:, -1, kk, :] = rfs[:, -1, :].T
 
-            for jj in np.arange(1, len(sets), 1):
+            # importance contribution of the j-th component
+            for jj in np.arange(1, len(ordering) + 1, 1):
                 diffs = rfs[:, jj - 1, :] - rfs[:, jj, :]
-                # TODO(gcsk): with this kind of assignment
-                # only works for fsoi of type (0, .. n)
-                values[kk, :, sets[jj][-1], :] = diffs
+                ix = utils.id_to_ix(ordering[jj - 1], ordering)
+                values[:, ix, kk, :] = diffs.T
 
-        stds = np.std(values, axis=(0, 1))
-        means = np.mean(values, axis=(0, 1))
-
-        return means, stds
+        component_names = np.unique(utils.flatten(partial_ordering))
+        component_names = list(self.fs_names[component_names])
+        component_names.append('remainder')
+        fsoi_names = self.fs_names[self.fsoi]
+        ex = decomposition_ex.DecompositionExplanation(self.fsoi, values,
+                                                       fsoi_names,
+                                                       component_names,
+                                                       ex_name=None)
+        return ex
 
     def fa(self, X_test, y_test, K, sampler=None, loss=None, nr_runs=10,
            return_perturbed=False, train_allowed=True):
