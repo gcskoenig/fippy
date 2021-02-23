@@ -7,6 +7,12 @@ import random
 import mlflow
 
 
+def id_to_ix(id, ids):
+    ids = np.unique(ids)
+    ix = np.where(id == ids)[0][0]
+    return ix
+
+
 def to_key(G):
     """
     Translates list or numpy array into hashable form.
