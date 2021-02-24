@@ -46,7 +46,6 @@ def main(args: DictConfig):
     logger.info(f'Target var: {target_var}, all_inputs: {all_inputs_vars}, sensetive_vars: {sensetive_vars}, '
                 f'cat_vars: {cat_vars}')
 
-
     train_df, test_df = train_test_split(data_df, test_size=args.data.test_ratio, random_state=args.data.split_seed)
     y_train, X_train, X_train_wo_sens = train_df[target_var], train_df[all_inputs_vars], train_df[wo_sens_inputs_vars]
     y_test, X_test, X_test_wo_sens = test_df[target_var], test_df[all_inputs_vars], test_df[wo_sens_inputs_vars]
@@ -110,7 +109,6 @@ def main(args: DictConfig):
                 models_pred_funcs[risk] = lambda X_test: getattr(model, pred_funcs[risk])(X_test)
             y_pred = models_pred_funcs[risk](X_test_wo_sens)
             pred_results[f'test_{risk}_{pred_model._target_}'] = risk_func(y_test, y_pred)
-
 
     mlflow.log_metrics(pred_results, step=0)
 

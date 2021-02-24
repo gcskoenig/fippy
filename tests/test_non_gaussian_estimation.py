@@ -195,5 +195,3 @@ class TestNonGaussianEstimators:
             ax.set_title(f'Bi-variate conditional sampling (0 - blue, 1 - red) ({estimator_cls.__name__})')
             fig.legend()
             plt.show()
-
-TestNonGaussianEstimators().test_bivar_cond()

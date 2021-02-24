@@ -2,7 +2,7 @@ from typing import Dict, Any, MutableMapping
 from argparse import Namespace
 
 
-def flatten_dict(params: Dict[str, Any], delimiter: str = '/', max_val_len = 250) -> Dict[str, Any]:
+def flatten_dict(params: Dict[str, Any], delimiter: str = '/', max_val_len=250) -> Dict[str, Any]:
     """
     Flatten hierarchical dict, e.g. ``{'a': {'b': 'c'}} -> {'a/b': 'c'}``.
 
