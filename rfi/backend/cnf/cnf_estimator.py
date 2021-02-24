@@ -11,6 +11,7 @@ from typing import Type, Union, Tuple, List
 import torch
 from copy import deepcopy
 from sklearn.model_selection import KFold
+from sklearn.preprocessing import OneHotEncoder
 import logging
 from ray import tune
 import ray
@@ -46,12 +47,12 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
             inputs_size: int = 1,
             transform_classes: Tuple[Type] = 2 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,),
             hidden_units: Tuple[int] = (16,),
+            base_distribution: Distribution = StandardNormal(shape=[1]),
             n_epochs: int = 1000,
             lr: float = 0.001,
             weight_decay: float = 0.0,
             input_noise_std: float = 0.05,
             context_noise_std: float = 0.1,
-            base_distribution: Distribution = StandardNormal(shape=[1]),
             context_normalization=True,
             inputs_normalization=True,
             device='cpu',
@@ -76,6 +77,7 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
             device: cpu / cuda
         """
         # Constructing composite transformation & Initialisation of global_context embedding network
+        self.hidden_units = hidden_units
         if context_size > 0:
             transform = ContextualCompositeTransform(
                 [transform_cls(inputs_size=inputs_size) for transform_cls in transform_classes])
@@ -87,10 +89,10 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
 
         assert base_distribution._shape[0] == inputs_size
         Flow.__init__(self, transform, base_distribution, embedding_net)
-        self.inputs_size = inputs_size
-        self.context_size = context_size
 
-        # Training
+        # Training params
+        self.lr = lr
+        self.weight_decay = weight_decay
         self._init_optimizer(lr, weight_decay)
         self.n_epochs = n_epochs
         self.device = device
@@ -100,11 +102,39 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
         self.input_noise_std = input_noise_std
         self.context_noise_std = context_noise_std
 
+        if cat_context is None or len(cat_context) == 0:
+            self.cat_context = []
+            self.cont_context = np.arange(0, context_size)
+        else:
+            self.cat_context = cat_context
+            self.cont_context = np.array([i for i in range(context_size) if i not in cat_context])
+            self.cont_context = [] if len(self.cont_context) == 0 else self.cont_context
+
+        # Inputs / Context one-hot encoders
+        self.context_enc = OneHotEncoder(drop='if_binary', sparse=False)
+        self.inputs_enc = OneHotEncoder(drop='if_binary', sparse=False)
+
         # Normalisation
         self.context_normalization = context_normalization
         self.inputs_normalization = inputs_normalization
         self.inputs_mean, self.inputs_std = None, None
         self.context_mean, self.context_std = None, None
+
+        self.inputs_size = inputs_size
+        self.context_size = context_size
+
+    @property
+    def context_size(self):
+        return self._context_size
+
+    @context_size.setter
+    def context_size(self, context_size):
+        self._context_size = context_size
+        if hasattr(self, '_embedding_net') and context_size > 0:
+            # While changing the context size we also need to change the Embedding network
+            embedding_net = ContextEmbedding(self._transform, input_units=context_size, hidden_units=self.hidden_units)
+            self._embedding_net = embedding_net
+            self._init_optimizer(self.lr, self.weight_decay)
 
     def fit(self,
             train_inputs: Union[np.array, Tensor],
@@ -127,9 +157,11 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
         Returns: self
         """
 
+        _, train_context = self._fit_transform_onehot_encode(None, train_context)
         train_inputs, train_context = self._input_to_tensor(train_inputs, train_context)
         train_inputs, train_context = self._fit_transform_normalise(train_inputs, train_context)
 
+        _, val_context = self._transform_onehot_encode(None, val_context)
         val_inputs, val_context = self._input_to_tensor(val_inputs, val_context)
         val_inputs, val_context = self._transform_normalise(val_inputs, val_context)
 
@@ -138,17 +170,21 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
             # Adding noise to data
             noised_train_inputs = self._add_noise(train_inputs, self.input_noise_std)
             noised_train_context = self._add_noise(train_context, self.context_noise_std)
+
             # Forward pass
-            loss = - self.log_prob(inputs=noised_train_inputs, context=noised_train_context, data_normalization=False).mean()
+            loss = - self.log_prob(inputs=noised_train_inputs, context=noised_train_context,
+                                   data_normalization=False, context_one_hot_encoding=False).mean()
             loss.backward()
             self.optimizer.step()
 
             if verbose and (i + 1) % log_frequency == 0:
                 with torch.no_grad():
-                    train_log_lik = self.log_prob(inputs=train_inputs, context=train_context, data_normalization=False).mean()
+                    train_log_lik = self.log_prob(inputs=train_inputs, context=train_context, data_normalization=False,
+                                                  context_one_hot_encoding=False).mean()
 
                     if val_inputs is not None:
-                        val_log_lik = self.log_prob(inputs=val_inputs, context=val_context, data_normalization=False).mean()
+                        val_log_lik = self.log_prob(inputs=val_inputs, context=val_context, data_normalization=False,
+                                                    context_one_hot_encoding=False).mean()
                         logger.info(f'{i}: train log-likelihood: {train_log_lik}, val log-likelihood: {val_log_lik}')
                     else:
                         logger.info(f'{i}: train log-likelihood: {train_log_lik}')
@@ -156,7 +192,7 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
         return self
 
     def log_prob(self, inputs: Union[np.array, Tensor], context: Union[np.array, Tensor] = None,
-                 data_normalization=True) -> Union[np.array, Tensor]:
+                 data_normalization=True, context_one_hot_encoding=True) -> Union[np.array, Tensor]:
         """
         Log pdf function
         Args:
@@ -167,32 +203,22 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
         Returns: np.array or Tensor with shape (inputs_size, )
 
         """
-        return_numpy = False
-        if not isinstance(inputs, torch.Tensor):
-            inputs, context = self._input_to_tensor(inputs, context)
-            return_numpy = True
 
-        if data_normalization:
-            inputs, context = self._transform_normalise(inputs, context)
-
+        inputs, context, return_numpy = self._preprocess_data(inputs, context, data_normalization, context_one_hot_encoding,
+                                                              False)
         result = super().log_prob(inputs, context)
 
         if self.inputs_normalization:
-            result -= torch.log(self.inputs_std).sum()
+            result = result - torch.log(self.inputs_std).sum()
 
-        if return_numpy:
-            return result.detach().cpu().numpy()
-        else:
-            return result
+        result = self._postprocess_result(result, return_numpy)
+        return result
 
-    def conditional_distribution(self, context: Union[np.array, Tensor] = None, data_normalization=True) -> Flow:
-        if not isinstance(context, torch.Tensor):
-            context = torch.tensor(context, dtype=torch.float32, device=self.device)
+    def conditional_distribution(self, context: Union[np.array, Tensor] = None, data_normalization=True,
+                                 context_one_hot_encoding=True) -> Flow:
 
-        if data_normalization:
-            _, context = self._transform_normalise(None, context)
+        _, context, _ = self._preprocess_data(None, context, data_normalization, context_one_hot_encoding, False)
 
-        # for cont in context:
         transforms_list = torch.nn.ModuleList()
 
         if self.inputs_normalization:
@@ -206,9 +232,11 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
 
         transforms_list.extend(deepcopy(self._transform._transforms))
         cond_dist = Flow(CompositeTransform(transforms_list), self._distribution)
+
         return cond_dist
 
-    def sample(self, context: Union[np.array, Tensor] = None, num_samples=1, data_normalization=True) -> Union[np.array, Tensor]:
+    def sample(self, context: Union[np.array, Tensor] = None, num_samples=1, data_normalization=True,
+               context_one_hot_encoding=True) -> Union[np.array, Tensor]:
         """
         Sampling from conditional distribution
 
@@ -217,23 +245,15 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
             context: Conditioning global_context
             data_normalization: Perform data normalisation
 
-        Returns: np.array or Tensor with shape (global_context.shape[0], num_samples)
+        Returns: np.array or Tensor with shape (context.shape[0], num_samples)
 
         """
-        return_numpy = False
-        if not isinstance(context, torch.Tensor):
-            _, context = self._input_to_tensor(None, context)
-            return_numpy = True
-
-        if data_normalization:
-            _, context = self._transform_normalise(None, context)
+        return_numpy, context, _ = self._preprocess_data(None, context, data_normalization, context_one_hot_encoding, False)
 
         result = super().sample(num_samples, context).squeeze(-1)
 
         if self.inputs_normalization:
             result, _ = self._transform_inverse_normalise(result, None)
 
-        if return_numpy:
-            return result.detach().cpu().numpy()
-        else:
-            return result
+        result = self._postprocess_result(result, return_numpy)
+        return result

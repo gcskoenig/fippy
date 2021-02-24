@@ -8,7 +8,7 @@ import rfi.utils as utils
 import numpy as np
 from rfi.samplers._utils import sample_id, sample_perm
 import logging
-from typing import Union
+from typing import Union, List
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +21,18 @@ class Sampler:
 
     Attributes:
         X_train: reference to training data.
+        cat_inputs: List of indices of categorical features, if None - considering all the features as continuous
         _trained_sampling_funcs: dictionary with (fsoi, G) as key and callable sampler as value
     """
 
-    def __init__(self, X_train, X_val=None):
+    def __init__(self, X_train, cat_inputs: List[int] = None, **kwargs):
         """Initialize Sampler with X_train and mask."""
         self.X_train = X_train
-        self.X_val = X_val
+        self.cat_inputs = self._to_array(cat_inputs if cat_inputs is not None else [])
         self._trained_sampling_funcs = {}
         self._trained_estimators = {}
+
+        logger.info(f'Sampler initialized. Using following features as categorical {self.cat_inputs}')
 
     @staticmethod
     def _to_key(S):
