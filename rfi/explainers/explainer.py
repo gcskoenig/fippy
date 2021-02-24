@@ -277,8 +277,8 @@ class Explainer:
                 X_test_reconstructed = np.array(perturbed_baseline[:, kk, :])
                 X_test_reconstructed = perturbed_reconstr[jj, :, kk, :]
                 # compute difference in observationwise loss
-                l_pb = loss(self.model(perturbed_baseline[:, kk, :]), y_test)
-                l_rc = loss(self.model(X_test_reconstructed), y_test)
+                l_pb = loss(y_test, self.model(perturbed_baseline[:, kk, :]))
+                l_rc = loss(y_test, self.model(X_test_reconstructed))
                 lss[jj, kk, :] = l_pb - l_rc
 
         # return explanation object
