@@ -139,7 +139,7 @@ class Explainer:
                 else:
                     X_test_one_perturbed_model = X_test_one_perturbed
                     X_test_model = X_test
-                    
+
                 # compute difference in observationwise loss
                 loss_pert = loss(y_test, self.model(X_test_one_perturbed_model))
                 loss_orig = loss(y_test, self.model(X_test_model))
