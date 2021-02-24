@@ -149,7 +149,7 @@ def main(args: DictConfig):
                                                     loss=risk_func, fs_names=list(all_inputs_vars))
                 for G, name in zip([G_pfi, G_cfi, G_rfi], [name_pfi, name_cfi, name_rfi]):
                     mb_explanation = rfi_explainer.rfi(X_test.values, y_test, G, R_j, nr_runs=args.exp.rfi.nr_runs)
-                    interpret_results[f'{name}/mean_{risk}_{model_name}'] = np.abs(mb_explanation.fi_means()).mean()
+                    interpret_results[f'{name}/mean_{risk}_{model_name}'] = np.abs(mb_explanation.fi_vals(return_np=True)).mean()
 
         mlflow.log_metrics(interpret_results, step=i)
 

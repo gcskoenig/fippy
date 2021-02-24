@@ -21,7 +21,7 @@ EPSABS = 0.01
 ASSERT_DECIMAL = 1
 DEFAULT_TRANSFORMS = 4 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,)
 ESTIMATOR_CLS = [
-    # NormalisingFlowEstimator,
+    NormalisingFlowEstimator,
     MixtureDensityNetworkEstimator
 ]
 
@@ -195,5 +195,3 @@ class TestNonGaussianEstimators:
             ax.set_title(f'Bi-variate conditional sampling (0 - blue, 1 - red) ({estimator_cls.__name__})')
             fig.legend()
             plt.show()
-
-TestNonGaussianEstimators().test_bivar_cond()

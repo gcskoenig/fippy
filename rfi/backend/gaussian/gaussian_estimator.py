@@ -84,8 +84,10 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
             tmp = cov_ip_con @ Sigma_GG_inv
             self.RegrCoeff = tmp.reshape((len(inp_ind), len(cont_ind)))
 
-        size = inp_ind.shape[0] + cont_ind.shape[0]
-        joint_cov = joint_cov.reshape((size, size))
+        # What if joint_cov has more vars, than in inp_ind and cont_ind ???
+        # I got an Exception due to this ...
+        # size = inp_ind.shape[0] + cont_ind.shape[0]
+        # joint_cov = joint_cov.reshape((size, size))
         cov_inp = joint_cov[np.ix_(inp_ind, inp_ind)]
         cov_cont_inp = joint_cov[np.ix_(cont_ind, inp_ind)]
         self.Sigma = cov_inp - self.RegrCoeff @ cov_cont_inp

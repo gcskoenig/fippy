@@ -154,7 +154,8 @@ def main(args: DictConfig):
                         rfi_explainer = explainer.Explainer(model.predict, fsoi, X_train, sampler=sampler, loss=risk_func,
                                                             fs_names=input_vars)
                         mb_explanation = rfi_explainer.rfi(X_test, y_test, G, nr_runs=args.exp.rfi.nr_runs)
-                        var_results[f'rfi/{prefix}_mean_rfi_{risk}_{model_name}'] = np.abs(mb_explanation.fi_means()).mean()
+                        var_results[f'rfi/{prefix}_mean_rfi_{risk}_{model_name}'] = \
+                            np.abs(mb_explanation.fi_vals(return_np=True)).mean()
 
                 var_results = {**var_results,
                                **{k: np.nanmean(v) if len(G_vars) > 0 else np.nan for (k, v) in rfi_gof_metrics.items()}}
