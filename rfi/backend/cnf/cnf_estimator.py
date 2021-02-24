@@ -53,6 +53,7 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
             weight_decay: float = 0.0,
             input_noise_std: float = 0.05,
             context_noise_std: float = 0.1,
+            cat_context: np.array = None,
             context_normalization=True,
             inputs_normalization=True,
             device='cpu',

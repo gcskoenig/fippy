@@ -73,10 +73,10 @@ def main(args: DictConfig):
     # Saving artifacts
     train_df.to_csv(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/train_df.csv'), index=False)
     test_df.to_csv(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/test_df.csv'), index=False)
-    # df = pd.concat([train_df, test_df], keys=['train', 'test']).reset_index().drop(columns=['level_1'])
-    # g = sns.pairplot(df, plot_kws={'alpha': 0.25}, hue='level_0')
-    # g.fig.suptitle(exp_name)
-    # plt.savefig(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/data.png'))
+    df = pd.concat([train_df, test_df], keys=['train', 'test']).reset_index().drop(columns=['level_1'])
+    g = sns.pairplot(df, plot_kws={'alpha': 0.25}, hue='level_0')
+    g.fig.suptitle(exp_name)
+    plt.savefig(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/data.png'))
 
     results = {}
 
