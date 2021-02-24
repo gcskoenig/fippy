@@ -126,7 +126,7 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
         self._context_size = context_size
         if hasattr(self, 'pi_network') and context_size > 0:
             # While changing the context_size we also need to change the CategoricalNetwork
-            self.pi_network = CategoricalNetwork(context_size, self.inputs_size, hidden_dim=self.hidden_dim)
+            self.pi_network = CategoricalNetwork(context_size, self.n_components, hidden_dim=self.hidden_dim)
             self.normal_network = MixtureDiagNormalNetwork(context_size, self.inputs_size, self.n_components,
                                                            hidden_dim=self.hidden_dim)
             self._init_optimizer(self.lr, self.weight_decay)

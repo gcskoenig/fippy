@@ -42,6 +42,16 @@ class Explanation:
             raise RuntimeError('.lss has shape {self.lss.shape}.'
                                'Expected 3-dim.')
 
+    def fi_means(self):
+        """Computes Mean RFI over all runs
+
+        Returns:
+            A np.array with the relative feature importance value for
+            features of interest.
+        """
+        return np.mean(np.mean(np.mean(self.lss, axis=3), axis=2), axis=1)
+
+
     def fi_vals(self, return_np=False):
         """ Computes the sample-wide RFI for each run
 

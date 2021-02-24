@@ -33,6 +33,7 @@ def main(args: DictConfig):
         args.estimator['defaults'] = {
             n: str(v) for (n, v) in zip(default_names[len(default_names) - len(default_values):], default_values)
         }
+        args.estimator['defaults'].pop('cat_context')
     logger.info(OmegaConf.to_yaml(args, resolve=True))
 
     # Data generator init

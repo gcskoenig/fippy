@@ -21,7 +21,7 @@ EPSABS = 0.01
 ASSERT_DECIMAL = 1
 DEFAULT_TRANSFORMS = 4 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,)
 ESTIMATOR_CLS = [
-    NormalisingFlowEstimator,
+    # NormalisingFlowEstimator,
     MixtureDensityNetworkEstimator
 ]
 
@@ -150,14 +150,14 @@ class TestNonGaussianEstimators:
                           log_frequency=1000)
 
             # Density check
-            # int_res = integrate.dblquad(lambda x, y: np.exp(estimator.log_prob(np.array([x, y]), context=np.zeros((1, 1)))),
-            #                             -np.inf, np.inf, -np.inf, np.inf, epsabs=EPSABS)[0]
-            # logging.info(f'Integral of conditional density (X = 0): {int_res}')
-            # np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
-            # int_res = integrate.dblquad(lambda x, y: np.exp(estimator.log_prob(np.array([x, y]), context=np.ones((1, 1)))),
-            #                             -np.inf, np.inf, -np.inf, np.inf, epsabs=EPSABS)[0]
-            # logging.info(f'Integral of conditional density (X = 0): {int_res}')
-            # np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
+            int_res = integrate.dblquad(lambda x, y: np.exp(estimator.log_prob(np.array([x, y]), context=np.zeros((1, 1)))),
+                                        -np.inf, np.inf, -np.inf, np.inf, epsabs=EPSABS)[0]
+            logging.info(f'Integral of conditional density (X = 0): {int_res}')
+            np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
+            int_res = integrate.dblquad(lambda x, y: np.exp(estimator.log_prob(np.array([x, y]), context=np.ones((1, 1)))),
+                                        -np.inf, np.inf, -np.inf, np.inf, epsabs=EPSABS)[0]
+            logging.info(f'Integral of conditional density (X = 0): {int_res}')
+            np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
 
             # Density plotting
             fig, ax = plt.subplots()
@@ -195,3 +195,5 @@ class TestNonGaussianEstimators:
             ax.set_title(f'Bi-variate conditional sampling (0 - blue, 1 - red) ({estimator_cls.__name__})')
             fig.legend()
             plt.show()
+
+TestNonGaussianEstimators().test_bivar_cond()
