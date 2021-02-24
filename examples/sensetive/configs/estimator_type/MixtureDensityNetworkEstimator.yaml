@@ -8,6 +8,5 @@ estimator:
   fit_params:
     time_budget_s:
     verbose: True
-    n_epochs: 500
   sampler:
     _target_: rfi.samplers.mdn.MDNSampler

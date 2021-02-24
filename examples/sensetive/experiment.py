@@ -36,14 +36,20 @@ def main(args: DictConfig):
 
     # Dataset loading
     data_df, y = shap.datasets.adult()
-    target_var = 'salary'
-    input_vars = list(data_df.columns)
-    data_df[target_var] = y
-    cat_inputs = search_nonsorted(data_df.columns.values, data_df.select_dtypes(exclude=[np.floating]).columns.values)
+    data_df['Salary'] = y
+
+    target_var = {'Salary'}
+    all_inputs_vars = set(data_df.columns) - target_var
+    sensetive_vars = set(list(args.exp.sensetive_vars))
+    wo_sens_inputs_vars = all_inputs_vars - sensetive_vars
+    cat_vars = set(data_df.select_dtypes(exclude=[np.floating]).columns.values)
+    logger.info(f'Target var: {target_var}, all_inputs: {all_inputs_vars}, sensetive_vars: {sensetive_vars}, '
+                f'cat_vars: {cat_vars}')
+
 
     train_df, test_df = train_test_split(data_df, test_size=args.data.test_ratio, random_state=args.data.split_seed)
-    y_train, X_train = train_df.loc[:, target_var].values, train_df.loc[:, input_vars].values
-    y_test, X_test = test_df.loc[:, target_var].values, test_df.loc[:, input_vars].values
+    y_train, X_train, X_train_wo_sens = train_df[target_var], train_df[all_inputs_vars], train_df[wo_sens_inputs_vars]
+    y_test, X_test, X_test_wo_sens = test_df[target_var], test_df[all_inputs_vars], test_df[wo_sens_inputs_vars]
 
     # Adding default estimator params
     default_names, _, _, default_values, _, _, _ = \
@@ -73,45 +79,81 @@ def main(args: DictConfig):
     # Saving artifacts
     train_df.to_csv(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/train_df.csv'), index=False)
     test_df.to_csv(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/test_df.csv'), index=False)
-    df = pd.concat([train_df, test_df], keys=['train', 'test']).reset_index().drop(columns=['level_1'])
-    g = sns.pairplot(df, plot_kws={'alpha': 0.25}, hue='level_0')
-    g.fig.suptitle(exp_name)
-    plt.savefig(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/data.png'))
+    # df = pd.concat([train_df, test_df], keys=['train', 'test']).reset_index().drop(columns=['level_1'])
+    # g = sns.pairplot(df, plot_kws={'alpha': 0.25}, hue='level_0')
+    # g.fig.suptitle(exp_name)
+    # plt.savefig(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/data.png'))
 
-    results = {}
+    pred_results = {}
 
     # Initialising risks
     risks = {}
+    pred_funcs = {}
     for risk in args.predictors.risks:
-        risks[risk] = getattr(importlib.import_module('sklearn.metrics'), risk)
+        risks[risk['name']] = getattr(importlib.import_module('sklearn.metrics'), risk['name'])
+        pred_funcs[risk['name']] = risk['method']
 
     # Fitting predictive model
     models = {}
+    models_pred_funcs = {}
     for pred_model in args.predictors.pred_models:
-        logger.info(f'Fitting {pred_model._target_} for target = {target_var} and inputs {input_vars}')
-        model = instantiate(pred_model, categorical_feature=cat_inputs)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
+        cat_vars_wo_sens = cat_vars - sensetive_vars
+        logger.info(f'Fitting {pred_model._target_} for target = {target_var} and inputs {wo_sens_inputs_vars} '
+                    f'(categorical {cat_vars_wo_sens})')
+        model = instantiate(pred_model, categorical_feature=search_nonsorted(list(wo_sens_inputs_vars), list(cat_vars_wo_sens)))
+        model.fit(X_train_wo_sens, y_train)
         models[pred_model._target_] = model
         for risk, risk_func in risks.items():
-            results[f'test_{risk}_{pred_model._target_}'] = risk_func(y_test, y_pred)
+            if pred_funcs[risk] == 'predict_proba':
+                models_pred_funcs[risk] = lambda X_test: getattr(model, pred_funcs[risk])(X_test)[:, 1]
+            else:
+                models_pred_funcs[risk] = lambda X_test: getattr(model, pred_funcs[risk])(X_test)
+            y_pred = models_pred_funcs[risk](X_test_wo_sens)
+            pred_results[f'test_{risk}_{pred_model._target_}'] = risk_func(y_test, y_pred)
 
-    sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
-                          fit_params=args.estimator.fit_params, cat_inputs=cat_inputs)
 
-    G = np.arange(2, 12)
-    foi = [0]
-    estimator = sampler.train(foi, G)
-    results['rfi/gof/mean_log_lik_1'] = estimator.log_prob(inputs=X_test[:, foi], context=X_test[:, G]).mean()
-    estimator.sample(context=X_test[:, G], num_samples=10)
+    mlflow.log_metrics(pred_results, step=0)
 
-    G = np.arange(2, 12)
-    foi = [1]
-    estimator = sampler.train(foi, G)
-    results['rfi/gof/mean_log_lik_2'] = estimator.log_prob(inputs=X_test[:, foi], context=X_test[:, G]).mean()
-    estimator.sample(context=X_test[:, G], num_samples=10)
+    sampler = instantiate(args.estimator.sampler, X_train=X_train.values, fit_method=args.estimator.fit_method,
+                          fit_params=args.estimator.fit_params,
+                          cat_inputs=search_nonsorted(list(all_inputs_vars), list(cat_vars)))
 
-    mlflow.log_metrics(results, step=0)
+    wo_sens_inputs_vars_list = sorted(list(wo_sens_inputs_vars))
+    mlflow.log_param('features_sequence', str(wo_sens_inputs_vars_list))
+    mlflow.log_param('exp/cat_vars', str(sorted(list(cat_vars))))
+
+    for i, fsoi_var in enumerate(wo_sens_inputs_vars_list):
+        logger.info(f'Analysing the importance of feature: {fsoi_var}')
+
+        interpret_results = {}
+        fsoi = search_nonsorted(list(all_inputs_vars), [fsoi_var])
+        R_j = search_nonsorted(list(all_inputs_vars), list(wo_sens_inputs_vars))
+
+        # Permutation feature importance
+        G_pfi, name_pfi = [], 'pfi'
+        sampler.train(fsoi, G_pfi)
+
+        # Conditional feature importance
+        G_cfi, name_cfi = search_nonsorted(list(all_inputs_vars), list(wo_sens_inputs_vars - {fsoi_var})), 'cfi'
+        estimator = sampler.train(fsoi, G_cfi)
+        interpret_results['cfi/gof/mean_log_lik'] = estimator.log_prob(inputs=X_test.values[:, fsoi],
+                                                                       context=X_test.values[:, G_cfi]).mean()
+
+        # Relative feature importance (sensetive ignored vars)
+        G_rfi, name_rfi = search_nonsorted(list(all_inputs_vars), list(sensetive_vars)), 'rfi'
+        estimator = sampler.train(fsoi, G_rfi)
+        interpret_results['rfi/gof/mean_log_lik'] = estimator.log_prob(inputs=X_test.values[:, fsoi],
+                                                                       context=X_test.values[:, G_rfi]).mean()
+
+        for model_name, model in models.items():
+            for risk, risk_func in risks.items():
+                rfi_explainer = explainer.Explainer(models_pred_funcs[risk], fsoi, X_train.values, sampler=sampler,
+                                                    loss=risk_func, fs_names=list(all_inputs_vars))
+                for G, name in zip([G_pfi, G_cfi, G_rfi], [name_pfi, name_cfi, name_rfi]):
+                    mb_explanation = rfi_explainer.rfi(X_test.values, y_test, G, R_j, nr_runs=args.exp.rfi.nr_runs)
+                    interpret_results[f'{name}/mean_{risk}_{model_name}'] = np.abs(mb_explanation.fi_means()).mean()
+
+        mlflow.log_metrics(interpret_results, step=i)
 
 
 if __name__ == "__main__":

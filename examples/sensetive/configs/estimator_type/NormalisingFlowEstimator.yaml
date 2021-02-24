@@ -7,6 +7,6 @@ estimator:
   fit_method: fit
   fit_params:
     time_budget_s:
-    n_epochs: 500
+    verbose: True
   sampler:
     _target_: rfi.samplers.cnflow.CNFSampler

@@ -14,7 +14,7 @@ import ray
 
 from rfi.backend import ConditionalDistributionEstimator
 from rfi.backend.cnf.context_embedding import ContextEmbedding
-from rfi.backend.mdn.mdf_estimator import CategoricalNetwork
+from rfi.backend.mdn.mdn_estimator import CategoricalNetwork
 
 
 logger = logging.getLogger(__name__)

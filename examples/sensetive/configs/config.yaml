@@ -8,15 +8,17 @@ estimator:
   _target_: ???
   fit_method: ???
   fit_params:
-    verbose: True
   sampler: ???
 
 # Predictive model for RFI
 predictors:
   risks:
-    - accuracy_score
-    - roc_auc_score
-    - log_loss
+    - name: accuracy_score
+      method: predict
+    - name: roc_auc_score
+      method: predict_proba
+    - name: log_loss
+      method: predict_proba
   pred_models:
     - _target_: lightgbm.LGBMClassifier
       max_bin: 512
@@ -28,13 +30,14 @@ predictors:
       verbose: -1
       min_data: 100
       boost_from_average: True
-      num_iterations: 50
+      num_iterations: 500
 
 
 # Experiment parameters
 exp:
   check_exisisting_hash: False
   mlflow_uri: http://127.0.0.1:5000
+  sensetive_vars: ['Sex']
   rfi:
     nr_runs: 50
 

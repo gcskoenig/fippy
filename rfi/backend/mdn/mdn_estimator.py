@@ -229,5 +229,5 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
         if self.inputs_normalization:
             result, _ = self._transform_inverse_normalise(result, None)
 
-        result = self._postprocess_result(result, return_numpy)
+        result = self._postprocess_result(result, True)
         return result
