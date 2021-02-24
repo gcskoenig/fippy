@@ -17,8 +17,6 @@ class Sampler:
     """Can be used to resample perturbed versions of a variable conditional on
     any set of variables G.
 
-    # TODO(gcsk): potentially allow storing training on multiple sets G.
-
     Attributes:
         X_train: reference to training data.
         cat_inputs: List of indices of categorical features, if None - considering all the features as continuous

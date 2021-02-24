@@ -5,10 +5,9 @@ accessed. Plotting functionality is available.
 """
 import numpy as np
 import rfi.plots._barplot as _barplot
-import logging
+import pandas as pd
+import itertools
 
-
-# TODO(gcsk): compute significance of the results using the multiple runs and marwin wright's procedure
 
 class Explanation:
     """Stores and provides access to results from Explainer.
@@ -18,14 +17,13 @@ class Explanation:
 
     Attributes:
         fsoi: Features of interest.
-        lss: losses on perturbed (nr_fsoi, nr_runs, nr_obs, (nr_orderings))
+        lss: losses on perturbed (nr_fsoi, nr_runs, nr_obs)
         ex_name: Explanation description
         fsoi_names: feature of interest names
     """
 
     def __init__(self, fsoi, lss, fsoi_names, ex_name=None):
         """Inits Explanation with fsoi indices, fsoi names, """
-        # TODO(gcsk): compress Explanation
         self.fsoi = fsoi  # TODO evaluate, do I need to make a copy?
         self.lss = lss  # TODO evaluate, do I need to make a copy?
         self.fsoi_names = fsoi_names
@@ -33,29 +31,51 @@ class Explanation:
             self.fsoi_names = fsoi
         if ex_name is None:
             self.ex_name = 'Unknown'
-        if len(self.lss.shape) == 3:
-            self.lss = self.lss.reshape((self.lss.shape[0], self.lss.shape[1],
-                                         self.lss.shape[2], 1))
-        if len(self.lss.shape) != 4:
-            logging.debug('lss shape: {}'.format(lss.shape))
-            raise RuntimeError('Lss has incorrect shape.')
 
-    def fi_means(self):
+    def _check_shape(self):
+        """Checks whether the array confirms the
+        specified shape (3 dimensional).
+        Cannot tell whether the ordering
+        (nr_fsoi, nr_runs, nr_obs) is correct.
+        """
+        if len(self.lss.shape) != 3:
+            raise RuntimeError('.lss has shape {self.lss.shape}.'
+                               'Expected 3-dim.')
+
+    def fi_vals(self, return_np=False):
+        """ Computes the sample-wide RFI for each run
+
+        Returns:
+            pd.DataFrame with (#fsoi, #runs)
+        """
+        self._check_shape()
+        arr = np.mean(self.lss, axis=(2))
+        if return_np:
+            return arr
+        else:
+            runs = range(arr.shape[1])
+            tuples = list(itertools.product(self.fsoi_names, runs))
+            index = pd.MultiIndex.from_tuples(tuples, names=['feature', 'run'])
+            arr = arr.reshape(-1)
+            df = pd.DataFrame(arr, index=index, columns=['importance'])
+        return df
+
+    def fi_means_stds(self):
         """Computes Mean RFI over all runs
 
         Returns:
-            A np.array with the relative feature importance value for
+            A pd.DataFrame with the relative feature importance value for
             features of interest.
         """
-        return np.mean(np.mean(np.mean(self.lss, axis=3), axis=2), axis=1)
+        self._check_shape()
+        means = np.mean(self.lss, axis=(2, 1))
+        stds = np.std(np.mean(self.lss, axis=2), axis=(1))
+        arr = np.array([means, stds]).T
+        df = pd.DataFrame(arr,
+                          index=self.fsoi_names,
+                          columns=['mean', 'std'])
+        df.index.set_names(['feature'], inplace=True)
+        return df
 
-    def fi_stds(self):
-        """Computes std of RFI over all runs
-
-        Returns:
-            A np.array with the std of RFI value for the features of interest
-        """
-        return np.std(np.mean(np.mean(self.lss, axis=3), axis=2), axis=1)
-
-    def barplot(self, ax=None, figsize=None):
-        return _barplot.fi_hbarplot(self, ax=ax, figsize=figsize)
+    def hbarplot(self, ax=None, figsize=None):
+        return _barplot.fi_sns_hbarplot(self, ax=ax, figsize=figsize)
