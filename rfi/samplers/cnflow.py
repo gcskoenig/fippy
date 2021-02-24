@@ -2,7 +2,6 @@
 Sampler based on conditional normalizing flows. Using affine and invertable radial transformations.
 """
 import logging
-import numpy as np
 
 from rfi.samplers.sampler import Sampler
 from rfi.backend.cnf import NormalisingFlowEstimator
@@ -44,7 +43,7 @@ class CNFSampler(Sampler):
                 logger.info(f'One hot encoding following inputs features: {J}')
                 logger.info(f'Fitting categorical sampler for features {J}. Fitting method: {self.fit_method}. '
                             f'Fitting parameters: {self.fit_params}')
-                model = CategoricalEstimator(context_size=train_context.shape[1], **self.fit_params)
+                model = CategoricalEstimator(context_size=train_context.shape[1], cat_context=cat_context, **self.fit_params)
             # Continuous variable as input
             else:
                 logger.info(f'Fitting continuous sampler for features {J}. Fitting method: {self.fit_method}. '

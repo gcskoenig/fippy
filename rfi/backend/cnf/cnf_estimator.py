@@ -133,8 +133,7 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
         self._context_size = context_size
         if hasattr(self, '_embedding_net') and context_size > 0:
             # While changing the context size we also need to change the Embedding network
-            embedding_net = ContextEmbedding(self._transform, input_units=context_size, hidden_units=self.hidden_units)
-            self._embedding_net = embedding_net
+            self._embedding_net = ContextEmbedding(self._transform, input_units=context_size, hidden_units=self.hidden_units)
             self._init_optimizer(self.lr, self.weight_decay)
 
     def fit(self,
@@ -236,7 +235,7 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
 
         return cond_dist
 
-    def sample(self, context: Union[np.array, Tensor] = None, num_samples=1, data_normalization=True,
+    def sample(self, context: Union[np.array, Tensor] = None, num_samples: int = 1, data_normalization=True,
                context_one_hot_encoding=True) -> Union[np.array, Tensor]:
         """
         Sampling from conditional distribution
