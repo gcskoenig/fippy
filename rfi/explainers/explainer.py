@@ -74,17 +74,17 @@ class Explainer:
         else:
             return True
 
-    def rfi(self, X_test, y_test, G, R_j=None, sampler=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
+    def rfi(self, X_eval, y_eval, G, R=None, sampler=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
         """Computes Relative Feature importance
 
         # TODO(gcsk): allow handing a sample as argument
         #             (without needing sampler)
 
         Args:
-            X_test: data to use for resampling and evaluation.
-            y_test: labels for evaluation.
+            X_eval: data to use for resampling and evaluation.
+            y_eval: labels for evaluation.
             G: relative feature set
-            R_j: features, used by a predictive model
+            D: features, used by the predictive model
             sampler: choice of sampler. Default None. Will throw an error
               when sampler is None and self.sampler is None as well.
             loss: choice of loss. Default None. Will throw an Error when
@@ -111,6 +111,9 @@ class Explainer:
                 loss = self.loss
                 logger.debug("Using class specified loss.")
 
+        if D is None:
+            D = X_eval.columns
+
         # check whether the sampler is trained for each fsoi conditional on G
         for f in self.fsoi:
             if not sampler.is_trained([f], G):
@@ -127,41 +130,48 @@ class Explainer:
                 logger.debug(txt)
 
         # initialize array for the perturbed samples
-        nr_fsoi, nr_obs = len(self.fsoi), X_test.shape[0]
-        perturbed_foiss = np.zeros((nr_fsoi, nr_runs, nr_obs))
+        nr_fsoi, nr_obs = len(self.fsoi), X_eval.shape[0]
+        index = utils.create_multiindex(['sample', 'i'],
+                                        [np.arange(nr_runs),
+                                         np.arange(nr_obs)])
+        X_fsoi_pert = pd.DataFrame([], index=index)
+        # perturbed_foiss = np.zeros((nr_fsoi, nr_runs, nr_obs))
 
         # sample perturbed versions
-        for jj in range(nr_fsoi):
-            tmp = sampler.sample(
-                X_test, [self.fsoi[jj]], G, num_samples=nr_runs)
-            perturbed_foiss[jj, :, :] = tmp.reshape((nr_obs, nr_runs)).T
-        lss = np.zeros((nr_fsoi, nr_runs, X_test.shape[0]))
+        for foi in self.fsoi:
+            x_foi_pert = sampler.sample(
+                X_eval, [foi], G, num_samples=nr_runs)
+            X_fsoi_pert[foi] = x_foi_pert
+
+        scores = pd.DataFrame([], index=index)
+        # lss = np.zeros((nr_fsoi, nr_runs, X_eval.shape[0]))
 
         # compute observasitonwise loss differences for all runs and fois
-        for jj in np.arange(0, nr_fsoi, 1):
+        for foi in self.fsoi:
             # copy of the data where perturbed variables are copied into
-            X_test_one_perturbed = np.array(X_test)
             for kk in np.arange(0, nr_runs, 1):
                 # replaced with perturbed
-                X_test_one_perturbed[:, self.fsoi[jj]] = perturbed_foiss[jj, kk, :]
+                X_eval_tilde = X_eval.copy()
+                X_eval_tilde[foi] = X_fsoi_pert.loc[0, :][foi]
+                # X_eval_one_perturbed[:, self.fsoi[jj]]
+                # = perturbed_foiss[jj, kk, :]
                 # using only seen while training features
-                if R_j is not None:
-                    X_test_one_perturbed_model = X_test_one_perturbed[:, R_j]
-                    X_test_model = X_test[:, R_j]
-                else:
-                    X_test_one_perturbed_model = X_test_one_perturbed
-                    X_test_model = X_test
+
+                # make sure model can handle it (selection and ordering)
+                X_eval_tilde_model = X_eval_tilde[D]
+                # X_eval_one_perturbed_model = X_eval_one_perturbed[:, D]
+                X_eval_model = X_eval[D]
 
                 # compute difference in observationwise loss
-                loss_pert = loss(y_test, self.model(X_test_one_perturbed_model))
-                loss_orig = loss(y_test, self.model(X_test_model))
-                lss[jj, kk, :] = loss_pert - loss_orig
+                loss_pert = loss(y_eval, self.model(X_eval_tilde_model))
+                loss_orig = loss(y_eval, self.model(X_eval_model))
+                scores.loc[kk, :][foi] = loss_pert - loss_orig
+                #lss[jj, kk, :] = loss_pert - loss_orig
 
         # return explanation object
         ex_name = 'RFI^{}'.format(G)
         result = explanation.Explanation(
-            self.fsoi, lss,
-            fsoi_names=self.fsoi,
+            self.fsoi, scores,
             ex_name=ex_name)
 
         if return_perturbed:

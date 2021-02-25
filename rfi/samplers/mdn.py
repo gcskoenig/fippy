@@ -54,8 +54,8 @@ class MDNSampler(Sampler):
             # Fitting a sampler
             getattr(model, self.fit_method)(train_inputs=train_inputs, train_context=train_context, **self.fit_params)
 
-            def samplefunc(X_test, **kwargs):
-                return model.sample(X_test[:, G], **kwargs)
+            def samplefunc(eval_context, **kwargs):
+                return model.sample(eval_context, **kwargs)
 
             self._store_samplefunc(J, G, samplefunc, verbose=verbose)
 

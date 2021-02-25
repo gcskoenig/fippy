@@ -37,13 +37,17 @@ class Sampler:
         """
         Converts array to key for trainedGs Dict
         """
-        return utils.to_key(S)
+        return utils.fnames_to_key(S)
 
     @staticmethod
     def _to_array(S):
-        """Coverts to numpy array
+        """Coverts to numpy array of strings
         """
-        return np.array(S, dtype=np.int16).reshape(-1)
+        return np.array(S).reshape(-1)
+
+    @staticmethod
+    def _order_fset(S):
+        return sorted(S)
 
     def is_trained(self, J, G):
         """Indicates whether the Sampler has been trained
@@ -120,12 +124,14 @@ class Sampler:
         Args:
             J: Set of features to sample
             G: relative feature set
-            X_test: Data for which sampling shall be performed. (format as self.X_train)
-            num_samples: number of resamples without retraining shall be computed
+            X_test: DataFrame for which sampling shall be performed
+            num_samples: number of resamples without
+                retraining shall be computed
 
         Returns:
             Resampled data for the features of interest.
-            np.array with shape (X_test.shape[0], #num_samples, # features of interest)
+            pd.DataFrame with multiindex ('sample', 'i')
+            and resampled features as columns
         """
         # initialize numpy matrix
         # sampled_data = np.zeros((X_test.shape[0], num_samples, J.shape[0]))
@@ -137,5 +143,17 @@ class Sampler:
             raise RuntimeError("Sampler not trained on {} | {}".format(J, G))
         else:
             sample_func = self._trained_sampling_funcs[(J_key, G_key)]
-            sampled_data = sample_func(X_test, num_samples=num_samples)
+            smpl = sample_func(X_test[Sampler._order_fset(G)].to_numpy(),
+                               num_samples=num_samples)
+            snrs = np.arange(num_samples)
+            obs = np.arange(X_test.shape[0])
+            vss = [snrs, obs]
+            ns = ['sample', 'i']
+            index = utils.create_multiindex(ns, vss)
+
+            smpl = np.transpose(smpl, axes=(0, 1))
+            smpl.reshape((-1, smpl.shape[2]), inplace=True)
+
+            df = pd.DataFrame(smpl, index=index,
+                              columns=Sampler._order_fset(J))
             return sampled_data

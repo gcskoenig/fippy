@@ -28,6 +28,8 @@ class CNFSampler(Sampler):
             if not set(J).isdisjoint(self.cat_inputs) and len(J) > 1:
                 raise NotImplementedError('Multiple categorical or mixed variables sampling is not supported.')
 
+            # TODO(valik): adjust to loading data from data frame using
+            # J, G lists of columnnames
             train_inputs = self.X_train[:, J]
             train_context = self.X_train[:, G]
 
@@ -54,8 +56,8 @@ class CNFSampler(Sampler):
             # Fitting a sampler
             getattr(model, self.fit_method)(train_inputs=train_inputs, train_context=train_context, **self.fit_params)
 
-            def samplefunc(X_test, **kwargs):
-                return model.sample(X_test[:, G], **kwargs)
+            def samplefunc(eval_context, **kwargs):
+                return model.sample(eval_context, **kwargs)
 
             self._store_samplefunc(J, G, samplefunc, verbose=verbose)
 

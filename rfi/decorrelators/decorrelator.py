@@ -8,6 +8,7 @@ import rfi.utils as utils
 import numpy as np
 import logging
 from typing import Union, Callable
+from rfi.samplers.sampler import Sampler
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +35,17 @@ class Decorrelator:
         """
         Converts array to key for trainedCs Dict
         """
-        return utils.to_key(S)
+        return Sampler._to_key(S)
 
     @staticmethod
     def _to_array(S):
         """Coverts to numpy array
         """
-        return np.array(S, dtype=np.int16).reshape(-1)
+        return Sampler._to_array(S)
+
+    @staticmethod
+    def _order_fset(S):
+        return Sampler._order_fset(S)
 
     def is_trained(self, K, J, C):
         """Indicates whether the Decorrelator has been trained

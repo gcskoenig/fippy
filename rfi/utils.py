@@ -5,6 +5,8 @@ from copy import deepcopy
 from collections.abc import Iterable
 import random
 import mlflow
+import itertools
+import pandas as pd
 
 
 def id_to_ix(id, ids):
@@ -26,6 +28,16 @@ def to_key(G):
     key = G.tobytes()
     return key
 
+def create_multiindex(ns, vss):
+    """Given names and values (ordered), create a
+    pandas multiindex with all possible combinations
+    following the ordering given in the respective
+    lists or arrays
+    """
+    tuples = itertools.product(*vss)
+    tuples = list(tuples)
+    index = pd.MultiIndex.from_tuples(tuples, names=ns)
+    return index
 
 def ix_to_desc(j, base='X'):
     return '{}_{}'.format(base, j)

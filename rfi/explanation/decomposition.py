@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import itertools
 from rfi.plots._barplot import fi_sns_gbarplot, fi_sns_hbarplot
+import rfi.utils as utils
 
 
 class DecompositionExplanation(Explanation):
@@ -41,9 +42,7 @@ class DecompositionExplanation(Explanation):
 
         names_sub = [names[i] for i in dims]
         lists_sub = [lists[i] for i in dims]
-        tuples = itertools.product(*lists_sub)
-        tuples = list(tuples)
-        index = pd.MultiIndex.from_tuples(tuples, names=names_sub)
+        index = utils.create_multiindex(names_sub, lists_sub)
         return index
 
     def fi_vals(self, return_np=False):
