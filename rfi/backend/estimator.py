@@ -7,6 +7,8 @@ from sklearn.model_selection import KFold
 import logging
 from ray import tune
 import ray
+from sklearn.preprocessing import OneHotEncoder
+
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,7 @@ class ConditionalDistributionEstimator(nn.Module):
                  inputs_size: int = 1,
                  context_normalization=False,
                  inputs_normalization=False,
+                 cat_context: np.array = None,
                  **kwargs):
         super().__init__()
         self.inputs_size = inputs_size
@@ -31,6 +34,19 @@ class ConditionalDistributionEstimator(nn.Module):
         self.inputs_normalization = inputs_normalization
         self.inputs_mean, self.inputs_std = None, None
         self.context_mean, self.context_std = None, None
+
+        # Categorical / Continuous context
+        if cat_context is None or len(cat_context) == 0:
+            self.cat_context = []
+            self.cont_context = np.arange(0, context_size)
+        else:
+            self.cat_context = cat_context
+            self.cont_context = np.array([i for i in range(context_size) if i not in cat_context])
+            self.cont_context = [] if len(self.cont_context) == 0 else self.cont_context
+
+        # Inputs / Context one-hot encoders
+        self.context_enc = OneHotEncoder(drop='if_binary', sparse=False)
+        self.inputs_enc = OneHotEncoder(drop='if_binary', sparse=False)
 
     def forward(self, *args):
         raise RuntimeError("Forward method cannot be called for a ConditionalDistributionEstimator object.")
@@ -56,15 +72,17 @@ class ConditionalDistributionEstimator(nn.Module):
             self.inputs_mean, self.inputs_std = train_inputs.mean(0), train_inputs.std(0)
             train_inputs = (train_inputs - self.inputs_mean) / self.inputs_std
         if train_context is not None and self.context_normalization:
-            self.context_mean, self.context_std = train_context.mean(0), train_context.std(0)
-            train_context = (train_context - self.context_mean) / self.context_std
+            self.context_mean, self.context_std = \
+                train_context[:, :len(self.cont_context)].mean(0), train_context[:, :len(self.cont_context)].std(0)
+            train_context[:, :len(self.cont_context)] = \
+                (train_context[:, :len(self.cont_context)] - self.context_mean) / self.context_std
         return train_inputs, train_context
 
     def _transform_normalise(self, inputs: Tensor, context: Tensor):
         if inputs is not None and self.inputs_normalization:
             inputs = (inputs - self.inputs_mean) / self.inputs_std
         if context is not None and self.context_normalization:
-            context = (context - self.context_mean) / self.context_std
+            context[:, :len(self.cont_context)] = (context[:, :len(self.cont_context)] - self.context_mean) / self.context_std
         return inputs, context
 
     def _transform_inverse_normalise(self, inputs: Tensor, context: Tensor):
@@ -74,12 +92,60 @@ class ConditionalDistributionEstimator(nn.Module):
             context = context * self.context_std + self.context_mean
         return inputs, context
 
-    @staticmethod
-    def _add_noise(data: Tensor, std: float) -> Tensor:
+    def _add_noise(self, data: Tensor, std: float) -> Tensor:
         if data is not None:
             return data + torch.randn(data.size()).type_as(data) * std
         else:
             return None
+
+    def _fit_transform_onehot_encode(self, train_inputs: np.array, train_context: np.array) -> np.array:
+        if len(self.cat_context) > 0 and train_context is not None:
+            train_context_cat = self.context_enc.fit_transform(train_context[:, self.cat_context])
+            train_context_cont = train_context[:, self.cont_context]
+            train_context = np.concatenate([train_context_cont, train_context_cat], axis=1)
+            self.context_size = train_context.shape[1]
+        if train_inputs is not None:
+            train_inputs = self.inputs_enc.fit_transform(train_inputs)
+            self.inputs_size = train_inputs.shape[1]
+        return train_inputs, train_context
+
+    def _transform_onehot_encode(self, inputs: np.array, context: np.array) -> np.array:
+        if len(self.cat_context) > 0 and context is not None:
+            context = np.concatenate([context[:, self.cont_context],
+                                      self.context_enc.transform(context[:, self.cat_context])], axis=1)
+        if inputs is not None:
+            inputs = self.inputs_enc.transform(inputs)
+        return inputs, context
+
+    def _inverse_onehot_encode(self, inputs: np.array):
+        if inputs is not None:
+            inputs = self.inputs_enc.inverse_transform(inputs)
+        return inputs
+
+    def _preprocess_data(self, inputs, context, data_normalization, context_one_hot_encoding, inputs_one_hot_ecoding):
+        return_numpy = False
+
+        if inputs_one_hot_ecoding:
+            inputs = inputs.reshape(-1, 1)
+            inputs, _ = self._transform_onehot_encode(inputs, None)
+
+        if context_one_hot_encoding:
+            _, context = self._transform_onehot_encode(None, context)
+
+        if not isinstance(inputs, torch.Tensor):
+            inputs, context = self._input_to_tensor(inputs, context)
+            return_numpy = True
+
+        if data_normalization:
+            inputs, context = self._transform_normalise(inputs, context)
+
+        return inputs, context, return_numpy
+
+    def _postprocess_result(self, result, return_numpy):
+        if return_numpy:
+            return result.detach().cpu().numpy()
+        else:
+            return result
 
     def fit_by_cv(self,
                   train_inputs: Union[np.array, Tensor],
@@ -122,7 +188,9 @@ class ConditionalDistributionEstimator(nn.Module):
                 train_inputs_, train_context_ = train_inputs[train_ind], train_context[train_ind]
                 val_inputs_, val_context_ = train_inputs[val_ind], train_context[val_ind]
 
-                flow = cls(inputs_size=self.inputs_size, context_size=self.context_size, device=self.device, **config)
+                flow = cls(inputs_size=self.inputs_size, context_size=self.context_size, device=self.device,
+                           context_normalization=self.context_normalization, inputs_normalization=self.inputs_normalization,
+                           cat_context=self.cat_context, **config)
                 flow.fit(train_inputs_, train_context_, False)
                 val_log_liks.append(flow.log_prob(val_inputs_, val_context_).mean())
 

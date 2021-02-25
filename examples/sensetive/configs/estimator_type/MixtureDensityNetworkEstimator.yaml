@@ -6,9 +6,7 @@ estimator:
   _target_: rfi.backend.mdn.${estimator_type}
   fit_method: fit
   fit_params:
-    n_components: 4
     time_budget_s:
     verbose: True
-    weight_decay: 0.05
   sampler:
     _target_: rfi.samplers.mdn.MDNSampler

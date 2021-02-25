@@ -1,0 +1,48 @@
+# Dataset details
+data:
+  test_ratio: 0.2
+  split_seed: 42
+
+# Conditional density estimator
+estimator:
+  _target_: ???
+  fit_method: ???
+  fit_params:
+  sampler: ???
+
+# Predictive model for RFI
+predictors:
+  risks:
+    - name: accuracy_score
+      method: predict
+    - name: roc_auc_score
+      method: predict_proba
+    - name: log_loss
+      method: predict_proba
+  pred_models:
+    - _target_: lightgbm.LGBMClassifier
+      max_bin: 512
+      learning_rate: 0.05
+      boosting_type: "gbdt"
+      objective: "binary"
+      metric: "binary_logloss"
+      num_leaves: 10
+      verbose: -1
+      min_data: 100
+      boost_from_average: True
+      num_iterations: 500
+
+
+# Experiment parameters
+exp:
+  check_exisisting_hash: False
+  mlflow_uri: http://127.0.0.1:5000
+  sensetive_vars: ['Sex']
+  rfi:
+    nr_runs: 50
+
+
+defaults:
+  - hydra/job_logging: colorlog
+  - hydra/hydra_logging: colorlog
+

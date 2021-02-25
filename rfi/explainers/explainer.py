@@ -62,8 +62,7 @@ class Explainer:
         else:
             return True
 
-    def rfi(self, X_test, y_test, G, sampler=None, loss=None, nr_runs=10,
-            return_perturbed=False, train_allowed=True):
+    def rfi(self, X_test, y_test, G, R_j=None, sampler=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
         """Computes Relative Feature importance
 
         # TODO(gcsk): allow handing a sample as argument
@@ -73,6 +72,7 @@ class Explainer:
             X_test: data to use for resampling and evaluation.
             y_test: labels for evaluation.
             G: relative feature set
+            R_j: features, used by a predictive model
             sampler: choice of sampler. Default None. Will throw an error
               when sampler is None and self.sampler is None as well.
             loss: choice of loss. Default None. Will throw an Error when
@@ -131,11 +131,18 @@ class Explainer:
             X_test_one_perturbed = np.array(X_test)
             for kk in np.arange(0, nr_runs, 1):
                 # replaced with perturbed
-                X_test_one_perturbed[:, self.fsoi[jj]
-                                     ] = perturbed_foiss[jj, kk, :]
+                X_test_one_perturbed[:, self.fsoi[jj]] = perturbed_foiss[jj, kk, :]
+                # using only seen while training features
+                if R_j is not None:
+                    X_test_one_perturbed_model = X_test_one_perturbed[:, R_j]
+                    X_test_model = X_test[:, R_j]
+                else:
+                    X_test_one_perturbed_model = X_test_one_perturbed
+                    X_test_model = X_test
+
                 # compute difference in observationwise loss
-                loss_pert = loss(self.model(X_test_one_perturbed), y_test)
-                loss_orig = loss(self.model(X_test), y_test)
+                loss_pert = loss(y_test, self.model(X_test_one_perturbed_model))
+                loss_orig = loss(y_test, self.model(X_test_model))
                 lss[jj, kk, :] = loss_pert - loss_orig
 
         # return explanation object
@@ -270,8 +277,8 @@ class Explainer:
                 X_test_reconstructed = np.array(perturbed_baseline[:, kk, :])
                 X_test_reconstructed = perturbed_reconstr[jj, :, kk, :]
                 # compute difference in observationwise loss
-                l_pb = loss(self.model(perturbed_baseline[:, kk, :]), y_test)
-                l_rc = loss(self.model(X_test_reconstructed), y_test)
+                l_pb = loss(y_test, self.model(perturbed_baseline[:, kk, :]))
+                l_rc = loss(y_test, self.model(X_test_reconstructed))
                 lss[jj, kk, :] = l_pb - l_rc
 
         # return explanation object
@@ -450,8 +457,8 @@ class Explainer:
                 X_test_reconstructed = np.array(perturbed_baseline[:, kk, :])
                 X_test_reconstructed[:, K] = perturbed_reconstr[jj, :, kk, :]
                 # compute difference in observationwise loss
-                l_pb = loss(self.model(perturbed_baseline[:, kk, :]), y_test)
-                l_rc = loss(self.model(X_test_reconstructed), y_test)
+                l_pb = loss(y_test, self.model(perturbed_baseline[:, kk, :]))
+                l_rc = loss(y_test, self.model(X_test_reconstructed))
                 lss[jj, kk, :] = l_pb - l_rc
 
         # return explanation object
@@ -544,13 +551,12 @@ class Explainer:
                     X_test_perturbed[:, impute] = imps
                     # sample replacement, create replacement matrix
                     y_hat_new = self.model(X_test_perturbed)
-                    lb = loss(y_hat_base, y_test)
-                    ln = loss(y_hat_new, y_test)
+                    lb = loss(y_test, y_hat_base)
+                    ln = loss(y_test, y_hat_new)
                     lss[self.fsoi[ordering[jj - 1]], kk, :, ii] = lb - ln
                     y_hat_base = y_hat_new
                 y_hat_new = self.model(X_test)
-                lss[self.fsoi[ordering[-1]], kk, :,
-                    ii] = loss(y_hat_base, y_test) - loss(y_hat_new, y_test)
+                lss[self.fsoi[ordering[-1]], kk, :, ii] = loss(y_test, y_hat_base) - loss(y_test, y_hat_new)
 
         result = explanation.Explanation(
             self.fsoi, lss,
