@@ -9,6 +9,7 @@ import rfi.utils as utils
 import rfi.explanation.explanation as explanation
 import logging
 import rfi.explanation.decomposition as decomposition_ex
+import enlighten # TODO add to requirements
 
 logger = logging.getLogger(__name__)
 
@@ -294,7 +295,7 @@ class Explainer:
             return result
 
     def decomposition(self, imp_type, fsoi, partial_ordering, X_test, y_test,
-                      nr_orderings=None, nr_runs=3):
+                      nr_orderings=None, nr_runs=3, show_pbar=True):
         """
         Given a partial ordering, this code allows to decompose
         feature importance or feature association for a given set of
@@ -327,9 +328,16 @@ class Explainer:
         values = np.zeros((len(fsoi), nr_components, nr_orderings, nr_runs))
         # values = np.zeros((nr_orderings, nr_runs, nr_components, len(fsoi)))
 
+        if show_pbar:
+            mgr = enlighten.get_manager()
+            pbar = mgr.counter(total=nr_orderings, desc='decomposition', unit='orderings')
+
         for kk in np.arange(nr_orderings):
             rfs = np.zeros(
                 (nr_runs, len(utils.flatten(partial_ordering)) + 1, len(fsoi)))
+
+            if show_pbar:
+                pbar.update()
 
             ordering = utils.sample_partial(partial_ordering)
             logging.info('Ordering : {}'.format(ordering))
@@ -343,6 +351,7 @@ class Explainer:
                     expl = self.rfa(X_test, y_test, G, nr_runs=nr_runs)
                 rfs[:, jj, :] = expl.fi_vals(return_np=True).T
 
+            #breakpoint()
             # conditioning on all items in partial ordering
             values[:, -1, kk, :] = rfs[:, -1, :].T
 
