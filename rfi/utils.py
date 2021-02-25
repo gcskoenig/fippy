@@ -12,6 +12,10 @@ def id_to_ix(id, ids):
     ix = np.where(id == ids)[0][0]
     return ix
 
+def fnames_to_key(fnames):
+    fnames = sorted(set(deepcopy(fnames)))
+    onestr = '|'.join(fname for fname in fnames)
+    return hashlib.md5(str(onestr).encode()).hexdigest()
 
 def to_key(G):
     """
