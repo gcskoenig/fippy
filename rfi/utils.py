@@ -7,6 +7,18 @@ import random
 import mlflow
 import itertools
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def fset_to_ix(cnames, fset):
+    logger.warning('using fset_to_ix to convert columname'
+                   'to numpy column index')
+    cnames = sorted(cnames)
+    ixs = [i for i, x in enumerate(cnames) if x in fset]
+    ixs = np.array(ixs, dtype=np.int16)
+    return ixs
 
 
 def id_to_ix(id, ids):
@@ -14,10 +26,12 @@ def id_to_ix(id, ids):
     ix = np.where(id == ids)[0][0]
     return ix
 
+
 def fnames_to_key(fnames):
     fnames = sorted(set(deepcopy(fnames)))
     onestr = '|'.join(fname for fname in fnames)
     return hashlib.md5(str(onestr).encode()).hexdigest()
+
 
 def to_key(G):
     """
@@ -27,6 +41,7 @@ def to_key(G):
     G = np.sort(G)
     key = G.tobytes()
     return key
+
 
 def create_multiindex(ns, vss):
     """Given names and values (ordered), create a
@@ -38,6 +53,7 @@ def create_multiindex(ns, vss):
     tuples = list(tuples)
     index = pd.MultiIndex.from_tuples(tuples, names=ns)
     return index
+
 
 def ix_to_desc(j, base='X'):
     return '{}_{}'.format(base, j)

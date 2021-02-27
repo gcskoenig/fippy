@@ -45,7 +45,7 @@ class Decorrelator:
 
     @staticmethod
     def _order_fset(S):
-        return Sampler._order_fset(S)
+        return Sampler._order_fset()
 
     def is_trained(self, K, J, C):
         """Indicates whether the Decorrelator has been trained

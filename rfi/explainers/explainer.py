@@ -35,7 +35,7 @@ class Explainer:
                  loss=None, fs_names=None):
         """Inits Explainer with sem, mask and potentially sampler and loss"""
         self.model = model
-        self.fsoi = fsoi # now column names, not indexes
+        self.fsoi = fsoi  # now column names, not indexes
         self.X_train = X_train
         self.loss = loss
         self.sampler = sampler
@@ -50,7 +50,8 @@ class Explainer:
         #                              for jj in range(X_train.shape[1])])
 
     def _valid_fset(self, fset):
-        if set(fset).issubset(self.X_train.columns):
+        fset = set(list(fset))
+        if not fset.issubset(self.X_train.columns):
             raise ValueError("Feature set does not match "
                              "the dataframe's column names.")
         else:
@@ -74,7 +75,8 @@ class Explainer:
         else:
             return True
 
-    def rfi(self, X_eval, y_eval, G, R=None, sampler=None, loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
+    def rfi(self, X_eval, y_eval, G, D=None, sampler=None, loss=None,
+            nr_runs=10, return_perturbed=False, train_allowed=True):
         """Computes Relative Feature importance
 
         # TODO(gcsk): allow handing a sample as argument
