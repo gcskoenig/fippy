@@ -166,7 +166,7 @@ class Explainer:
                 loss_pert = loss(y_eval, self.model(X_eval_tilde_model))
                 loss_orig = loss(y_eval, self.model(X_eval_model))
                 scores.loc[kk, :][foi] = loss_pert - loss_orig
-                #lss[jj, kk, :] = loss_pert - loss_orig
+                # lss[jj, kk, :] = loss_pert - loss_orig
 
         # return explanation object
         ex_name = 'RFI^{}'.format(G)
@@ -176,21 +176,21 @@ class Explainer:
 
         if return_perturbed:
             logger.debug('Return both explanation and perturbed.')
-            return result, perturbed_foiss
+            return result, X_fsoi_pert
         else:
             logger.debug('Return explanation object only')
             return result
 
-    def rfa(self, X_test, y_test, K, sampler=None, decorrelator=None,
-            loss=None, nr_runs=10, return_perturbed=False, train_allowed=True):
+    def rfa(self, X_eval, y_eval, K, D=None, sampler=None, decorrelator=None,
+            loss=None, nr_runs=10, return_perturbed=False, train_allowed=True,
+            ex_name=None):
         """Computes Feature Association
-        # TODO(gcsk): allow handing a sample as argument
-        #             (without needing sampler)
 
         Args:
-            X_test: data to use for resampling and evaluation.
-            y_test: labels for evaluation.
-            G: relative feature set
+            X_eval: data to use for resampling and evaluation.
+            y_eval: labels for evaluation.
+            K: features not to be reconstracted
+            D: model features (including their required ordering)
             sampler: choice of sampler. Default None. Will throw an error
               when sampler is None and self.sampler is None as well.
             loss: choice of loss. Default None. Will throw an Error when
@@ -222,101 +222,113 @@ class Explainer:
                 loss = self.loss
                 logger.debug("Using class specified loss.")
 
-        all_fs = np.arange(X_test.shape[1])
+        if D is None:
+            D = X_eval.columns
+        # all_fs = np.arange(X_test.shape[1])
 
         # check whether the sampler is trained for the baseline perturbation
-        if not sampler.is_trained(all_fs, []):
+        if not sampler.is_trained(D, []):
             # train if allowed, otherwise raise error
             if train_allowed:
-                sampler.train(all_fs, [])
-                logger.info('Training sampler on {}|{}'.format(all_fs, []))
+                sampler.train(D, [])
+                logger.info('Training sampler on {}|{}'.format(D, []))
             else:
                 raise RuntimeError(
-                    'Sampler is not trained on {}|{}'.format(all_fs, []))
+                    'Sampler is not trained on {}|{}'.format(D, []))
         else:
             txt = '\tCheck passed: Sampler is already trained on '
-            txt = txt + '{}|{}'.format(all_fs, [])
+            txt = txt + '{}|{}'.format(D, [])
             logger.debug(txt)
 
         # check for each of the features of interest
-        for f in self.fsoi:
-            if not sampler.is_trained(all_fs, [f]):
+        for foi in self.fsoi:
+            if not sampler.is_trained(D, [foi]):
                 # train if allowed, otherwise raise error
                 if train_allowed:
-                    sampler.train(all_fs, [f])
+                    sampler.train(D, [foi])
                     logger.info(
-                        'Training sampler on {}|{}'.format(all_fs, [f]))
+                        'Training sampler on {}|{}'.format(D, [foi]))
                 else:
                     raise RuntimeError(
-                        'Sampler is not trained on {}|{}'.format(all_fs, [f]))
+                        'Sampler is not trained on {}|{}'.format(D, [foi]))
             else:
                 txt = '\tCheck passed: Sampler is already trained on '
-                txt = txt + '{}|{}'.format(all_fs, [f])
+                txt = txt + '{}|{}'.format(D, [foi])
                 logger.debug(txt)
 
         # check whether decorrelators have been trained
-        for f in self.fsoi:
-            if not decorrelator.is_trained(K, [f], []):
+        for foi in self.fsoi:
+            if not decorrelator.is_trained(K, [foi], []):
                 if train_allowed:
-                    decorrelator.train(K, [f], [])
+                    decorrelator.train(K, [foi], [])
                     txt = 'Training decorrelator on '
-                    txt = txt + '{} idp {} | {}'.format(K, [f], [])
+                    txt = txt + '{} idp {} | {}'.format(K, [foi], [])
                     logger.info(txt)
                 else:
                     txt = 'Decorrelator is not trained on '
-                    txt = txt + '{} {} | {}'.format(K, [f], [])
+                    txt = txt + '{} {} | {}'.format(K, [foi], [])
                     raise RuntimeError(txt)
             else:
                 logger.debug('\tCheck passed: '
                              'Decorrelator is already trained on '
-                             '{} {} | {}'.format(K, [f], []))
+                             '{} {} | {}'.format(K, [foi], []))
 
         # initialize array for the perturbed samples
-        nr_fsoi, nr_features = len(self.fsoi), len(all_fs)
-        nr_obs = X_test.shape[0]
-        perturbed_reconstr = np.zeros((nr_fsoi, nr_obs, nr_runs, nr_features))
-        perturbed_baseline = np.zeros((nr_obs, nr_runs, nr_features))
+        nr_obs = X_eval.shape[0]
+
+        # initialize pandas dataframes for X_eval_tilde baseline
+        # and X_eval_tilde reconstrcted
+        index_bsln = utils.create_multiindex(['sample', 'i'],
+                                             [np.arange(nr_runs),
+                                              np.arange(nr_obs)])
+        X_eval_tilde_bsln = pd.DataFrame([], index=index_bsln)
+        index_rcnstr = utils.create_multiindex(['foi', 'sample', 'i'],
+                                               [self.fsoi,
+                                                np.arange(nr_runs),
+                                                np.arange(nr_obs)])
+        X_eval_tilde_rcnstr = pd.DataFrame([], index=index_rcnstr)
 
         # sample baseline
-        sample = sampler.sample(X_test, all_fs, [], num_samples=nr_runs)
-        perturbed_baseline = sample
+        X_eval_tilde_bsln = sampler.sample(X_eval, D, [], num_samples=nr_runs)
 
         # sample perturbed versions
-        for jj in range(nr_fsoi):
-            sample = sampler.sample(
-                X_test, all_fs, [self.fsoi[jj]], num_samples=nr_runs)
+        for foi in self.fsoi:
+            sample = sampler.sample(X_eval, D, [foi], num_samples=nr_runs)
             for kk in np.arange(nr_runs):
-                sample_decorr = decorrelator.decorrelate(
-                    sample[:, kk, :], K, [jj], [])
-                perturbed_reconstr[jj, :, kk, :] = sample_decorr
+                sample_decorr = decorrelator.decorrelate(sample.loc[kk, :],
+                                                         K, [foi], [])
+                X_eval_tilde_rcnstr.loc[foi, :, :] = sample_decorr
 
-        lss = np.zeros((nr_fsoi, nr_runs, X_test.shape[0]))
+        # create empty scores data frame
+        index_scores = utils.create_multiindex(['sample', 'i'],
+                                               [np.arange(nr_runs),
+                                                np.arange(nr_obs)])
+        scores = pd.DataFrame([], index=index_scores)
 
         # compute observasitonwise loss differences for all runs and fois
-        for jj in np.arange(0, nr_fsoi, 1):
-            for kk in np.arange(0, nr_runs, 1):
-                # replaced with perturbe
-                X_test_reconstructed = np.array(perturbed_baseline[:, kk, :])
-                X_test_reconstructed = perturbed_reconstr[jj, :, kk, :]
-                # compute difference in observationwise loss
-                l_pb = loss(y_test, self.model(perturbed_baseline[:, kk, :]))
-                l_rc = loss(y_test, self.model(X_test_reconstructed))
-                lss[jj, kk, :] = l_pb - l_rc
+        for kk in np.arange(nr_runs):
+            l_pb = loss(y_eval, self.model(X_eval_tilde_bsln.loc[kk, :][D]))
+            for foi in self.fsoi:
+                l_rc = loss(y_eval,
+                            self.model(X_eval_tilde_rcnstr[foi, kk, :][D]))
+                scores.loc[kk, :][foi] = l_pb - l_rc
+
+        if ex_name is None:
+            ex_name = 'Unknown rfa'
 
         # return explanation object
-        result = explanation.Explanation(
-            self.fsoi, lss, fsoi_names=self.fsoi, ex_name='SI')
+        result = explanation.Explanation(self.fsoi,
+                                         scores,
+                                         ex_name=ex_name)
         if return_perturbed:
             raise NotImplementedError(
                 'Returning perturbed not implemented yet.')
-            # logger.debug('Return both explanation and perturbed.')
-            # return result, perturbed_baseline, perturbed_reconstr
         else:
             logger.debug('Return explanation object only')
             return result
 
-    def decomposition(self, imp_type, fsoi, partial_ordering, X_test, y_test,
-                      nr_orderings=None, nr_runs=3, show_pbar=True):
+    def decomposition(self, imp_type, fsoi, partial_ordering, X_eval, y_eval,
+                      nr_orderings=None, nr_runs=3, show_pbar=True, **kwargs):
         """
         Given a partial ordering, this code allows to decompose
         feature importance or feature association for a given set of
@@ -342,53 +354,71 @@ class Explainer:
         if nr_orderings is None:
             nr_orderings = len(utils.flatten(partial_ordering))**2
 
+        explnr_fnc = None
+        if imp_type == 'rfi':
+            explnr_fnc = self.rfi
+        elif imp_type == 'rfa':
+            explnr_fnc = self.rfa
+        else:
+            raise ValueError('Importance type '
+                             '{} not implemented'.format(imp_type))
+
         # values (nr_perm, nr_runs, nr_components, nr_fsoi)
         # components are: (elements of ordering,..., remainder)
         # elements of ordering are sorted in increasing order
-        nr_components = len(utils.flatten(partial_ordering)) + 1
-        values = np.zeros((len(fsoi), nr_components, nr_orderings, nr_runs))
+
+        component_names = np.unique(utils.flatten(partial_ordering))
+        component_names = list(component_names)
+        component_names.insert(0, 'remainder')
+        component_names.insert(0, 'total')
+        nr_components = len(component_names)
+
+        # create dataframe for computation results
+        index = utils.create_multiindex(['component', 'ordering', 'run'],
+                                        [component_names,
+                                         np.arange(nr_orderings),
+                                         np.arange(nr_runs)])
+        arr = np.zeros((nr_components * nr_orderings * nr_runs,
+                        len(self.fsoi)))
+        decomposition = pd.DataFrame(arr, index=index, columns=self.fsoi)
         # values = np.zeros((nr_orderings, nr_runs, nr_components, len(fsoi)))
 
         if show_pbar:
             mgr = enlighten.get_manager()
-            pbar = mgr.counter(total=nr_orderings, desc='decomposition', unit='orderings')
+            pbar = mgr.counter(total=nr_orderings, desc='decomposition',
+                               unit='orderings')
 
         for kk in np.arange(nr_orderings):
-            rfs = np.zeros(
-                (nr_runs, len(utils.flatten(partial_ordering)) + 1, len(fsoi)))
-
             if show_pbar:
                 pbar.update()
 
             ordering = utils.sample_partial(partial_ordering)
             logging.info('Ordering : {}'.format(ordering))
 
-            for jj in np.arange(len(ordering) + 1):
+            # total values
+            expl = explnr_fnc(X_eval, y_eval, [], nr_runs=nr_runs, **kwargs)
+            decomposition.loc['total', kk, :] = expl.fi_vals()
+
+            previous = decomposition.loc['total', kk, :]
+            current = None
+
+            for jj in np.arange(1, len(ordering) + 1):
+                # get current new variable and respective set
+                current_ix = ordering[jj - 1]
                 G = ordering[:jj]
-                expl = None
-                if imp_type == 'rfi':
-                    expl = self.rfi(X_test, y_test, G, nr_runs=nr_runs)
-                elif imp_type == 'rfa':
-                    expl = self.rfa(X_test, y_test, G, nr_runs=nr_runs)
-                rfs[:, jj, :] = expl.fi_vals(return_np=True).T
 
-            #breakpoint()
-            # conditioning on all items in partial ordering
-            values[:, -1, kk, :] = rfs[:, -1, :].T
+                # compute and store feature importance
+                expl = explnr_fnc(X_eval, y_eval, G, nr_runs=nr_runs, **kwargs)
+                current = expl.fi_vals()
 
-            # importance contribution of the j-th component
-            for jj in np.arange(1, len(ordering) + 1, 1):
-                diffs = rfs[:, jj - 1, :] - rfs[:, jj, :]
-                ix = utils.id_to_ix(ordering[jj - 1], ordering)
-                values[:, ix, kk, :] = diffs.T
+                # compute difference
+                decomposition.loc[current_ix, kk, :] = previous - current
+                previous = current
 
-        component_names = np.unique(utils.flatten(partial_ordering))
-        component_names = list(component_names)
-        component_names.append('remainder')
-        fsoi_names = self.fsoi
-        ex = decomposition_ex.DecompositionExplanation(self.fsoi, values,
-                                                       fsoi_names,
-                                                       component_names,
+            decomposition.loc['remainder'] = previous
+
+        ex = decomposition_ex.DecompositionExplanation(self.fsoi,
+                                                       decomposition,
                                                        ex_name=None)
         return ex
 

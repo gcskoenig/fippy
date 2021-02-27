@@ -18,32 +18,24 @@ class DecompositionExplanation(Explanation):
         fsoi_names: feature of interest names
         component_names: names of the decompotion components
     """
-    def __init__(self, fsoi, lss, fsoi_names, component_names, ex_name=None):
-        Explanation.__init__(self, fsoi, lss, fsoi_names, ex_name=ex_name)
-        self.component_names = component_names
+    def __init__(self, fsoi, scores, ex_name=None):
+        Explanation.__init__(self, fsoi, scores, ex_name=ex_name)
 
-        # add the total
-        self.component_names.insert(0, 'total')
-        self.lss = np.zeros((lss.shape[0], lss.shape[1] + 1,
-                             lss.shape[2], lss.shape[3]))
-        self.lss[:, 1:, :, :] = lss
-        self.lss[:, 0, :, :] = np.sum(lss, axis=1)
+    # def _check_shape(self):
+    #     if len(self.lss.shape) != 4:
+    #         raise RuntimeError('.lss has shape {self.lss.shape}.'
+    #                            'Expected 4-dim.')
 
-    def _check_shape(self):
-        if len(self.lss.shape) != 4:
-            raise RuntimeError('.lss has shape {self.lss.shape}.'
-                               'Expected 4-dim.')
+    # def _create_index(self, dims=[0, 1, 3]):
+    #     names = ['feature', 'component', 'permutation', 'run']
+    #     runs = range(self.lss.shape[3])
+    #     permutations = range(self.lss.shape[2])
+    #     lists = [self.fsoi_names, self.component_names, permutations, runs]
 
-    def _create_index(self, dims=[0, 1, 3]):
-        names = ['feature', 'component', 'permutation', 'run']
-        runs = range(self.lss.shape[3])
-        permutations = range(self.lss.shape[2])
-        lists = [self.fsoi_names, self.component_names, permutations, runs]
-
-        names_sub = [names[i] for i in dims]
-        lists_sub = [lists[i] for i in dims]
-        index = utils.create_multiindex(names_sub, lists_sub)
-        return index
+    #     names_sub = [names[i] for i in dims]
+    #     lists_sub = [lists[i] for i in dims]
+    #     index = utils.create_multiindex(names_sub, lists_sub)
+    #     return index
 
     def fi_vals(self, return_np=False):
         if return_np:
@@ -59,11 +51,7 @@ class DecompositionExplanation(Explanation):
         pass
 
     def fi_decomp(self):
-        arr = np.mean(self.lss, axis=2)
-        arr = arr.reshape(-1)
-        index = self._create_index(dims=[0, 1, 3])
-        df = pd.DataFrame(arr, index=index, columns=['importance'])
-        return df
+        return self.scores
 
     def decomp_hbarplot(self, figsize=None, ax=None):
         """
