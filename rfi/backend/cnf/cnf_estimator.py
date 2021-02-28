@@ -56,6 +56,7 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
             cat_context: np.array = None,
             context_normalization=True,
             inputs_normalization=True,
+            inputs_noise_nonlinearity=torch.nn.Identity(),
             device='cpu',
             **kwargs
     ):
@@ -118,6 +119,7 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
         # Normalisation
         self.context_normalization = context_normalization
         self.inputs_normalization = inputs_normalization
+        self.inputs_noise_nonlinearity = inputs_noise_nonlinearity
         self.inputs_mean, self.inputs_std = None, None
         self.context_mean, self.context_std = None, None
 
@@ -168,7 +170,7 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
         for i in range(self.n_epochs):
             self.optimizer.zero_grad()
             # Adding noise to data
-            noised_train_inputs = self._add_noise(train_inputs, self.input_noise_std)
+            noised_train_inputs = self._add_noise(train_inputs, self.input_noise_std, self.inputs_noise_nonlinearity)
             noised_train_context = self._add_noise(train_context, self.context_noise_std)
 
             # Forward pass

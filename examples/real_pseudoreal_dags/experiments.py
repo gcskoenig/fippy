@@ -11,12 +11,15 @@ import pandas as pd
 from os.path import dirname, abspath
 import numpy as np
 import inspect
+import torch
 import logging
 
 from rfi.backend.utils import flatten_dict
 from rfi.backend.causality import DirectedAcyclicGraph
 import rfi.explainers.explainer as explainer
 from rfi.utils import search_nonsorted, check_existing_hash
+from rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform, \
+    ContextualLogTransform
 
 
 logger = logging.getLogger(__name__)
@@ -62,7 +65,10 @@ def main(args: DictConfig):
     # Loading Train-test data
     data = np.load(f'{data_path}/data{args.data.sample_ind}.npy')
     if args.data.standard_normalize:
-        standard_normalizer = StandardScaler()
+        if 'normalise_params' in args.data:
+            standard_normalizer = StandardScaler(**args.data.normalise_params)
+        else:
+            standard_normalizer = StandardScaler()
         data = standard_normalizer.fit_transform(data)
     data_train, data_test = train_test_split(data, test_size=args.data.test_ratio, random_state=args.data.split_seed)
     train_df = pd.DataFrame(data_train, columns=dag.var_names)
@@ -113,8 +119,15 @@ def main(args: DictConfig):
             for risk, risk_func in risks.items():
                 var_results[f'test_{risk}_{pred_model._target_}'] = risk_func(y_test, y_pred)
 
-        sampler = instantiate(args.estimator.sampler, X_train=X_train,
-                              fit_method=args.estimator.fit_method, fit_params=args.estimator.fit_params)
+        transform_classes = default_values[default_names.index('transform_classes') - 2]
+        inputs_noise_nonlinearity = torch.nn.Identity()
+        if 'restrict_support' in args.estimator and args.estimator.restrict_support:
+            transform_classes = (ContextualLogTransform,) + transform_classes
+            inputs_noise_nonlinearity = torch.nn.ReLU()
+
+        sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
+                              fit_params={**args.estimator.fit_params, 'transform_classes': transform_classes,
+                                          'inputs_noise_nonlinearity': inputs_noise_nonlinearity})
 
         # =================== Relative feature importance ===================
         # 1. G = MB(target_var), FoI = input_vars / MB(target_var)

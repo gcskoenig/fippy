@@ -92,9 +92,9 @@ class ConditionalDistributionEstimator(nn.Module):
             context = context * self.context_std + self.context_mean
         return inputs, context
 
-    def _add_noise(self, data: Tensor, std: float) -> Tensor:
+    def _add_noise(self, data: Tensor, std: float, non_lin=nn.Identity()) -> Tensor:
         if data is not None:
-            return data + torch.randn(data.size()).type_as(data) * std
+            return data + non_lin(torch.randn(data.size()).type_as(data) * std)
         else:
             return None
 

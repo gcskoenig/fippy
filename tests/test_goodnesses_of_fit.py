@@ -2,6 +2,7 @@ import logging
 import pandas as pd
 import numpy as np
 from typing import Union
+import torch
 
 from rfi.backend.goodness_of_fit import conditional_js_divergence, conditional_kl_divergence, conditional_hellinger_distance
 from rfi.backend.causality import DirectedAcyclicGraph, PostNonLinearLaplaceSEM, PostNonLinearMultiplicativeHalfNormalSEM, \
@@ -23,7 +24,7 @@ CONTEXT_VARS = DAG.get_markov_blanket(TARGET_VAR)
 ESTIMATORS = [
     GaussianConditionalEstimator(),
     NormalisingFlowEstimator(context_size=len(CONTEXT_VARS)),
-    # MixtureDensityNetworkEstimator(context_size=len(CONTEXT_VARS))
+    MixtureDensityNetworkEstimator(context_size=len(CONTEXT_VARS))
 ]
 GOF_ARGS = {
     'metrics': {'epsabs': 0.05},

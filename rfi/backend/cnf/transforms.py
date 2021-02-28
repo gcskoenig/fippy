@@ -7,7 +7,7 @@ import torch
 import torch.nn.init as init
 from typing import Optional, Tuple, List
 from torch import Tensor
-from nflows.transforms import Transform, CompositeTransform, PointwiseAffineTransform
+from nflows.transforms import Transform, CompositeTransform, PointwiseAffineTransform, InverseTransform
 
 
 class ContextualInvertableRadialTransform(Transform):
@@ -221,3 +221,32 @@ class ContextualCompositeTransform(CompositeTransform):
     def inverse(self, inputs, context=None):
         funcs = self._transforms
         return self._cascade(inputs, funcs, context, forward=False)
+
+
+class ContextualExpTransform(Transform):
+
+    def __init__(self, inputs_size=None):
+        super().__init__()
+
+    @property
+    def n_params(self):
+        return 0
+
+    def forward(self, inputs, context=None):
+        z = inputs.exp()
+        logabsdet = inputs.sum(1) + torch.zeros((len(inputs), ))
+        return z, logabsdet
+
+    def inverse(self, z, context=None):
+        inputs = z.log()
+        logabsdet = (1 / z).log().sum(1) + torch.zeros((len(inputs),))
+        return inputs, logabsdet
+
+
+class ContextualLogTransform(InverseTransform):
+    def __init__(self, inputs_size=None):
+        super().__init__(ContextualExpTransform())
+
+    @property
+    def n_params(self):
+        return 0
