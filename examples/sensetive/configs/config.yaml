@@ -37,7 +37,7 @@ predictors:
 exp:
   check_exisisting_hash: False
   mlflow_uri: http://127.0.0.1:5000
-  sensetive_vars: ['Sex']
+  sensetive_vars: ['Race']
   rfi:
     nr_runs: 50
 
