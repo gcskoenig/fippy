@@ -163,12 +163,20 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
         val_inputs, val_context = self._input_to_tensor(val_inputs, val_context)
         val_inputs, val_context = self._transform_normalise(val_inputs, val_context)
 
-        train_data = data_utils.TensorDataset(train_inputs, train_context)
+        if train_context is not None:
+            train_data = data_utils.TensorDataset(train_inputs, train_context)
+        else:
+            train_data = data_utils.TensorDataset(train_inputs)
         train_loader = data_utils.DataLoader(train_data, shuffle=True, drop_last=True,
                                              batch_size=self.batch_size if self.batch_size is not None else len(train_data))
 
         for i in range(self.n_epochs):
-            for batch_train_inputs, batch_train_context in train_loader:
+            for batch in train_loader:
+                if len(batch) == 2:
+                    batch_train_inputs, batch_train_context = batch
+                else:
+                    batch_train_inputs, batch_train_context = batch[0], None
+
                 self.optimizer.zero_grad()
                 # Adding noise to data
                 noised_train_inputs = self._add_noise(batch_train_inputs, self.input_noise_std)
@@ -228,6 +236,17 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
 
     def sample(self, context: Union[np.array, Tensor] = None, num_samples: int = 1, data_normalization=True,
                context_one_hot_encoding=True) -> Union[np.array, Tensor]:
+        """
+        Sampling from conditional distribution
+
+        Args:
+            num_samples: Number of samples per global_context
+            context: Conditioning global_context
+            data_normalization: Perform data normalisation
+
+        Returns: np.array or Tensor with shape (context.shape[0], num_samples)
+
+        """
 
         return_numpy, context, _ = self._preprocess_data(None, context, data_normalization, context_one_hot_encoding, False)
 
