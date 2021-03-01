@@ -53,7 +53,7 @@ def fi_sns_hbarplot(ex, ax=None, figsize=None):
     """
     if ax is None:
         f, ax = plt.subplots(figsize=figsize)
-    df = ex.fi_vals(return_np=False)
+    df = ex.fi_vals(fnames_as_columns=False)
     df.reset_index(inplace=True)
     df.sort_values('importance', axis=0, ascending=False, inplace=True)
     sns.barplot(x='importance', y='feature', data=df, ax=ax, ci='sd')

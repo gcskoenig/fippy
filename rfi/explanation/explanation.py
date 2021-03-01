@@ -7,7 +7,7 @@ accessed. Plotting functionality is available.
 import rfi.plots._barplot as _barplot
 import pandas as pd
 # import itertools
-# import rfi.utils as utils
+import rfi.utils as utils
 
 
 class Explanation:
@@ -43,7 +43,7 @@ class Explanation:
         #     raise RuntimeError('.lss has shape {self.lss.shape}.'
         #                        'Expected 3-dim.')
 
-    def fi_vals(self):
+    def fi_vals(self, fnames_as_columns=True):
         """ Computes the sample-wide RFI for each run
 
         Returns:
@@ -61,7 +61,15 @@ class Explanation:
         #     df = pd.DataFrame(arr, index=index, columns=['importance'])
         # return df
         df = self.scores.mean(level='sample')
-        return df
+        if fnames_as_columns:
+            return df
+        else:
+            index = utils.create_multiindex([df.index.name, 'feature'],
+                                            [df.index.values, df.columns])
+            df2 = pd.DataFrame(df.to_numpy().reshape(-1),
+                               index=index,
+                               columns=['importance'])
+            return df2
 
     def fi_means_stds(self):
         """Computes Mean RFI over all runs

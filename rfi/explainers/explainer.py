@@ -154,7 +154,7 @@ class Explainer:
             for kk in np.arange(0, nr_runs, 1):
                 # replaced with perturbed
                 X_eval_tilde = X_eval.copy()
-                X_eval_tilde[foi] = X_fsoi_pert.loc[0, :][foi]
+                X_eval_tilde[foi] = X_fsoi_pert.loc[(kk, slice(None)), foi].to_numpy()
                 # X_eval_one_perturbed[:, self.fsoi[jj]]
                 # = perturbed_foiss[jj, kk, :]
                 # using only seen while training features
@@ -167,7 +167,8 @@ class Explainer:
                 # compute difference in observationwise loss
                 loss_pert = loss(y_eval, self.model(X_eval_tilde_model))
                 loss_orig = loss(y_eval, self.model(X_eval_model))
-                scores.loc[kk, :][foi] = loss_pert - loss_orig
+                diffs = (loss_pert - loss_orig)
+                scores.loc[(kk, slice(None)), foi] = diffs
                 # lss[jj, kk, :] = loss_pert - loss_orig
 
         # return explanation object
@@ -376,7 +377,7 @@ class Explainer:
         nr_components = len(component_names)
 
         # create dataframe for computation results
-        index = utils.create_multiindex(['component', 'ordering', 'run'],
+        index = utils.create_multiindex(['component', 'ordering', 'sample'],
                                         [component_names,
                                          np.arange(nr_orderings),
                                          np.arange(nr_runs)])
@@ -399,9 +400,9 @@ class Explainer:
 
             # total values
             expl = explnr_fnc(X_eval, y_eval, [], nr_runs=nr_runs, **kwargs)
-            decomposition.loc['total', kk, :] = expl.fi_vals()
+            decomposition.loc['total', kk, :] = expl.fi_vals().to_numpy()
 
-            previous = decomposition.loc['total', kk, :]
+            previous = decomposition.loc['total', kk, :].to_numpy()
             current = None
 
             for jj in np.arange(1, len(ordering) + 1):
@@ -411,13 +412,13 @@ class Explainer:
 
                 # compute and store feature importance
                 expl = explnr_fnc(X_eval, y_eval, G, nr_runs=nr_runs, **kwargs)
-                current = expl.fi_vals()
+                current = expl.fi_vals().to_numpy()
 
                 # compute difference
                 decomposition.loc[current_ix, kk, :] = previous - current
                 previous = current
 
-            decomposition.loc['remainder'] = previous
+            decomposition.loc['remainder', kk, :] = previous
 
         ex = decomposition_ex.DecompositionExplanation(self.fsoi,
                                                        decomposition,

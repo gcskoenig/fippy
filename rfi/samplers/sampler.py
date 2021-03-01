@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 import rfi.utils as utils
-from rfi.samplers._utils import sample_id, sample_perm
+from rfi.samplers._utils import sample_id  # , sample_perm
 import logging
 from typing import Union, List
 
@@ -79,14 +79,15 @@ class Sampler:
         degenerate = True
 
         # are we conditioning on zero elements?
-        if G.size == 0:
-            logger.debug('Degenerate Training: Empty G')
-            J_ixs = utils.fset_to_ix(self.X_train.columns, J)
-            self._store_samplefunc(J, G, sample_perm(J_ixs))
+        # if G.size == 0:
+        #     logger.debug('Degenerate Training: Empty G')
+        #     J_ixs = utils.fset_to_ix(self.X_train.columns, J)
+        #     self._store_samplefunc(J, G, sample_perm(J_ixs))
         # are all elements in G being conditioned upon?
-        elif np.sum(1 - np.isin(J, G)) == 0:
+        if np.sum(1 - np.isin(J, G)) == 0:
             logger.debug('Degenerate Training: J subseteq G')
-            J_ixs = utils.fset_to_ix(self.X_train.columns, J)
+            J_ixs = utils.fset_to_ix(Sampler._order_fset(G),
+                                     Sampler._order_fset(J))
             self._store_samplefunc(J, G, sample_id(J_ixs))
         else:
             logger.debug('Training not degenerate.')

@@ -37,21 +37,38 @@ class DecompositionExplanation(Explanation):
     #     index = utils.create_multiindex(names_sub, lists_sub)
     #     return index
 
-    def fi_vals(self, return_np=False):
-        if return_np:
-            raise NotImplementedError('np.array support not implemented.')
-        df = self.fi_decomp()
-        dfc = df.reset_index()
-        dfc = dfc[dfc['component'] == 'total']
-        dfc = dfc.set_index(['feature', 'run'], drop=True)
-        dfc = dfc.drop(columns=['component'])
-        return dfc
+    def fi_vals(self, fnames_as_columns=True):
+        if fnames_as_columns:
+            df = self.scores.copy()
+            df = df.groupby(['component', 'sample']).mean()
+            dfc = df.reset_index()
+            dfc = dfc[dfc['component'] == 'total']
+            dfc = dfc.set_index(['sample'], drop=True)
+            dfc = dfc.drop(columns=['component'])
+            return dfc
+        else:
+            df = self.fi_decomp()
+            dfc = df.reset_index()
+            dfc = dfc[dfc['component'] == 'total']
+            dfc = dfc.set_index(['feature', 'sample'], drop=True)
+            dfc = dfc.drop(columns=['component'])
+            return dfc
 
     def fi_means_stds(self):
         pass
 
+    def fi_cols_to_index(self):
+        df = self.scores.copy()
+        sr = pd.concat([df[col] for col in df],
+                       keys=df.columns,
+                       names=['feature'])
+        df = pd.DataFrame(sr, columns=['importance'])
+        return df.copy()
+
     def fi_decomp(self):
-        return self.scores
+        df = self.fi_cols_to_index()
+        df = df.groupby(['feature', 'component', 'sample']).mean()
+        return df
 
     def decomp_hbarplot(self, figsize=None, ax=None):
         """
