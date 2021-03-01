@@ -482,9 +482,9 @@ class Explainer:
             logger.debug('Return explanation object only')
             return result
 
-    def sage(self, X_test, y_test, nr_orderings,
+    def sage(self, X_test, y_test, nr_orderings, orderings=None,
              nr_runs=10, sampler=None, loss=None,
-             train_allowed=True, return_orderings=False):
+             train_allowed=True, return_orderings=False, return_test_log_lik=True):
         """
         Compute Shapley Additive Global Importance values.
         Args:
@@ -498,6 +498,7 @@ class Explainer:
               both loss and self.loss are None.
             train_allowed: whether the explainer is allowed to
                 train the sampler
+            return_test_log_lik: return log-likelihood of conditional sampler on X_test
 
         Returns:
             result: an explanation object containing the respective
@@ -524,36 +525,37 @@ class Explainer:
                 loss = self.loss
                 logger.debug("Using class specified loss.")
 
-        lss = np.zeros(
-            (self.fsoi.shape[0], nr_runs, X_test.shape[0], nr_orderings))
+        if orderings is not None:
+            orderings = np.array(orderings)
+            assert len(orderings) == nr_orderings
+            assert orderings.shape[1] == len(self.fsoi)
+
+        lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0], nr_orderings))
+        test_log_lik = []
 
         for ii in range(nr_orderings):
-            ordering = np.random.permutation(len(self.fsoi))
+            ordering = np.random.permutation(len(self.fsoi)) if orderings is None else orderings[ii]
             # resample multiple times
             for kk in range(nr_runs):
                 # enter one feature at a time
-                y_hat_base = np.repeat(
-                    np.mean(self.model(X_test)), X_test.shape[0])
+                y_hat_base = np.repeat(np.mean(self.model(X_test)), X_test.shape[0])
                 for jj in np.arange(1, len(self.fsoi), 1):
                     # compute change in performance
                     # by entering the respective feature
                     # store the result in the right place
                     # validate training of sampler
-                    impute, fixed = self.fsoi[ordering[jj:]
-                                              ], self.fsoi[ordering[:jj]]
-                    logger.debug('{}:{}:{}: fixed, impute: {}|{}'.format(
-                        ii, kk, jj, impute, fixed))
+                    impute, fixed = self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]]
+                    logger.info(f'Ordering {ii + 1} / {nr_orderings}. Features split {jj} / {len(self.fsoi) - 1}. '
+                                f'Impute | Fixed : {impute} | {fixed}')
+
                     if not sampler.is_trained(impute, fixed):
                         # train if allowed, otherwise raise error
                         if train_allowed:
-                            sampler.train(impute, fixed)
-                            logger.info(
-                                'Training sampler on '
-                                '{}|{}'.format(impute, fixed))
+                            estimator = sampler.train(impute, fixed)
+                            test_log_lik.append(estimator.log_prob(inputs=X_test[:, impute], context=X_test[:, fixed]).mean())
                         else:
-                            raise RuntimeError(
-                                'Sampler is not trained on '
-                                '{}|{}'.format(impute, fixed))
+                            raise RuntimeError('Sampler is not trained on {} | {}'.format(impute, fixed))
+
                     X_test_perturbed = np.array(X_test)
                     imps = sampler.sample(X_test, impute, fixed, num_samples=1)
                     imps = imps.reshape((X_test.shape[0], len(impute)))
@@ -567,13 +569,12 @@ class Explainer:
                 y_hat_new = self.model(X_test)
                 lss[self.fsoi[ordering[-1]], kk, :, ii] = loss(y_test, y_hat_base) - loss(y_test, y_hat_new)
 
-        result = explanation.Explanation(
-            self.fsoi, lss,
-            fsoi_names=self.fs_names[self.fsoi],
-            ex_name='SAGE')
+        result = explanation.Explanation(self.fsoi, lss.mean(3), fsoi_names=self.fs_names[self.fsoi], ex_name='SAGE')
 
         if return_orderings:
-            raise NotImplementedError(
-                'Returning errors is not implemented yet.')
+            raise NotImplementedError('Returning errors is not implemented yet.')
+
+        if return_test_log_lik:
+            return result, test_log_lik
 
         return result

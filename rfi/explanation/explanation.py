@@ -39,8 +39,7 @@ class Explanation:
         (nr_fsoi, nr_runs, nr_obs) is correct.
         """
         if len(self.lss.shape) != 3:
-            raise RuntimeError('.lss has shape {self.lss.shape}.'
-                               'Expected 3-dim.')
+            raise RuntimeError(f'lss has shape {self.lss.shape}. Expected 3-dim.')
 
     def fi_vals(self, return_np=False):
         """ Computes the sample-wide RFI for each run

@@ -2,6 +2,7 @@
 Sampler based on conditional normalizing flows. Using affine and invertable radial transformations.
 """
 import logging
+from nflows.distributions import StandardNormal
 
 from rfi.samplers.sampler import Sampler
 from rfi.backend.cnf import NormalisingFlowEstimator
@@ -49,7 +50,7 @@ class CNFSampler(Sampler):
                 logger.info(f'Fitting continuous sampler for features {J}. Fitting method: {self.fit_method}. '
                             f'Fitting parameters: {self.fit_params}')
                 model = NormalisingFlowEstimator(inputs_size=len(J), context_size=train_context.shape[1], cat_context=cat_context,
-                                                 **self.fit_params)
+                                                 base_distribution=StandardNormal(shape=[len(J)]), **self.fit_params)
 
             # Fitting a sampler
             getattr(model, self.fit_method)(train_inputs=train_inputs, train_context=train_context, **self.fit_params)
