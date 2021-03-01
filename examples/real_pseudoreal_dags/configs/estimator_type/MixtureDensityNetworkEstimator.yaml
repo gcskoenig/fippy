@@ -10,5 +10,6 @@ estimator:
     time_budget_s:
     verbose: True
     weight_decay: 0.001
+    batch_size:
   sampler:
     _target_: rfi.samplers.mdn.MDNSampler

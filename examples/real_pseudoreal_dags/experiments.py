@@ -119,15 +119,21 @@ def main(args: DictConfig):
             for risk, risk_func in risks.items():
                 var_results[f'test_{risk}_{pred_model._target_}'] = risk_func(y_test, y_pred)
 
-        transform_classes = default_values[default_names.index('transform_classes') - 2]
-        inputs_noise_nonlinearity = torch.nn.Identity()
-        if 'restrict_support' in args.estimator and args.estimator.restrict_support:
-            transform_classes = (ContextualLogTransform,) + transform_classes
-            inputs_noise_nonlinearity = torch.nn.ReLU()
+        # Support restriction
+        if 'transform_classes' in default_names:
+            transform_classes = default_values[default_names.index('transform_classes') - 2]
+            inputs_noise_nonlinearity = torch.nn.Identity()
+            if 'restrict_support' in args.estimator and args.estimator.restrict_support:
+                transform_classes = (ContextualLogTransform,) + transform_classes
+                inputs_noise_nonlinearity = torch.nn.ReLU()
 
-        sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
-                              fit_params={**args.estimator.fit_params, 'transform_classes': transform_classes,
-                                          'inputs_noise_nonlinearity': inputs_noise_nonlinearity})
+            sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
+                                  fit_params={**args.estimator.fit_params, 'transform_classes': transform_classes,
+                                              'inputs_noise_nonlinearity': inputs_noise_nonlinearity})
+        else:
+            sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
+                                  fit_params=args.estimator.fit_params)
+
 
         # =================== Relative feature importance ===================
         # 1. G = MB(target_var), FoI = input_vars / MB(target_var)

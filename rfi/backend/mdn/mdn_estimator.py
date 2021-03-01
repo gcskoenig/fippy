@@ -4,6 +4,7 @@ import logging
 from torch import Tensor
 import torch
 import torch.nn as nn
+import torch.utils.data as data_utils
 from torch.distributions import Normal, OneHotCategorical, MixtureSameFamily, Independent
 from ray import tune
 import torch.nn.init as init
@@ -90,6 +91,7 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
                  n_epochs: int = 1000,
                  lr: float = 0.001,
                  weight_decay: float = 0.0,
+                 batch_size: int = None,
                  input_noise_std: float = 0.05,
                  context_noise_std: float = 0.1,
                  cat_context: np.array = None,
@@ -112,6 +114,7 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
         self.n_epochs = n_epochs
         self.device = device
         self.to(self.device)
+        self.batch_size = batch_size
 
         # Regularisation
         self.input_noise_std = input_noise_std
@@ -160,17 +163,22 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
         val_inputs, val_context = self._input_to_tensor(val_inputs, val_context)
         val_inputs, val_context = self._transform_normalise(val_inputs, val_context)
 
-        for i in range(self.n_epochs):
-            self.optimizer.zero_grad()
-            # Adding noise to data
-            noised_train_inputs = self._add_noise(train_inputs, self.input_noise_std)
-            noised_train_context = self._add_noise(train_context, self.context_noise_std)
+        train_data = data_utils.TensorDataset(train_inputs, train_context)
+        train_loader = data_utils.DataLoader(train_data, shuffle=True, drop_last=True,
+                                             batch_size=self.batch_size if self.batch_size is not None else len(train_data))
 
-            # Forward pass
-            loss = - self.log_prob(inputs=noised_train_inputs, context=noised_train_context,
-                                   data_normalization=False, context_one_hot_encoding=False).mean()
-            loss.backward()
-            self.optimizer.step()
+        for i in range(self.n_epochs):
+            for batch_train_inputs, batch_train_context in train_loader:
+                self.optimizer.zero_grad()
+                # Adding noise to data
+                noised_train_inputs = self._add_noise(batch_train_inputs, self.input_noise_std)
+                noised_train_context = self._add_noise(batch_train_context, self.context_noise_std)
+
+                # Forward pass
+                loss = - self.log_prob(inputs=noised_train_inputs, context=noised_train_context,
+                                       data_normalization=False, context_one_hot_encoding=False).mean()
+                loss.backward()
+                self.optimizer.step()
 
             if verbose and (i + 1) % log_frequency == 0:
                 with torch.no_grad():

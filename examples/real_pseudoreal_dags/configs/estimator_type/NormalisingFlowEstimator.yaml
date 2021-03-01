@@ -5,15 +5,16 @@ estimator_type: NormalisingFlowEstimator
 estimator:
   _target_: rfi.backend.cnf.${estimator_type}
   fit_method: fit
-  restrict_support: True
+  restrict_support: False
   fit_params:
     time_budget_s:
     verbose: True
-    inputs_normalization: False
+    inputs_normalization: True
+    batch_size:
   sampler:
     _target_: rfi.samplers.cnflow.CNFSampler
 
 
 data:
   normalise_params:
-    with_mean: False
+    with_mean: True
