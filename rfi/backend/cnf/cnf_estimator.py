@@ -170,12 +170,19 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
         val_inputs, val_context = self._input_to_tensor(val_inputs, val_context)
         val_inputs, val_context = self._transform_normalise(val_inputs, val_context)
 
-        train_data = data_utils.TensorDataset(train_inputs, train_context)
+        if train_context is not None:
+            train_data = data_utils.TensorDataset(train_inputs, train_context)
+        else:
+            train_data = data_utils.TensorDataset(train_inputs)
         train_loader = data_utils.DataLoader(train_data, shuffle=True, drop_last=True,
                                              batch_size=self.batch_size if self.batch_size is not None else len(train_data))
 
         for i in range(self.n_epochs):
-            for batch_train_inputs, batch_train_context in train_loader:
+            for batch in train_loader:
+                if len(batch) == 2:
+                    batch_train_inputs, batch_train_context = batch
+                else:
+                    batch_train_inputs, batch_train_context = batch[0], None
 
                 self.optimizer.zero_grad()
                 # Adding noise to data
