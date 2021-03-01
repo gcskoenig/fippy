@@ -134,7 +134,6 @@ def main(args: DictConfig):
             sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
                                   fit_params=args.estimator.fit_params)
 
-
         # =================== Relative feature importance ===================
         # 1. G = MB(target_var), FoI = input_vars / MB(target_var)
         G_vars_1 = list(dag.get_markov_blanket(target_var))
