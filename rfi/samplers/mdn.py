@@ -44,14 +44,10 @@ class MDNSampler(Sampler):
 
             # Categorical variable as input
             if not set(J).isdisjoint(self.cat_inputs):
-                logger.info('One hot encoding following inputs '
-                            'features: {}'.format(J))
-                logger.info('Fitting categorical sampler for '
-                            'features {}. '.format(J)
-                            'Fitting method: '
-                            '{}. '.format(self.fit_method)
-                            'Fitting parameters: '
-                            '{}'.format(self.fit_params))
+                logger.info(f'One hot encoding following inputs features:{J}')
+                logger.info(f'Fitting categorical sampler for fset {J}.')
+                logger.info(f'Fitting method: {self.fit_method}.')
+                logger.info(f'Fitting parameters: {self.fit_params}')
                 context_size = train_context.shape[1]
                 model = CategoricalEstimator(context_size=context_size,
                                              cat_context=cat_ixs,
