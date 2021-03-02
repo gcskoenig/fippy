@@ -477,9 +477,10 @@ class Explainer:
                                                        ex_name=None)
         return ex
 
-    def sage(self, type, X_test, y_test, nr_orderings,
-             nr_runs=10, sampler=None, loss=None,
-             train_allowed=True, return_orderings=False):
+    def sage(self, type, X_test, y_test, partial_ordering,
+             nr_orderings=None, approx=math.sqrt,
+             save_orderings=True, nr_runs=10, sampler=None,
+             loss=None, train_allowed=True):
         """
         Compute Shapley Additive Global Importance values.
         Args:
@@ -522,11 +523,34 @@ class Explainer:
                 loss = self.loss
                 logger.debug("Using class specified loss.")
 
-        lss = np.zeros(
-            (len(self.fsoi), nr_runs, X_test.shape[0], nr_orderings))
+        if nr_orderings is None:
+            nr_unique = utils.nr_unique_perm(partial_ordering)
+            if approx is not None:
+                nr_orderings = math.floor(approx(nr_unique))
+            else:
+                nr_orderings = nr_unique
+
+        nr_orderings_saved = 1
+        if save_orderings:
+            nr_orderings_saved = nr_orderings
+
+        # create dataframe for computation results
+        index = utils.create_multiindex(['ordering', 'sample', 'id'],
+                                        [np.arange(nr_orderings_saved),
+                                         np.arange(nr_runs),
+                                         X_test.shape[0]])
+        arr = np.zeros((nr_orderings_saved * nr_runs * X_test.shape[0],
+                        len(self.fsoi)))
+        scores = pd.DataFrame(arr, index=index, columns=self.fsoi)
+
+        # lss = np.zeros(
+        #     (len(self.fsoi), nr_runs, X_test.shape[0], nr_orderings))
 
         for ii in range(nr_orderings):
-            ordering = np.random.permutation(len(self.fsoi))
+            ordering = utils.sample_partial(partial_ordering)
+            logging.info('Ordering : {}'.format(ordering))
+
+            # ordering = np.random.permutation(len(self.fsoi))
             # resample multiple times
             for kk in range(nr_runs):
                 # enter one feature at a time
@@ -560,130 +584,17 @@ class Explainer:
                     y_hat_new = self.model(X_test_perturbed)
                     lb = loss(y_test, y_hat_base)
                     ln = loss(y_test, y_hat_new)
-                    lss[self.fsoi[ordering[jj - 1]], kk, :, ii] = lb - ln
+                    diff = lb - ln
+                    scores.loc[(ii, kk, slice(None)), ordering[jj - 1]] = diff
+                    # lss[self.fsoi[ordering[jj - 1]], kk, :, ii] = lb - ln
                     y_hat_base = y_hat_new
                 y_hat_new = self.model(X_test)
-                lss[self.fsoi[ordering[-1]], kk, :, ii] = loss(y_test, y_hat_base) - loss(y_test, y_hat_new)
+                diff = loss(y_test, y_hat_base) - loss(y_test, y_hat_new)
+                scores.loc[(ii, kk, slice(None)), ordering[jj - 1]] = diff
+                # lss[self.fsoi[ordering[-1]], kk, :, ii] = diff
 
         result = explanation.Explanation(
-            self.fsoi, lss,
-            fsoi_names=self.fsoi,
+            self.fsoi, scores,
             ex_name='SAGE')
 
-        if return_orderings:
-            raise NotImplementedError(
-                'Returning errors is not implemented yet.')
-
         return result
-
-
-   # def fa(self, X_test, y_test, K, sampler=None, loss=None, nr_runs=10,
-   #         return_perturbed=False, train_allowed=True):
-   #      """Computes Feature Association
-
-   #      # TODO(gcsk): allow handing a sample as argument
-   #      #             (without needing sampler)
-
-   #      Args:
-   #          X_test: data to use for resampling and evaluation.
-   #          y_test: labels for evaluation.
-   #          G: relative feature set
-   #          sampler: choice of sampler. Default None. Will throw an error
-   #            when sampler is None and self.sampler is None as well.
-   #          loss: choice of loss. Default None. Will throw an Error when
-   #            both loss and self.loss are None.
-   #          nr_runs: how often the experiment shall be run
-   #          return_perturbed: whether the sampled perturbed
-   #              versions shall be returned
-   #          train_allowed: whether the explainer is allowed
-   #              to train the sampler
-
-   #      Returns:
-   #          result: An explanation object with the RFI computation
-   #          perturbed_foiss (optional): perturbed features of
-   #              interest if return_perturbed
-   #      """
-
-   #      if sampler is None:
-   #          if self._sampler_specified():  # may throw an error
-   #              sampler = self.sampler
-   #              logger.debug("Using class specified sampler.")
-
-   #      if loss is None:
-   #          if self._loss_specified():  # may throw an error
-   #              loss = self.loss
-   #              logger.debug("Using class specified loss.")
-
-   #      all_fs = np.arange(X_test.shape[1])
-
-   #      # check whether the sampler is trained for the baseline perturbation
-   #      if not sampler.is_trained(all_fs, []):
-   #          # train if allowed, otherwise raise error
-   #          if train_allowed:
-   #              sampler.train(all_fs, [])
-   #              logger.info('Training sampler on {}|{}'.format(all_fs, []))
-   #          else:
-   #              raise RuntimeError(
-   #                  'Sampler is not trained on {}|{}'.format(all_fs, []))
-   #      else:
-   #          logger.debug(
-   #              '\tCheck passed: '
-   #              'Sampler is already trained on '
-   #              '{}|{}'.format(all_fs, []))
-
-   #      # check for each of the features of interest
-   #      for f in self.fsoi:
-   #          if not sampler.is_trained(K, [f]):
-   #              # train if allowed, otherwise raise error
-   #              if train_allowed:
-   #                  sampler.train(K, [f])
-   #                  logger.info('Training sampler on {}|{}'.format(K, [f]))
-   #              else:
-   #                  raise RuntimeError(
-   #                      'Sampler is not trained on {}|{}'.format(K, [f]))
-   #          else:
-   #              logger.debug(
-   #                  '\tCheck passed: '
-   #                  'Sampler is already trained on '
-   #                  '{}|{}'.format(K, [f]))
-
-   #      # initialize array for the perturbed samples
-   #      nr_fsoi, nr_features = len(self.fsoi), len(all_fs)
-   #      nr_obs = X_test.shape[0]
-   #      perturbed_reconstr = np.zeros((nr_fsoi, nr_obs, nr_runs, len(K)))
-   #      perturbed_baseline = np.zeros((nr_obs, nr_runs, nr_features))
-
-   #      # sample baseline
-   #      sample = sampler.sample(X_test, all_fs, [], num_samples=nr_runs)
-   #      perturbed_baseline = sample
-
-   #      # sample perturbed versions
-   #      for jj in range(len(self.fsoi)):
-   #          sample = sampler.sample(
-   #              X_test, K, [self.fsoi[jj]], num_samples=nr_runs)
-   #          perturbed_reconstr[jj, :, :, :] = sample
-
-   #      lss = np.zeros((len(self.fsoi), nr_runs, X_test.shape[0]))
-
-   #      # compute observasitonwise loss differences for all runs and fois
-   #      for jj in np.arange(0, len(self.fsoi), 1):
-   #          for kk in np.arange(0, nr_runs, 1):
-   #              # replaced with perturbe
-   #              X_test_reconstructed = np.array(perturbed_baseline[:, kk, :])
-   #              X_test_reconstructed[:, K] = perturbed_reconstr[jj, :, kk, :]
-   #              # compute difference in observationwise loss
-   #              l_pb = loss(y_test, self.model(perturbed_baseline[:, kk, :]))
-   #              l_rc = loss(y_test, self.model(X_test_reconstructed))
-   #              lss[jj, kk, :] = l_pb - l_rc
-
-   #      # return explanation object
-   #      result = explanation.Explanation(
-   #          self.fsoi, lss, fsoi_names=self.fsoi, ex_name='SI')
-   #      if return_perturbed:
-   #          raise NotImplementedError(
-   #              'Returning perturbed not implemented yet.')
-   #          # logger.debug('Return both explanation and perturbed.')
-   #          # return result, perturbed_baseline, perturbed_reconstr
-   #      else:
-   #          logger.debug('Return explanation object only')
-   #          return result
