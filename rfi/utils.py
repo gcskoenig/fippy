@@ -13,10 +13,12 @@ import math
 logger = logging.getLogger(__name__)
 
 
-def fset_to_ix(cnames, fset):
+def fset_to_ix(cnames, fset, sort=True):
     logger.warning('using fset_to_ix to convert columname'
                    'to numpy column index')
-    cnames = sorted(cnames)
+    if sort:
+        cnames = sorted(cnames)
+        fset = sorted(fset)
     ixs = [i for i, x in enumerate(cnames) if x in fset]
     ixs = np.array(ixs, dtype=np.int16)
     return ixs

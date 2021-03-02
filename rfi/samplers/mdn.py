@@ -4,7 +4,7 @@ Sampler based on conditional gaussian mixture networks
 import logging
 
 from rfi.samplers.sampler import Sampler
-from rfi.utils import search_nonsorted
+import rfi.utils as utils
 from rfi.backend.mdn import MixtureDensityNetworkEstimator
 from rfi.backend.categorical import CategoricalEstimator
 
@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class MDNSampler(Sampler):
-    def __init__(self, X_train, fit_method='fit_by_cv', fit_params={'time_budget_s': None}, **kwargs):
+    def __init__(self, X_train, fit_method='fit_by_cv', 
+                 fit_params={'time_budget_s': None}, **kwargs):
         super().__init__(X_train, **kwargs)
         self.fit_method = fit_method
         self.fit_params = fit_params if fit_params is not None else {}

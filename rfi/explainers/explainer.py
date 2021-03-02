@@ -480,7 +480,8 @@ class Explainer:
     def sage(self, type, X_test, y_test, partial_ordering,
              nr_orderings=None, approx=math.sqrt,
              save_orderings=True, nr_runs=10, sampler=None,
-             loss=None, train_allowed=True):
+             loss=None, train_allowed=True, D=None,
+             nr_resample_marginalize=10):
         """
         Compute Shapley Additive Global Importance values.
         Args:
@@ -530,6 +531,9 @@ class Explainer:
             else:
                 nr_orderings = nr_unique
 
+        if D is None:
+            D = X_test.columns
+
         nr_orderings_saved = 1
         if save_orderings:
             nr_orderings_saved = nr_orderings
@@ -538,7 +542,7 @@ class Explainer:
         index = utils.create_multiindex(['ordering', 'sample', 'id'],
                                         [np.arange(nr_orderings_saved),
                                          np.arange(nr_runs),
-                                         X_test.shape[0]])
+                                         np.arange(X_test.shape[0])])
         arr = np.zeros((nr_orderings_saved * nr_runs * X_test.shape[0],
                         len(self.fsoi)))
         scores = pd.DataFrame(arr, index=index, columns=self.fsoi)
@@ -555,14 +559,13 @@ class Explainer:
             for kk in range(nr_runs):
                 # enter one feature at a time
                 y_hat_base = np.repeat(
-                    np.mean(self.model(X_test)), X_test.shape[0])
-                for jj in np.arange(1, len(self.fsoi), 1):
+                    np.mean(self.model(X_test[D])), X_test.shape[0])
+                for jj in np.arange(1, len(ordering), 1):
                     # compute change in performance
                     # by entering the respective feature
                     # store the result in the right place
                     # validate training of sampler
-                    impute, fixed = self.fsoi[ordering[jj:]
-                                              ], self.fsoi[ordering[:jj]]
+                    impute, fixed = ordering[jj:], ordering[:jj]
                     logger.debug('{}:{}:{}: fixed, impute: {}|{}'.format(
                         ii, kk, jj, impute, fixed))
                     if not sampler.is_trained(impute, fixed):
@@ -576,19 +579,38 @@ class Explainer:
                             raise RuntimeError(
                                 'Sampler is not trained on '
                                 '{}|{}'.format(impute, fixed))
-                    X_test_perturbed = np.array(X_test)
-                    imps = sampler.sample(X_test, impute, fixed, num_samples=1)
-                    imps = imps.reshape((X_test.shape[0], len(impute)))
-                    X_test_perturbed[:, impute] = imps
+                    X_test_perturbed = X_test.copy()
+
+                    # iterate values nr_samples_marginalize times
+                    i_ix = X_test_perturbed.index.values
+                    rn_ix = np.arange(nr_resample_marginalize)
+                    index = utils.create_multiindex(['sample', 'id'],
+                                                    [rn_ix, i_ix])
+                    tiling = np.tile(np.arange(len(X_test_perturbed)),
+                                     nr_resample_marginalize)
+                    vals = X_test_perturbed.iloc[tiling].to_numpy()
+                    cols = X_test_perturbed.columns
+                    X_test_perturbed = pd.DataFrame(vals, index=index,
+                                                    columns=cols)
+                    imps = sampler.sample(X_test, impute, fixed,
+                                          num_samples=nr_resample_marginalize)
+
+                    X_test_perturbed[impute] = imps[impute].to_numpy()
                     # sample replacement, create replacement matrix
-                    y_hat_new = self.model(X_test_perturbed)
+                    y_hat_new = self.model(X_test_perturbed[D])
+
+                    # mean over samples
+                    df_y_hat_new = pd.DataFrame(y_hat_new, index=index,
+                                                columns=['y_hat_new'])
+                    y_hat_new_marg = df_y_hat_new.mean(level='id')
+
                     lb = loss(y_test, y_hat_base)
-                    ln = loss(y_test, y_hat_new)
+                    ln = loss(y_test, y_hat_new_marg)
                     diff = lb - ln
                     scores.loc[(ii, kk, slice(None)), ordering[jj - 1]] = diff
                     # lss[self.fsoi[ordering[jj - 1]], kk, :, ii] = lb - ln
-                    y_hat_base = y_hat_new
-                y_hat_new = self.model(X_test)
+                    y_hat_base = y_hat_new_marg
+                y_hat_new = self.model(X_test[D])
                 diff = loss(y_test, y_hat_base) - loss(y_test, y_hat_new)
                 scores.loc[(ii, kk, slice(None)), ordering[jj - 1]] = diff
                 # lss[self.fsoi[ordering[-1]], kk, :, ii] = diff
