@@ -50,6 +50,11 @@ class Sampler:
     def _order_fset(S):
         return sorted(S)
 
+    @staticmethod
+    def _pd_to_np(df):
+        np_arr = df[sorted(df.columns)].to_numpy()
+        return np.arr
+
     def is_trained(self, J, G):
         """Indicates whether the Sampler has been trained
         on a specific RFI set G for features J.

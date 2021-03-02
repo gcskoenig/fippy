@@ -132,7 +132,7 @@ class Explainer:
                 logger.debug(txt)
 
         # initialize array for the perturbed samples
-        nr_fsoi, nr_obs = len(self.fsoi), X_eval.shape[0]
+        nr_obs = X_eval.shape[0]
         index = utils.create_multiindex(['sample', 'i'],
                                         [np.arange(nr_runs),
                                          np.arange(nr_obs)])
@@ -154,7 +154,8 @@ class Explainer:
             for kk in np.arange(0, nr_runs, 1):
                 # replaced with perturbed
                 X_eval_tilde = X_eval.copy()
-                X_eval_tilde[foi] = X_fsoi_pert.loc[(kk, slice(None)), foi].to_numpy()
+                arr = X_fsoi_pert.loc[(kk, slice(None)), foi].to_numpy()
+                X_eval_tilde[foi] = arr
                 # X_eval_one_perturbed[:, self.fsoi[jj]]
                 # = perturbed_foiss[jj, kk, :]
                 # using only seen while training features
@@ -284,12 +285,12 @@ class Explainer:
         index_bsln = utils.create_multiindex(['sample', 'i'],
                                              [np.arange(nr_runs),
                                               np.arange(nr_obs)])
-        X_eval_tilde_bsln = pd.DataFrame([], index=index_bsln)
+        X_eval_tilde_bsln = pd.DataFrame([], index=index_bsln, columns=D)
         index_rcnstr = utils.create_multiindex(['foi', 'sample', 'i'],
                                                [self.fsoi,
                                                 np.arange(nr_runs),
                                                 np.arange(nr_obs)])
-        X_eval_tilde_rcnstr = pd.DataFrame([], index=index_rcnstr)
+        X_eval_tilde_rcnstr = pd.DataFrame([], index=index_rcnstr, columns=D)
 
         # sample baseline
         X_eval_tilde_bsln = sampler.sample(X_eval, D, [], num_samples=nr_runs)
@@ -300,7 +301,8 @@ class Explainer:
             for kk in np.arange(nr_runs):
                 sample_decorr = decorrelator.decorrelate(sample.loc[kk, :],
                                                          K, [foi], [])
-                X_eval_tilde_rcnstr.loc[foi, :, :] = sample_decorr
+                sd_np = sample_decorr[D].to_numpy()
+                X_eval_tilde_rcnstr.loc[(foi, kk, slice(None)), D] = sd_np
 
         # create empty scores data frame
         index_scores = utils.create_multiindex(['sample', 'i'],
@@ -310,11 +312,13 @@ class Explainer:
 
         # compute observasitonwise loss differences for all runs and fois
         for kk in np.arange(nr_runs):
-            l_pb = loss(y_eval, self.model(X_eval_tilde_bsln.loc[kk, :][D]))
+            breakpoint()
+            X_bl = X_eval_tilde_bsln.loc[(kk, slice(None)), D]
+            l_pb = loss(y_eval, self.model(X_bl))
             for foi in self.fsoi:
-                l_rc = loss(y_eval,
-                            self.model(X_eval_tilde_rcnstr[foi, kk, :][D]))
-                scores.loc[kk, :][foi] = l_pb - l_rc
+                X_rc = X_eval_tilde_rcnstr.loc[(foi, kk, slice(None)), D]
+                l_rc = loss(y_eval, self.model(X_rc))
+                scores.loc[(kk, slice(None)), foi] = l_pb - l_rc
 
         if ex_name is None:
             ex_name = 'Unknown rfa'

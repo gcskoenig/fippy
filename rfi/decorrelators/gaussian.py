@@ -1,6 +1,7 @@
 from rfi.decorrelators.decorrelator import Decorrelator
 from rfi.backend.gaussian import GaussianConditionalEstimator
 from rfi.samplers.gaussian import GaussianSampler
+import rfi.utils as utils
 import numpy as np
 import logging
 
@@ -23,87 +24,98 @@ class GaussianDecorrelator(Decorrelator):
         """
         Trains sampler using dataset to resample variable jj relative to G.
         Args:
-            J: features of interest
-            G: arbitrary set of variables
+            K: features to be knocked out from J cup C to C
+            J: features on top of baseline
+            C: baseline conditioning set
             verbose: printing
         """
-        K = Decorrelator._to_array(K)
-        J = Decorrelator._to_array(J)
-        C = Decorrelator._to_array(C)
+        K = Decorrelator._to_array(Decorrelator._order_fset(K))
+        J = Decorrelator._to_array(Decorrelator._order_fset(J))
+        C = Decorrelator._to_array(Decorrelator._order_fset(C))
         super().train(K, J, C, verbose=verbose)
 
-        if not False:
-            K_intersect_J = np.intersect1d(K, J)
-            K_leftover = np.setdiff1d(np.setdiff1d(K, J), C)
+        K_intersect_J = np.intersect1d(K, J)
+        K_leftover = np.setdiff1d(np.setdiff1d(K, J), C)
+        K_intersect_J = Decorrelator._order_fset(K_intersect_J)
+        K_leftover = Decorrelator._order_fset(K_leftover)
 
-            if K_intersect_J.shape[0] > 0:
-                intersectsampler = GaussianSampler(self.X_train)
-                intersectsampler.train(K_intersect_J, C)
+        if len(K_intersect_J) > 0:
+            intersectsampler = GaussianSampler(self.X_train)
+            intersectsampler.train(K_intersect_J, C)
 
-            estimators = []  # will be filled with tuples (cdf, icdf)
+        estimators = []  # will be filled with tuples (cdf, icdf)
 
-            for jj in np.arange(K_leftover.shape[0]):
-                logger.debug('{}(k) idp {} | {}'.format(K_leftover[jj], J, C))
+        for jj in range(len(K_leftover)):
+            logger.debug('{}(k) idp {} | {}'.format(K_leftover[jj], J, C))
 
-                estimator_cdf = GaussianConditionalEstimator()
-                estimator_icdf = GaussianConditionalEstimator()
+            estimator_cdf = GaussianConditionalEstimator()
+            estimator_icdf = GaussianConditionalEstimator()
 
-                ixs_perturbed_cdf = np.setdiff1d(K_leftover[:jj],
-                                                 np.union1d(J, C))
-                tupl = (self.X_train[:, np.union1d(J, C)],
-                        self.X_train[:, ixs_perturbed_cdf])
-                context_cdf_fit = np.concatenate(tupl, axis=1)  # for fit
-                estimator_cdf.fit(self.X_train[:, K_leftover[jj]],
-                                  context_cdf_fit)
-                txt = 'estimator cdf, '
-                txt = txt + 'Sigma: {}, '.format(estimator_cdf.Sigma)
-                txt = txt + 'RegrCoef: {}'.format(estimator_cdf.RegrCoeff)
-                logger.debug(txt)
+            # build context and target, train
+            # here: K_leftover[jj] | J cup C cup already_perturbed
+            J_and_C = sorted(set(J).union(C))
+            Ptbd_cdf = sorted(set(K_leftover[:jj]).union(J_and_C))
 
-                ixs_perturbed_icdf = np.setdiff1d(K_leftover[:jj], C)
-                tpl = (self.X_train[:, C], self.X_train[:, ixs_perturbed_icdf])
-                context_icdf_fit = np.concatenate(tpl, axis=1)  # for fit
-                estimator_icdf.fit(self.X_train[:, K_leftover[jj]],
-                                   context_icdf_fit)
-                estimators.append((estimator_cdf, estimator_icdf))
-                txt = 'estimator icdf, '
-                txt = txt + 'Sigma: {}, '.format(estimator_icdf.Sigma)
-                txt = txt + 'RegrCoef: {}'.format(estimator_icdf.RegrCoeff)
-                logger.debug(txt)
+            tupl = (self.X_train.loc[:, J_and_C].to_numpy(),
+                    self.X_train.loc[:, Ptbd_cdf].to_numpy())
+            context_cdf_fit = np.concatenate(tupl, axis=1)  # for fit
+            estimator_cdf.fit(self.X_train.loc[:, K_leftover[jj]].to_numpy(),
+                              context_cdf_fit)
+            txt = 'estimator cdf, '
+            txt = txt + 'Sigma: {}, '.format(estimator_cdf.Sigma)
+            txt = txt + 'RegrCoef: {}'.format(estimator_cdf.RegrCoeff)
+            logger.debug(txt)
 
-            def decorrelationfunc(X_test):
-                values_test = np.array(X_test)
+            # build context and target, train
+            # here: K_leftover[jj] | C cup already_perturbed
+            Ptbd_icdf = sorted(set(K_leftover[:jj]).difference(C))
+            tpl = (self.X_train.loc[:, C].to_numpy(),
+                   self.X_train.loc[:, Ptbd_icdf].to_numpy())
+            context_icdf_fit = np.concatenate(tpl, axis=1)  # for fit
+            estimator_icdf.fit(self.X_train.loc[:, K_leftover[jj]].to_numpy(),
+                               context_icdf_fit)
+            estimators.append((estimator_cdf, estimator_icdf))
+            txt = 'estimator icdf, '
+            txt = txt + 'Sigma: {}, '.format(estimator_icdf.Sigma)
+            txt = txt + 'RegrCoef: {}'.format(estimator_icdf.RegrCoeff)
+            logger.debug(txt)
 
-                if K_intersect_J.shape[0] > 0:
-                    smpl = intersectsampler.sample(X_test, K_intersect_J, C)
-                    smpl = np.transpose(smpl, (0, 1, 2))
-                    smpl = smpl.reshape(values_test.shape[0],
-                                        K_intersect_J.shape[0])
-                    values_test[:, K_intersect_J] = smpl
+        def decorrelationfunc(X_test):
+            values_test = X_test.copy()
 
-                for jj in np.arange(K_leftover.shape[0]):
-                    estimator_cdf, estimator_icdf = estimators[jj]
+            # index in K that are in J can directly be resampled using C
+            if len(K_intersect_J) > 0:
+                smpl = intersectsampler.sample(X_test, K_intersect_J, C)
+                values_test.loc[:, K_intersect_J] = smpl
 
-                    ixs_perturbed_cdf = np.setdiff1d(K_leftover[:jj],
-                                                     np.union1d(J, C))
-                    tpl = (X_test[:, np.union1d(J, C)],
-                           values_test[:, ixs_perturbed_cdf])
-                    context_cdf_test = np.concatenate(tpl, axis=1)  # for cdf
-                    qs_test = estimator_cdf.cdf(X_test[:, K_leftover[jj]],
-                                                context_cdf_test)
+            # the remaining features in K have to be decorrelated
+            for jj in range(len(K_leftover)):
+                estimator_cdf, estimator_icdf = estimators[jj]
 
-                    ixs_perturbed_icdf = np.setdiff1d(K_leftover[:jj], C)
-                    tpl = (X_test[:, C], values_test[:, ixs_perturbed_icdf])
-                    context_icdf_test = np.concatenate(tpl, axis=1)  # for cdf
-                    tmp = estimator_icdf.icdf(qs_test, context_icdf_test)
-                    values_test[:, K_leftover[jj]] = tmp
+                # build context and target, sample
+                # here: quantiles of K_leftover[jj] | J and C and perturbed
+                J_and_C = sorted(set(J).union(C))
+                Ptbd_cdf = sorted(set(K_leftover[:jj]).union(J_and_C))
+                tpl = (X_test.loc[:, J_and_C].numpy(),
+                       values_test.loc[:, Ptbd_cdf].numpy())
+                context_cdf_test = np.concatenate(tpl, axis=1)  # for cdf
+                inputs_cdf_test = X_test.loc[:, K_leftover[jj]].to_numpy()
+                qs_test = estimator_cdf.cdf(inputs_cdf_test,
+                                            context_cdf_test)
 
-                return values_test
+                # build context and target, sample
+                # here: values of K_leftover[jj] | quantiles of C and perturbed
+                Ptbd_icdf = sorted(set(K_leftover[:jj]).difference(C))
+                tpl = (X_test.loc[:, C].to_numpy(),
+                       values_test.loc[:, Ptbd_icdf].to_numpy())
+                context_icdf_test = np.concatenate(tpl, axis=1)  # for cdf
+                tmp = estimator_icdf.icdf(qs_test, context_icdf_test)
+                values_test.loc[:, K_leftover[jj]] = tmp
 
-            self._store_decorrelationfunc(K, J, C,
-                                          decorrelationfunc,
-                                          verbose=verbose)
+            return values_test  # pandas dataframe
 
-            return None  # TODO implement returning/saving estimators
-        else:
-            return None
+        self._store_decorrelationfunc(K, J, C,
+                                      decorrelationfunc,
+                                      verbose=verbose)
+
+        return None  # TODO implement returning/saving estimators
