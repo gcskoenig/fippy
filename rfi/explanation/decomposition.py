@@ -21,6 +21,13 @@ class DecompositionExplanation(Explanation):
     def __init__(self, fsoi, scores, ex_name=None):
         Explanation.__init__(self, fsoi, scores, ex_name=ex_name)
 
+    @staticmethod
+    def from_csv(path, filename):
+        scores = pd.read_csv(path + filename + '.csv')
+        scores = scores.set_index(['component', 'ordering', 'sample'])
+        ex = DecompositionExplanation(scores.columns, scores, ex_name=filename)
+        return ex
+
     # def _check_shape(self):
     #     if len(self.lss.shape) != 4:
     #         raise RuntimeError('.lss has shape {self.lss.shape}.'
@@ -65,10 +72,27 @@ class DecompositionExplanation(Explanation):
         df = pd.DataFrame(sr, columns=['importance'])
         return df.copy()
 
-    def fi_decomp(self):
+    def fi_decomp(self, sorted=True):
         df = self.fi_cols_to_index()
         df = df.groupby(['feature', 'component', 'sample']).mean()
-        return df
+        if not sorted:
+            return df
+        else:
+            fi_ordering = df.loc[:, 'total', :].mean(level=0)
+            fi_ordering = fi_ordering.sort_values('importance',
+                                                  ascending=False)
+            fi_ordering = list(fi_ordering.index.values)
+            cmpn_ordering = ['total', 'remainder'] + fi_ordering
+
+            fs_indx = df.index.levels[0].astype('category')
+            fs_indx = fs_indx.reorder_categories(fi_ordering)
+            cmpn_indx = df.index.levels[1].astype('category')
+            cmpn_indx = cmpn_indx.reorder_categories(cmpn_ordering)
+            df.index = df.index.set_levels([fs_indx,
+                                            cmpn_indx,
+                                            df.index.levels[2]])
+            df = df.sort_index()
+            return df
 
     def decomp_hbarplot(self, figsize=None, ax=None):
         """

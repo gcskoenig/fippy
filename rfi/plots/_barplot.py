@@ -69,7 +69,8 @@ def fi_sns_gbarplot(dex, ax=None, figsize=None):
     df.reset_index(inplace=True)
     # df.sort_values('importance', axis=0, ascending=False, inplace=True)
     sns.barplot(x='importance', hue='component', y='feature',
-                ax=ax, ci='sd', data=df)
+                ax=ax, ci='sd', data=df,
+                palette=sns.color_palette())
     return ax
 
 

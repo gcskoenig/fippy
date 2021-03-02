@@ -31,6 +31,13 @@ class Explanation:
         if ex_name is None:
             self.ex_name = 'Unknown'
 
+    @staticmethod
+    def from_csv(path):
+        scores = pd.read_csv(path)
+        scores = scores.set_index(['sample', 'id'])
+        ex = Explanation(scores.columns, scores)
+        return ex
+
     def _check_shape(self):
         """Checks whether the array confirms the
         specified shape (3 dimensional).
@@ -42,6 +49,13 @@ class Explanation:
         # if len(self.lss.shape) != 3:
         #     raise RuntimeError('.lss has shape {self.lss.shape}.'
         #                        'Expected 3-dim.')
+
+    def to_csv(self, savepath=None, filename=None):
+        if savepath is None:
+            savepath = ''
+        if filename is None:
+            filename = 'scores_' + self.ex_name + '.csv'
+        self.scores.to_csv(savepath + filename)
 
     def fi_vals(self, fnames_as_columns=True):
         """ Computes the sample-wide RFI for each run
