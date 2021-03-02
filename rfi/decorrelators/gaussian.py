@@ -86,7 +86,7 @@ class GaussianDecorrelator(Decorrelator):
             # index in K that are in J can directly be resampled using C
             if len(K_intersect_J) > 0:
                 smpl = intersectsampler.sample(X_test, K_intersect_J, C)
-                values_test.loc[:, K_intersect_J] = smpl
+                values_test.loc[:, K_intersect_J] = smpl.to_numpy()
 
             # the remaining features in K have to be decorrelated
             for jj in range(len(K_leftover)):
@@ -96,8 +96,8 @@ class GaussianDecorrelator(Decorrelator):
                 # here: quantiles of K_leftover[jj] | J and C and perturbed
                 J_and_C = sorted(set(J).union(C))
                 Ptbd_cdf = sorted(set(K_leftover[:jj]).union(J_and_C))
-                tpl = (X_test.loc[:, J_and_C].numpy(),
-                       values_test.loc[:, Ptbd_cdf].numpy())
+                tpl = (X_test.loc[:, J_and_C].to_numpy(),
+                       values_test.loc[:, Ptbd_cdf].to_numpy())
                 context_cdf_test = np.concatenate(tpl, axis=1)  # for cdf
                 inputs_cdf_test = X_test.loc[:, K_leftover[jj]].to_numpy()
                 qs_test = estimator_cdf.cdf(inputs_cdf_test,

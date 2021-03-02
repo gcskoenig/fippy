@@ -8,6 +8,7 @@ import mlflow
 import itertools
 import pandas as pd
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,14 @@ def flatten_gen(ls):
 
 def flatten(ls):
     return list(flatten_gen(ls))
+
+
+def nr_unique_perm(partial_ordering):
+    nr = 1
+    for item in partial_ordering:
+        nr_local = math.factorial(len(item))
+        nr = nr * nr_local
+    return nr
 
 
 def sample_partial(partial_ordering):

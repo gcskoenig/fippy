@@ -23,7 +23,7 @@ class DecompositionExplanation(Explanation):
 
     @staticmethod
     def from_csv(path, filename):
-        scores = pd.read_csv(path + filename + '.csv')
+        scores = pd.read_csv(path + filename)
         scores = scores.set_index(['component', 'ordering', 'sample'])
         ex = DecompositionExplanation(scores.columns, scores, ex_name=filename)
         return ex

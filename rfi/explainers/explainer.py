@@ -11,6 +11,7 @@ import rfi.explanation.explanation as explanation
 import logging
 import rfi.explanation.decomposition as decomposition_ex
 import enlighten  # TODO add to requirements
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -312,7 +313,6 @@ class Explainer:
 
         # compute observasitonwise loss differences for all runs and fois
         for kk in np.arange(nr_runs):
-            breakpoint()
             X_bl = X_eval_tilde_bsln.loc[(kk, slice(None)), D]
             l_pb = loss(y_eval, self.model(X_bl))
             for foi in self.fsoi:
@@ -335,7 +335,8 @@ class Explainer:
             return result
 
     def decomposition(self, imp_type, fsoi, partial_ordering, X_eval, y_eval,
-                      nr_orderings=None, nr_runs=3, show_pbar=True, **kwargs):
+                      nr_orderings=None, nr_runs=3, show_pbar=True,
+                      approx=math.sqrt, save_orderings=True, **kwargs):
         """
         Given a partial ordering, this code allows to decompose
         feature importance or feature association for a given set of
@@ -359,7 +360,13 @@ class Explainer:
                 (#components, #fsoi)
         """
         if nr_orderings is None:
-            nr_orderings = len(utils.flatten(partial_ordering))**2
+            nr_unique = utils.nr_unique_perm(partial_ordering)
+            if approx is not None:
+                nr_orderings = math.floor(approx(nr_unique))
+            else:
+                nr_orderings = nr_unique
+
+        logger.info('#orderings: {}'.format(nr_orderings))
 
         explnr_fnc = None
         if imp_type == 'rfi':
@@ -380,12 +387,29 @@ class Explainer:
         component_names.insert(0, 'total')
         nr_components = len(component_names)
 
+        nr_orderings_saved = 1
+        if save_orderings:
+            nr_orderings_saved = nr_orderings
+
+        def rescale_fi_vals(fi_vals_old, fi_vals, component, ordering_nr):
+            '''
+            Necessary to compute the running mean when not saving
+            every ordering.
+            Assuming fi_vals are np.array, ordering_nr
+            run number in range(0, nr_orderings)
+            df the decomposition dataframe
+            '''
+            fi_vals_old_scaled = fi_vals_old * (ordering - 1) / ordering
+            fi_vals_scaled = fi_vals / ordering
+            fi_vals_new = fi_vals_old_scaled + fi_vals_scaled
+            return fi_vals_new
+
         # create dataframe for computation results
         index = utils.create_multiindex(['component', 'ordering', 'sample'],
                                         [component_names,
-                                         np.arange(nr_orderings),
+                                         np.arange(nr_orderings_saved),
                                          np.arange(nr_runs)])
-        arr = np.zeros((nr_components * nr_orderings * nr_runs,
+        arr = np.zeros((nr_components * nr_orderings_saved * nr_runs,
                         len(self.fsoi)))
         decomposition = pd.DataFrame(arr, index=index, columns=self.fsoi)
         # values = np.zeros((nr_orderings, nr_runs, nr_components, len(fsoi)))
@@ -404,9 +428,17 @@ class Explainer:
 
             # total values
             expl = explnr_fnc(X_eval, y_eval, [], nr_runs=nr_runs, **kwargs)
-            decomposition.loc['total', kk, :] = expl.fi_vals().to_numpy()
+            fi_vals = expl.fi_vals().to_numpy()
 
-            previous = decomposition.loc['total', kk, :].to_numpy()
+            # store total values
+            if save_orderings:
+                decomposition.loc['total', kk, :] = fi_vals
+            else:
+                fi_old = decomposition.loc['total', 0, :].to_numpy()
+                fi_vals = rescale_fi_vals(fi_old, fi_vals, 'total', kk)
+                decomposition.loc['total', 0, :] = fi_vals
+
+            previous = fi_vals
             current = None
 
             for jj in np.arange(1, len(ordering) + 1):
@@ -419,10 +451,26 @@ class Explainer:
                 current = expl.fi_vals().to_numpy()
 
                 # compute difference
-                decomposition.loc[current_ix, kk, :] = previous - current
+                fi_vals = previous - current
+
+                # store result
+                if save_orderings:
+                    decomposition.loc[current_ix, kk, :] = fi_vals
+                else:
+                    fi_old = decomposition.loc[current_ix, 0, :].to_numpy()
+                    fi_vals = rescale_fi_vals(fi_old, fi_vals, current_ix, kk)
+                    decomposition.loc[current_ix, 0, :] = fi_vals
+
                 previous = current
 
-            decomposition.loc['remainder', kk, :] = previous
+            # store remainder
+            if save_orderings:
+                decomposition.loc['remainder', kk, :] = current
+            else:
+                fi_old = decomposition.loc['remainder', 0, :].to_numpy()
+                fi_vals = rescale_fi_vals(fi_old, current,
+                                          'remainder', kk)
+                decomposition.loc['remainder', 0, :] = fi_vals
 
         ex = decomposition_ex.DecompositionExplanation(self.fsoi,
                                                        decomposition,
