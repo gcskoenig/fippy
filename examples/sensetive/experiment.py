@@ -8,7 +8,7 @@ from omegaconf import DictConfig, OmegaConf
 import importlib
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, KBinsDiscretizer
 import seaborn as sns
 import pandas as pd
 from os.path import dirname, abspath
@@ -38,13 +38,26 @@ def main(args: DictConfig):
     data_df, y = shap.datasets.adult()
     data_df['Salary'] = y
 
+    # Binning for Capital Gain
+    if args.exp.discretize:
+        discretized_vars = set(list(args.exp.discretize))
+        discretizer = KBinsDiscretizer(n_bins=50, encode='ordinal', strategy='uniform')
+        data_df.loc[:, discretized_vars] = discretizer.fit_transform(data_df.loc[:, discretized_vars].values).astype(int)
+
     target_var = {'Salary'}
     all_inputs_vars = set(data_df.columns) - target_var
     sensetive_vars = set(list(args.exp.sensetive_vars))
     wo_sens_inputs_vars = all_inputs_vars - sensetive_vars
     cat_vars = set(data_df.select_dtypes(exclude=[np.floating]).columns.values)
+    cont_vars = all_inputs_vars - cat_vars
     logger.info(f'Target var: {target_var}, all_inputs: {all_inputs_vars}, sensetive_vars: {sensetive_vars}, '
                 f'cat_vars: {cat_vars}')
+
+
+
+    if args.data.standard_normalize:
+        standard_normalizer = StandardScaler()
+        data_df.loc[:, cont_vars] = standard_normalizer.fit_transform(data_df[cont_vars].values)
 
     train_df, test_df = train_test_split(data_df, test_size=args.data.test_ratio, random_state=args.data.split_seed)
     y_train, X_train, X_train_wo_sens = train_df[target_var], train_df[all_inputs_vars], train_df[wo_sens_inputs_vars]

@@ -2,6 +2,7 @@
 data:
   test_ratio: 0.2
   split_seed: 42
+  standard_normalize: True
 
 # Conditional density estimator
 estimator:
@@ -37,7 +38,8 @@ predictors:
 exp:
   check_exisisting_hash: False
   mlflow_uri: http://127.0.0.1:5000
-  sensetive_vars: ['Race']
+  sensetive_vars: ['Sex']
+  discretize: ['Capital Gain']
   rfi:
     nr_runs: 50
 
