@@ -53,8 +53,6 @@ def main(args: DictConfig):
     logger.info(f'Target var: {target_var}, all_inputs: {all_inputs_vars}, sensetive_vars: {sensetive_vars}, '
                 f'cat_vars: {cat_vars}')
 
-
-
     if args.data.standard_normalize:
         standard_normalizer = StandardScaler()
         data_df.loc[:, cont_vars] = standard_normalizer.fit_transform(data_df[cont_vars].values)
