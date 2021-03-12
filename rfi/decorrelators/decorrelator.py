@@ -8,6 +8,7 @@ import rfi.utils as utils
 import numpy as np
 import logging
 from typing import Union, Callable
+from rfi.samplers.sampler import Sampler
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +35,21 @@ class Decorrelator:
         """
         Converts array to key for trainedCs Dict
         """
-        return utils.to_key(S)
+        return Sampler._to_key(S)
 
     @staticmethod
     def _to_array(S):
         """Coverts to numpy array
         """
-        return np.array(S, dtype=np.int16).reshape(-1)
+        return Sampler._to_array(S)
+
+    @staticmethod
+    def _order_fset(S):
+        return Sampler._order_fset(S)
+
+    @staticmethod
+    def _pd_to_np(df):
+        return Sampler._pd_to_np(df)
 
     def is_trained(self, K, J, C):
         """Indicates whether the Decorrelator has been trained
@@ -53,8 +62,8 @@ class Decorrelator:
             Whether the sampler was trained with respect to
             a set C.
         """
-        K_key, C_key, J_key = Decorrelator._to_key(
-            K), Decorrelator._to_key(C), Decorrelator._to_key(J)
+        K_key = Decorrelator._to_key(K)
+        C_key, J_key = Decorrelator._to_key(C), Decorrelator._to_key(J)
         trained = (K_key, J_key, C_key) in self._trained_decorrelation_funcs
         return trained
 
@@ -84,8 +93,8 @@ class Decorrelator:
 
     #     return degenerate
 
-    def _store_decorrelationfunc(self, K: np.array, J: np.array, C: np.array,
-                                 samplefunc: Callable[[np.array], np.array],
+    def _store_decorrelationfunc(self, K, J, C,
+                                 samplefunc,
                                  verbose=True):
         """Storing a trained sample function
 
@@ -101,7 +110,7 @@ class Decorrelator:
         self._trained_decorrelation_funcs[(K_key, J_key, C_key)] = samplefunc
         logger.info('Training ended. Decorrelator saved.')
 
-    def train(self, K: np.array, J: np.array, C: np.array, verbose=True):
+    def train(self, K, J, C, verbose=True):
         """Trains decorrelator such that X_K idp X_J | X_C
 
         Args:
@@ -118,8 +127,8 @@ class Decorrelator:
             raise RuntimeError(
                 'J and C share indices, but should be dinjoint.')
 
-    def decorrelate(self, X_test: np.array, K: np.array, J: np.array,
-                    C: np.array, num_samples: int = 1):
+    def decorrelate(self, X_test, K, J,
+                    C, num_samples=1):
         """Sample features of interest using trained resampler.
 
         Args:
@@ -142,11 +151,14 @@ class Decorrelator:
         K_key, C_key, J_key = Decorrelator._to_key(
             K), Decorrelator._to_key(C), Decorrelator._to_key(J)
 
+        if num_samples != 1:
+            raise NotImplementedError('only num_samples 1 implemented.')
+
         if not self.is_trained(K, J, C):
             raise RuntimeError(
                 "Decorrelator not trained for {} ⟂ {} | {}".format(K, J, C))
         else:
-            decorrelationfunc = self._trained_decorrelation_funcs[(
-                K_key, J_key, C_key)]
-            decorrelated_data = decorrelationfunc(X_test)
+            decorrf = self._trained_decorrelation_funcs[(K_key, J_key, C_key)]
+            #X_test_np = Decorrelator._pd_to_np(X_test)  # ordering columns
+            decorrelated_data = decorrf(X_test)
             return decorrelated_data

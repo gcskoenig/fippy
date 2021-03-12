@@ -4,13 +4,13 @@ estimator_type: NormalisingFlowEstimator
 # Estimating model specific params
 estimator:
   _target_: rfi.backend.cnf.${estimator_type}
-  fit_method: fit
+  fit_method: fit_by_cv
   restrict_support: False
   fit_params:
     time_budget_s:
     verbose: True
-    inputs_normalization: True
     batch_size:
+    num_cpus: 10
   sampler:
     _target_: rfi.samplers.cnflow.CNFSampler
 

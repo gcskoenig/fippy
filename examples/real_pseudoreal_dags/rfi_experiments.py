@@ -4,20 +4,26 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 import importlib
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 import pandas as pd
+from os.path import dirname, abspath
 import numpy as np
 import inspect
+import torch
 import logging
 
-from rfi.backend.causality import DirectedAcyclicGraph, LinearGaussianNoiseSEM
-from rfi.backend.goodness_of_fit import conditional_hellinger_distance, conditional_kl_divergence, conditional_js_divergence
 from rfi.backend.utils import flatten_dict
-from rfi.utils import search_nonsorted, check_existing_hash
+from rfi.backend.causality import DirectedAcyclicGraph
 import rfi.explainers.explainer as explainer
+from rfi.utils import search_nonsorted, check_existing_hash
+from rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform, \
+    ContextualLogTransform
 
 
 logger = logging.getLogger(__name__)
+ROOT_PATH = dirname(abspath(__file__))
 
 
 @hydra.main(config_path='configs', config_name='config.yaml')
@@ -25,50 +31,69 @@ def main(args: DictConfig):
 
     # Non-strict access to fields
     OmegaConf.set_struct(args, False)
+    args.exp.pop('sage')
 
     # Adding default estimator params
-    default_names, _, _, default_values, _, _, _ = \
-        inspect.getfullargspec(instantiate(args.estimator, context_size=0).__class__.__init__)
+    estimator = instantiate(args.estimator, context_size=0)
+    default_names, _, _, default_values, _, _, _ = inspect.getfullargspec(estimator.__class__.__init__)
     if default_values is not None:
         args.estimator['defaults'] = {
             n: str(v) for (n, v) in zip(default_names[len(default_names) - len(default_values):], default_values)
         }
-        args.estimator['defaults'].pop('cat_context')
+        args.estimator['grid_size'] = int(np.prod([len(par_values['grid_search'])
+                                                   for par_values in estimator.default_hparam_grid.values()]))
+
     logger.info(OmegaConf.to_yaml(args, resolve=True))
 
-    # Data generator init
-    dag = DirectedAcyclicGraph.random_dag(**args.data_generator.dag)
-    # if 'interpolation_switch' in args.data_generator.sem:
-    #     args.data_generator.sem.interpolation_switch = args.data.n_train + args.data.n_test
-    sem = instantiate(args.data_generator.sem, dag=dag)
+    # Data-generating DAG
+    data_path = hydra.utils.to_absolute_path(f'{ROOT_PATH}/{args.data.relative_path}')
+    exp_name = args.data.relative_path.split('/')[-1]
+    adjacency_matrix = np.load(f'{data_path}/DAG{args.data.sample_ind}.npy').astype(int)
+    if exp_name == 'sachs_2005':
+        var_names = np.load(f'{data_path}/sachs-header.npy')
+    else:
+        var_names = [f'x{i}' for i in range(len(adjacency_matrix))]
+    dag = DirectedAcyclicGraph(adjacency_matrix, var_names)
 
     # Experiment tracking
     mlflow.set_tracking_uri(args.exp.mlflow_uri)
-    mlflow.set_experiment(args.data_generator.sem_type)
+    mlflow.set_experiment(exp_name)
 
     # Checking if run exist
-    if check_existing_hash(args, args.data_generator.sem_type):
+    if check_existing_hash(args, exp_name):
         logger.info('Skipping existing run.')
         return
     else:
         logger.info('No runs found - perfoming one.')
 
+    # Loading Train-test data
+    data = np.load(f'{data_path}/data{args.data.sample_ind}.npy')
+    if args.data.standard_normalize:
+        if 'normalise_params' in args.data:
+            standard_normalizer = StandardScaler(**args.data.normalise_params)
+        else:
+            standard_normalizer = StandardScaler()
+        data = standard_normalizer.fit_transform(data)
+    data_train, data_test = train_test_split(data, test_size=args.data.test_ratio, random_state=args.data.split_seed)
+    train_df = pd.DataFrame(data_train, columns=dag.var_names)
+    test_df = pd.DataFrame(data_test, columns=dag.var_names)
+
     mlflow.start_run()
     mlflow.log_params(flatten_dict(args))
-
-    # Generating Train-test dataframes
-    train_df = pd.DataFrame(sem.sample(size=args.data.n_train, seed=args.data.train_seed).numpy(), columns=dag.var_names)
-    test_df = pd.DataFrame(sem.sample(size=args.data.n_test, seed=args.data.test_seed).numpy(), columns=dag.var_names)
+    mlflow.log_param('data_generator/dag/n', len(var_names))
+    mlflow.log_param('data_generator/dag/m', int(adjacency_matrix.sum()))
+    mlflow.log_param('data/n_train', len(train_df))
+    mlflow.log_param('data/n_test', len(test_df))
 
     # Saving artifacts
     train_df.to_csv(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/train.csv'), index=False)
     test_df.to_csv(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/test.csv'), index=False)
-    sem.dag.plot_dag()
+    dag.plot_dag()
     plt.savefig(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/dag.png'))
     if len(dag.var_names) <= 20:
         df = pd.concat([train_df, test_df], keys=['train', 'test']).reset_index().drop(columns=['level_1'])
         g = sns.pairplot(df, plot_kws={'alpha': 0.25}, hue='level_0')
-        g.fig.suptitle(sem.__class__.__name__)
+        g.fig.suptitle(exp_name)
         plt.savefig(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/data.png'))
 
     metrics = {}
@@ -98,18 +123,30 @@ def main(args: DictConfig):
             for risk, risk_func in risks.items():
                 var_results[f'test_{risk}_{pred_model._target_}'] = risk_func(y_test, y_pred)
 
-        sampler = instantiate(args.estimator.sampler, X_train=X_train,
-                              fit_method=args.estimator.fit_method, fit_params=args.estimator.fit_params)
+        # Support restriction
+        if 'transform_classes' in default_names:
+            transform_classes = default_values[default_names.index('transform_classes') - 2]
+            inputs_noise_nonlinearity = torch.nn.Identity()
+            if 'restrict_support' in args.estimator and args.estimator.restrict_support:
+                transform_classes = (ContextualLogTransform,) + transform_classes
+                inputs_noise_nonlinearity = torch.nn.ReLU()
+
+            sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
+                                  fit_params={**args.estimator.fit_params, 'transform_classes': transform_classes,
+                                              'inputs_noise_nonlinearity': inputs_noise_nonlinearity})
+        else:
+            sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
+                                  fit_params=args.estimator.fit_params)
 
         # =================== Relative feature importance ===================
         # 1. G = MB(target_var), FoI = input_vars / MB(target_var)
-        G_vars_1 = list(sem.get_markov_blanket(target_var))
-        fsoi_vars_1 = [var for var in input_vars if var not in list(sem.get_markov_blanket(target_var))]
+        G_vars_1 = list(dag.get_markov_blanket(target_var))
+        fsoi_vars_1 = [var for var in input_vars if var not in list(dag.get_markov_blanket(target_var))]
         prefix_1 = 'mb'
 
         # 2. G = input_vars / MB(target_var), FoI = MB(target_var)
-        fsoi_vars_2 = list(sem.get_markov_blanket(target_var))
-        G_vars_2 = [var for var in input_vars if var not in list(sem.get_markov_blanket(target_var))]
+        fsoi_vars_2 = list(dag.get_markov_blanket(target_var))
+        G_vars_2 = [var for var in input_vars if var not in list(dag.get_markov_blanket(target_var))]
         prefix_2 = 'non_mb'
 
         for (G_vars, fsoi_vars, prefix) in zip([G_vars_1, G_vars_2], [fsoi_vars_1, fsoi_vars_2], [prefix_1, prefix_2]):
@@ -126,20 +163,6 @@ def main(args: DictConfig):
 
                     rfi_gof_results[f'rfi/gof/{prefix}_mean_log_lik'] = \
                         estimator.log_prob(inputs=X_test[:, f], context=X_test[:, G]).mean()
-
-                    # Advanced conditional GoF metrics
-                    if sem.get_markov_blanket(f_var).issubset(set(G_vars)):
-                        cond_mode = 'all'
-                    if isinstance(sem, LinearGaussianNoiseSEM):
-                        cond_mode = 'arbitrary'
-
-                    if sem.get_markov_blanket(f_var).issubset(set(G_vars)) or isinstance(sem, LinearGaussianNoiseSEM):
-                        rfi_gof_results[f'rfi/gof/{prefix}_kld'] = \
-                            conditional_kl_divergence(estimator, sem, f_var, G_vars, args.exp, cond_mode, test_df)
-                        rfi_gof_results[f'rfi/gof/{prefix}_hd'] = \
-                            conditional_hellinger_distance(estimator, sem, f_var, G_vars, args.exp, cond_mode, test_df)
-                        rfi_gof_results[f'rfi/gof/{prefix}_jsd'] = \
-                            conditional_js_divergence(estimator, sem, f_var, G_vars, args.exp, cond_mode, test_df)
 
                 rfi_gof_metrics = {k: rfi_gof_metrics.get(k, []) + [rfi_gof_results.get(k, np.nan)]
                                    for k in set(list(rfi_gof_metrics.keys()) + list(rfi_gof_results.keys()))}

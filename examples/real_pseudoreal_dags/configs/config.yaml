@@ -31,6 +31,10 @@ exp:
   mlflow_uri: http://127.0.0.1:5000
   rfi:
     nr_runs: 50
+  sage:
+    nr_runs: 100
+    nr_orderings: 10
+    orderings_seed: ${data.split_seed}
 
 
 defaults:

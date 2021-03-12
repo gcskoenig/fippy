@@ -32,13 +32,14 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
     """
 
     default_hparam_grid = {
-        'n_epochs': tune.grid_search([500, 1000, 1500]),
+        'n_epochs': tune.grid_search([500, 1000]),
         'hidden_units': tune.grid_search([(8,), (16,)]),
         'transform_classes': tune.grid_search([(ContextualPointwiseAffineTransform,),
-                                               2 * (ContextualInvertableRadialTransform,) + (
-                                               ContextualPointwiseAffineTransform,)]),
-        'context_noise_std': tune.grid_search([0.1, 0.2, 0.3]),
-        'input_noise_std': tune.grid_search([0.01, 0.05, 0.1]),
+                                               2 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,),
+                                               4 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,)
+                                               ]),
+        'context_noise_std': tune.grid_search([0.1, 0.2]),
+        'input_noise_std': tune.grid_search([0.01, 0.05]),
         'weight_decay': tune.grid_search([0.0, 1e-4])
     }
 
@@ -96,7 +97,7 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
 
         # Training params
         self.lr = lr
-        self.weight_decay = weight_decay
+        self.weight_decay = weight_decay if weight_decay is not None else 0.0
         self._init_optimizer(lr, weight_decay)
         self.n_epochs = n_epochs
         self.device = device

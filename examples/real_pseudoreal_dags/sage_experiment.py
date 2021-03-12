@@ -1,3 +1,6 @@
+import shap
+import lightgbm as lgb
+
 import mlflow
 import hydra
 from hydra.utils import instantiate
@@ -11,15 +14,12 @@ import pandas as pd
 from os.path import dirname, abspath
 import numpy as np
 import inspect
-import torch
 import logging
 
 from rfi.backend.utils import flatten_dict
 from rfi.backend.causality import DirectedAcyclicGraph
 import rfi.explainers.explainer as explainer
 from rfi.utils import search_nonsorted, check_existing_hash
-from rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform, \
-    ContextualLogTransform
 
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ def main(args: DictConfig):
 
     # Non-strict access to fields
     OmegaConf.set_struct(args, False)
+    args.exp.pop('rfi')
 
     # Adding default estimator params
     default_names, _, _, default_values, _, _, _ = \
@@ -52,6 +53,7 @@ def main(args: DictConfig):
     dag = DirectedAcyclicGraph(adjacency_matrix, var_names)
 
     # Experiment tracking
+    exp_name = f'sage/{exp_name}'
     mlflow.set_tracking_uri(args.exp.mlflow_uri)
     mlflow.set_experiment(exp_name)
 
@@ -86,13 +88,8 @@ def main(args: DictConfig):
     test_df.to_csv(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/test.csv'), index=False)
     dag.plot_dag()
     plt.savefig(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/dag.png'))
-    if len(dag.var_names) <= 20:
-        df = pd.concat([train_df, test_df], keys=['train', 'test']).reset_index().drop(columns=['level_1'])
-        g = sns.pairplot(df, plot_kws={'alpha': 0.25}, hue='level_0')
-        g.fig.suptitle(exp_name)
-        plt.savefig(hydra.utils.to_absolute_path(f'{mlflow.get_artifact_uri()}/data.png'))
 
-    metrics = {}
+    mlflow.log_param('features_sequence', str(list(dag.var_names)))
 
     for var_ind, target_var in enumerate(dag.var_names):
 
@@ -119,76 +116,35 @@ def main(args: DictConfig):
             for risk, risk_func in risks.items():
                 var_results[f'test_{risk}_{pred_model._target_}'] = risk_func(y_test, y_pred)
 
-        # Support restriction
-        if 'transform_classes' in default_names:
-            transform_classes = default_values[default_names.index('transform_classes') - 2]
-            inputs_noise_nonlinearity = torch.nn.Identity()
-            if 'restrict_support' in args.estimator and args.estimator.restrict_support:
-                transform_classes = (ContextualLogTransform,) + transform_classes
-                inputs_noise_nonlinearity = torch.nn.ReLU()
+        # =================== Global SAGE ===================
+        logger.info(f'Analysing the importance of features: {input_vars}')
+        fsois = search_nonsorted(input_vars, dag.var_names)
 
-            sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
-                                  fit_params={**args.estimator.fit_params, 'transform_classes': transform_classes,
-                                              'inputs_noise_nonlinearity': inputs_noise_nonlinearity})
-        else:
-            sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
-                                  fit_params=args.estimator.fit_params)
+        sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
+                              fit_params=args.estimator.fit_params)
 
-        # =================== Relative feature importance ===================
-        # 1. G = MB(target_var), FoI = input_vars / MB(target_var)
-        G_vars_1 = list(dag.get_markov_blanket(target_var))
-        fsoi_vars_1 = [var for var in input_vars if var not in list(dag.get_markov_blanket(target_var))]
-        prefix_1 = 'mb'
+        log_lik = []
+        sage_explainer = explainer.Explainer(None, fsois, X_train, sampler=sampler, loss=None, fs_names=input_vars)
+        # Generating the same orderings across all the models and losses
+        np.random.seed(args.exp.sage.orderings_seed)
+        orderings = [np.random.permutation(len(fsois)) for _ in range(args.exp.sage.nr_orderings)]
 
-        # 2. G = input_vars / MB(target_var), FoI = MB(target_var)
-        fsoi_vars_2 = list(dag.get_markov_blanket(target_var))
-        G_vars_2 = [var for var in input_vars if var not in list(dag.get_markov_blanket(target_var))]
-        prefix_2 = 'non_mb'
+        for model_name, model in models.items():
+            for risk, risk_func in risks.items():
+                sage_explainer.model = model.predict
+                explanation, test_log_lik = sage_explainer.sage(X_test, y_test, loss=risk_func, orderings=orderings,
+                                                                nr_orderings=args.exp.sage.nr_orderings,
+                                                                nr_runs=args.exp.sage.nr_runs)
+                log_lik.extend(test_log_lik)
+                fi = explanation.fi_vals(return_np=True).mean(1)
 
-        for (G_vars, fsoi_vars, prefix) in zip([G_vars_1, G_vars_2], [fsoi_vars_1, fsoi_vars_2], [prefix_1, prefix_2]):
-            G = search_nonsorted(input_vars, G_vars)
-            fsoi = search_nonsorted(input_vars, fsoi_vars)
+                for fsoi, input_var in enumerate(input_vars):
+                    var_results[f'sage/mean_{risk}_{model_name}_{input_var}'] = fi[fsoi]
 
-            rfi_gof_metrics = {}
-            for f, f_var in zip(fsoi, fsoi_vars):
-                estimator = sampler.train([f], G)
-
-                # GoF diagnostics
-                rfi_gof_results = {}
-                if estimator is not None:
-
-                    rfi_gof_results[f'rfi/gof/{prefix}_mean_log_lik'] = \
-                        estimator.log_prob(inputs=X_test[:, f], context=X_test[:, G]).mean()
-
-                rfi_gof_metrics = {k: rfi_gof_metrics.get(k, []) + [rfi_gof_results.get(k, np.nan)]
-                                   for k in set(list(rfi_gof_metrics.keys()) + list(rfi_gof_results.keys()))}
-
-            # Feature importance
-            if len(fsoi) > 0:
-                var_results[f'rfi/{prefix}_cond_size'] = len(G_vars)
-
-                for model_name, model in models.items():
-                    for risk, risk_func in risks.items():
-
-                        rfi_explainer = explainer.Explainer(model.predict, fsoi, X_train, sampler=sampler, loss=risk_func,
-                                                            fs_names=input_vars)
-                        mb_explanation = rfi_explainer.rfi(X_test, y_test, G, nr_runs=args.exp.rfi.nr_runs)
-                        var_results[f'rfi/{prefix}_mean_rfi_{risk}_{model_name}'] = \
-                            np.abs(mb_explanation.fi_vals(return_np=True)).mean()
-
-                var_results = {**var_results,
-                               **{k: np.nanmean(v) if len(G_vars) > 0 else np.nan for (k, v) in rfi_gof_metrics.items()}}
-
-        # TODO  =================== Global SAGE ===================
+        var_results['sage/mean_log_lik'] = np.mean(log_lik)
+        var_results['sage/num_fitted_estimators'] = len(log_lik)
 
         mlflow.log_metrics(var_results, step=var_ind)
-
-        metrics = {k: metrics.get(k, []) + [var_results.get(k, np.nan)]
-                   for k in set(list(metrics.keys()) + list(var_results.keys()))}
-
-    # Logging mean statistics
-    mlflow.log_metrics({k: np.nanmean(v) for (k, v) in metrics.items()}, step=len(dag.var_names))
-    mlflow.end_run()
 
 
 if __name__ == "__main__":
