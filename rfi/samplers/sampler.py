@@ -3,10 +3,11 @@ conditional on a set G.
 
 More details can be found in the class description
 """
+import numpy as np
+import pandas as pd
 
 import rfi.utils as utils
-import numpy as np
-from rfi.samplers._utils import sample_id, sample_perm
+from rfi.samplers._utils import sample_id  # , sample_perm
 import logging
 from typing import Union, List
 
@@ -37,13 +38,22 @@ class Sampler:
         """
         Converts array to key for trainedGs Dict
         """
-        return utils.to_key(S)
+        return utils.fnames_to_key(S)
 
     @staticmethod
     def _to_array(S):
-        """Coverts to numpy array
+        """Coverts to numpy array of strings
         """
-        return np.array(S, dtype=np.int16).reshape(-1)
+        return np.array(S).reshape(-1)
+
+    @staticmethod
+    def _order_fset(S):
+        return sorted(S)
+
+    @staticmethod
+    def _pd_to_np(df):
+        np_arr = df[sorted(df.columns)].to_numpy()
+        return np.arr
 
     def is_trained(self, J, G):
         """Indicates whether the Sampler has been trained
@@ -74,13 +84,16 @@ class Sampler:
         degenerate = True
 
         # are we conditioning on zero elements?
-        if G.size == 0:
-            logger.debug('Degenerate Training: Empty G')
-            self._store_samplefunc(J, G, sample_perm(J))
+        # if G.size == 0:
+        #     logger.debug('Degenerate Training: Empty G')
+        #     J_ixs = utils.fset_to_ix(self.X_train.columns, J)
+        #     self._store_samplefunc(J, G, sample_perm(J_ixs))
         # are all elements in G being conditioned upon?
-        elif np.sum(1 - np.isin(J, G)) == 0:
+        if np.sum(1 - np.isin(J, G)) == 0:
             logger.debug('Degenerate Training: J subseteq G')
-            self._store_samplefunc(J, G, sample_id(J))
+            J_ixs = utils.fset_to_ix(Sampler._order_fset(G),
+                                     Sampler._order_fset(J))
+            self._store_samplefunc(J, G, sample_id(J_ixs))
         else:
             logger.debug('Training not degenerate.')
             degenerate = False
@@ -120,12 +133,14 @@ class Sampler:
         Args:
             J: Set of features to sample
             G: relative feature set
-            X_test: Data for which sampling shall be performed. (format as self.X_train)
-            num_samples: number of resamples without retraining shall be computed
+            X_test: DataFrame for which sampling shall be performed
+            num_samples: number of resamples without
+                retraining shall be computed
 
         Returns:
             Resampled data for the features of interest.
-            np.array with shape (X_test.shape[0], #num_samples, # features of interest)
+            pd.DataFrame with multiindex ('sample', 'i')
+            and resampled features as columns
         """
         # initialize numpy matrix
         # sampled_data = np.zeros((X_test.shape[0], num_samples, J.shape[0]))
@@ -137,5 +152,17 @@ class Sampler:
             raise RuntimeError("Sampler not trained on {} | {}".format(J, G))
         else:
             sample_func = self._trained_sampling_funcs[(J_key, G_key)]
-            sampled_data = sample_func(X_test, num_samples=num_samples)
-            return sampled_data
+            smpl = sample_func(X_test[Sampler._order_fset(G)].to_numpy(),
+                               num_samples=num_samples)
+            snrs = np.arange(num_samples)
+            obs = np.arange(X_test.shape[0])
+            vss = [snrs, obs]
+            ns = ['sample', 'i']
+            index = utils.create_multiindex(ns, vss)
+
+            smpl = np.swapaxes(smpl, 0, 1)
+            smpl = smpl.reshape((-1, smpl.shape[2]))
+
+            df = pd.DataFrame(smpl, index=index,
+                              columns=Sampler._order_fset(J))
+            return df

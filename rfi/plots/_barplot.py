@@ -53,7 +53,7 @@ def fi_sns_hbarplot(ex, ax=None, figsize=None):
     """
     if ax is None:
         f, ax = plt.subplots(figsize=figsize)
-    df = ex.fi_vals(return_np=False)
+    df = ex.fi_vals(fnames_as_columns=False)
     df.reset_index(inplace=True)
     df.sort_values('importance', axis=0, ascending=False, inplace=True)
     sns.barplot(x='importance', y='feature', data=df, ax=ax, ci='sd')
@@ -69,7 +69,8 @@ def fi_sns_gbarplot(dex, ax=None, figsize=None):
     df.reset_index(inplace=True)
     # df.sort_values('importance', axis=0, ascending=False, inplace=True)
     sns.barplot(x='importance', hue='component', y='feature',
-                ax=ax, ci='sd', data=df)
+                ax=ax, ci='sd', data=df,
+                palette=sns.color_palette())
     return ax
 
 
