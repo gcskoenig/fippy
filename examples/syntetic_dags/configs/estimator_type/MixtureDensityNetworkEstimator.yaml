@@ -7,5 +7,6 @@ estimator:
   fit_method: fit
   fit_params:
     time_budget_s:
+    weight_decay:
   sampler:
     _target_: rfi.samplers.mdn.MDNSampler

@@ -75,12 +75,12 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
     """
 
     default_hparam_grid = {
-        'n_epochs': tune.grid_search([500, 1000, 1500]),
-        'n_components': tune.grid_search([3, 5, 10]),
-        'hidden_dim': tune.grid_search([None, 8, 16]),
-        'context_noise_std': tune.grid_search([0.1, 0.2, 0.3]),
-        'input_noise_std': tune.grid_search([0.01, 0.05, 0.1]),
-        'weight_decay': tune.grid_search([0.0, 1e-4])
+        'n_epochs': tune.grid_search([500, 1000]),
+        'n_components': tune.grid_search([4, 6, 10]),
+        'hidden_dim': tune.grid_search([None, 8]),
+        'context_noise_std': tune.grid_search([0.1, 0.2]),
+        'input_noise_std': tune.grid_search([0.01, 0.05]),
+        'weight_decay': tune.grid_search([0.01, 0.05])
     }
 
     def __init__(self,
@@ -109,7 +109,7 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
 
         # Training details
         self.lr = lr
-        self.weight_decay = weight_decay
+        self.weight_decay = weight_decay if weight_decay is not None else 0.0
         self._init_optimizer(lr, weight_decay)
         self.n_epochs = n_epochs
         self.device = device

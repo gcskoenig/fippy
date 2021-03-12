@@ -34,12 +34,15 @@ def main(args: DictConfig):
     args.exp.pop('sage')
 
     # Adding default estimator params
-    default_names, _, _, default_values, _, _, _ = \
-        inspect.getfullargspec(instantiate(args.estimator, context_size=0).__class__.__init__)
+    estimator = instantiate(args.estimator, context_size=0)
+    default_names, _, _, default_values, _, _, _ = inspect.getfullargspec(estimator.__class__.__init__)
     if default_values is not None:
         args.estimator['defaults'] = {
             n: str(v) for (n, v) in zip(default_names[len(default_names) - len(default_values):], default_values)
         }
+        args.estimator['grid_size'] = int(np.prod([len(par_values['grid_search'])
+                                                   for par_values in estimator.default_hparam_grid.values()]))
+
     logger.info(OmegaConf.to_yaml(args, resolve=True))
 
     # Data-generating DAG

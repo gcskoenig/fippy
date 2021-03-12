@@ -101,7 +101,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         @param inputs: np.array with random variable sample, shape = (-1, 1)
         @param context: np.array, conditioning sample
         """
-        inputs = inputs.reshape(-1, 1)
+        # inputs = inputs.reshape(-1, 1)
         assert context is not None
         # assert context_vars.shape[1] == 1
         assert len(context.shape) == 2

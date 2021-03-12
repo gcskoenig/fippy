@@ -51,6 +51,11 @@ class ConditionalDistributionEstimator(nn.Module):
     def forward(self, *args):
         raise RuntimeError("Forward method cannot be called for a ConditionalDistributionEstimator object.")
 
+    def reset_parameters(self):
+        for layer in self.children():
+            if hasattr(layer, 'reset_parameters'):
+                layer.reset_parameters()
+
     def _input_to_tensor(self, inputs: np.array, context: np.array) -> [Tensor, Tensor]:
         if inputs is not None:
             inputs = torch.tensor(inputs, dtype=torch.float32, device=self.device).reshape(-1, self.inputs_size)
@@ -152,7 +157,7 @@ class ConditionalDistributionEstimator(nn.Module):
                   train_context: Union[np.array, Tensor] = None,
                   hparam_grid=None,
                   n_splits=5,
-                  resources_per_trial={"cpu": 0.5},
+                  resources_per_trial={"cpu": 0.33},
                   time_budget_s=None,
                   num_cpus=15,
                   **kwargs):
@@ -188,11 +193,14 @@ class ConditionalDistributionEstimator(nn.Module):
                 train_inputs_, train_context_ = train_inputs[train_ind], train_context[train_ind]
                 val_inputs_, val_context_ = train_inputs[val_ind], train_context[val_ind]
 
-                flow = cls(inputs_size=self.inputs_size, context_size=self.context_size, device=self.device,
-                           context_normalization=self.context_normalization, inputs_normalization=self.inputs_normalization,
-                           cat_context=self.cat_context, **config)
-                flow.fit(train_inputs_, train_context_, False)
-                val_log_liks.append(flow.log_prob(val_inputs_, val_context_).mean())
+                estimator = cls(inputs_size=self.inputs_size, context_size=self.context_size, device=self.device,
+                                base_distribution=self._distribution if hasattr(self, '_distribution') else None,
+                                inputs_noise_nonlinearity=self.inputs_noise_nonlinearity if hasattr(self, 'inputs_noise_nonlinearity') else None,
+                                context_normalization=self.context_normalization,
+                                inputs_normalization=self.inputs_normalization,
+                                batch_size=self.batch_size, cat_context=self.cat_context, **config)
+                estimator.fit(train_inputs_, train_context_, False)
+                val_log_liks.append(estimator.log_prob(val_inputs_, val_context_).mean())
 
             tune.report(log_lik=np.mean(val_log_liks))
 
@@ -210,7 +218,13 @@ class ConditionalDistributionEstimator(nn.Module):
 
         logger.info(f"Models evaluated: {result.results_df['done'].sum()} / {len(result.results_df)}, "
                     f"Best config: {result.get_best_config()}. Refitting the best model.")
-        self.__init__(self.context_size, self.inputs_size, device=self.device, **result.get_best_config())
+        self.__init__(self.context_size, self.inputs_size, device=self.device,
+                      base_distribution=self._distribution if hasattr(self, '_distribution') else None,
+                      inputs_noise_nonlinearity=self.inputs_noise_nonlinearity if hasattr(self, 'inputs_noise_nonlinearity') else None,
+                      context_normalization=self.context_normalization,
+                      inputs_normalization=self.inputs_normalization,
+                      batch_size=self.batch_size, cat_context=self.cat_context,
+                      **result.get_best_config())
         self.fit(train_inputs, train_context)
         return self
 
