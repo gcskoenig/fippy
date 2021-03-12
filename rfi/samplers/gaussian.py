@@ -33,15 +33,21 @@ class GaussianSampler(Sampler):
         super().train(J, G, verbose=verbose)
 
         if not self._train_J_degenerate(J, G, verbose=verbose):
-
-            if not set(G).isdisjoint(self.cat_inputs) or not set(J).isdisjoint(self.cat_inputs):
-                raise NotImplementedError('GaussianConditionalEstimator does not support categorical variables')
+            G_disjoint = set(G).isdisjoint(self.cat_inputs)
+            J_disjoint = set(J).isdisjoint(self.cat_inputs)
+            if not G_disjoint or not J_disjoint:
+                raise NotImplementedError('GaussianConditionalEstimator does '
+                                          'not support categorical variables.')
 
             gaussian_estimator = GaussianConditionalEstimator()
-            gaussian_estimator.fit(train_inputs=self.X_train[:, J], train_context=self.X_train[:, G])
+            train_inputs = self.X_train[Sampler._order_fset(J)].to_numpy()
+            train_context = self.X_train[Sampler._order_fset(G)].to_numpy()
 
-            def samplefunc(X_test, **kwargs):
-                return gaussian_estimator.sample(X_test[:, G], **kwargs)
+            gaussian_estimator.fit(train_inputs=train_inputs,
+                                   train_context=train_context)
+
+            def samplefunc(eval_context, **kwargs):
+                return gaussian_estimator.sample(eval_context, **kwargs)
 
             self._store_samplefunc(J, G, samplefunc, verbose=verbose)
 

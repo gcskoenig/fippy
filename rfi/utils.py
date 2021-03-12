@@ -5,12 +5,35 @@ from copy import deepcopy
 from collections.abc import Iterable
 import random
 import mlflow
+import itertools
+import pandas as pd
+import logging
+import math
+
+logger = logging.getLogger(__name__)
+
+
+def fset_to_ix(cnames, fset, sort=True):
+    logger.warning('using fset_to_ix to convert columname'
+                   'to numpy column index')
+    if sort:
+        cnames = sorted(cnames)
+        fset = sorted(fset)
+    ixs = [i for i, x in enumerate(cnames) if x in fset]
+    ixs = np.array(ixs, dtype=np.int16)
+    return ixs
 
 
 def id_to_ix(id, ids):
     ids = np.unique(ids)
     ix = np.where(id == ids)[0][0]
     return ix
+
+
+def fnames_to_key(fnames):
+    fnames = sorted(set(deepcopy(fnames)))
+    onestr = '|'.join(fname for fname in fnames)
+    return hashlib.md5(str(onestr).encode()).hexdigest()
 
 
 def to_key(G):
@@ -21,6 +44,18 @@ def to_key(G):
     G = np.sort(G)
     key = G.tobytes()
     return key
+
+
+def create_multiindex(ns, vss):
+    """Given names and values (ordered), create a
+    pandas multiindex with all possible combinations
+    following the ordering given in the respective
+    lists or arrays
+    """
+    tuples = itertools.product(*vss)
+    tuples = list(tuples)
+    index = pd.MultiIndex.from_tuples(tuples, names=ns)
+    return index
 
 
 def ix_to_desc(j, base='X'):
@@ -68,6 +103,14 @@ def flatten_gen(ls):
 
 def flatten(ls):
     return list(flatten_gen(ls))
+
+
+def nr_unique_perm(partial_ordering):
+    nr = 1
+    for item in partial_ordering:
+        nr_local = math.factorial(len(item))
+        nr = nr * nr_local
+    return nr
 
 
 def sample_partial(partial_ordering):
