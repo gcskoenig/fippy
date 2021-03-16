@@ -28,7 +28,8 @@ class ConditionalGoodnessOfFit:
                  context_vars: Tuple[str],
                  exp_args: Union[DictConfig, dict],
                  conditioning_mode: str = 'all',
-                 test_df: pd.DataFrame = None):
+                 test_df: pd.DataFrame = None,
+                 sort_estimator_context=True):
 
         logger.info(f"Calculating {self.name} for {target_var} / {context_vars}")
         assert target_var not in context_vars
@@ -52,7 +53,10 @@ class ConditionalGoodnessOfFit:
                 return log_prob_func(value.repeat(context_size, 1)).squeeze()
 
         logger.info("Initializing estimator's conditional distributions")
-        test_context = test_df[Sampler._order_fset(context_vars)].to_numpy()
+        if sort_estimator_context:
+            test_context = test_df[Sampler._order_fset(context_vars)].to_numpy()
+        else:
+            test_context = test_df[context_vars].to_numpy()
         model_log_prob = estimator.conditional_distribution(test_context).log_prob
 
         logger.info("Calculating integral")
