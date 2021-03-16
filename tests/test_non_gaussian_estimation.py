@@ -102,7 +102,7 @@ class TestNonGaussianEstimators:
             data_train, data_test = train_test_split(data, random_state=42)
 
             estimator = estimator_cls(inputs_size=2, context_size=0, n_epochs=1000, input_noise_std=0.2, lr=0.02,
-                                      base_distribution=StandardNormal(shape=[2]), transform_classes=DEFAULT_TRANSFORMS)
+                                      transform_classes=DEFAULT_TRANSFORMS)
             estimator.fit(train_inputs=data_train, verbose=True, val_inputs=data_test, log_frequency=1000)
 
             # Density check
@@ -149,8 +149,7 @@ class TestNonGaussianEstimators:
             X_train, X_test = X_train.reshape(-1, 1), X_test.reshape(-1, 1)
 
             estimator = estimator_cls(inputs_size=2, context_size=1, n_epochs=1000, input_noise_std=0.2, lr=0.02,
-                                      base_distribution=StandardNormal(shape=[2]), transform_classes=DEFAULT_TRANSFORMS,
-                                      cat_context=[0])
+                                      transform_classes=DEFAULT_TRANSFORMS, cat_context=[0])
             estimator.fit(train_inputs=y_train, train_context=X_train, verbose=True, val_inputs=y_test, val_context=X_test,
                           log_frequency=1000)
 

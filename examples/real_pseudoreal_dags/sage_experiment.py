@@ -97,8 +97,8 @@ def main(args: DictConfig):
 
         # Considering all the variables for input
         input_vars = [var for var in dag.var_names if var != target_var]
-        y_train, X_train = train_df.loc[:, target_var].values, train_df.loc[:, input_vars].values
-        y_test, X_test = test_df.loc[:, target_var].values, test_df.loc[:, input_vars].values
+        y_train, X_train = train_df.loc[:, target_var], train_df.loc[:, input_vars]
+        y_test, X_test = test_df.loc[:, target_var], test_df.loc[:, input_vars]
 
         # Initialising risks
         risks = {}
@@ -110,41 +110,42 @@ def main(args: DictConfig):
         for pred_model in args.predictors.pred_models:
             logger.info(f'Fitting {pred_model._target_} for target = {target_var} and inputs {input_vars}')
             model = instantiate(pred_model)
-            model.fit(X_train, y_train)
-            y_pred = model.predict(X_test)
+            model.fit(X_train.values, y_train.values)
+            y_pred = model.predict(X_test.values)
             models[pred_model._target_] = model
             for risk, risk_func in risks.items():
-                var_results[f'test_{risk}_{pred_model._target_}'] = risk_func(y_test, y_pred)
+                var_results[f'test_{risk}_{pred_model._target_}'] = risk_func(y_test.values, y_pred)
 
         # =================== Global SAGE ===================
         logger.info(f'Analysing the importance of features: {input_vars}')
-        fsois = search_nonsorted(input_vars, dag.var_names)
 
         sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
                               fit_params=args.estimator.fit_params)
 
         log_lik = []
-        sage_explainer = explainer.Explainer(None, fsois, X_train, sampler=sampler, loss=None, fs_names=input_vars)
+        sage_explainer = explainer.Explainer(None, input_vars, X_train, sampler=sampler, loss=None)
         # Generating the same orderings across all the models and losses
         np.random.seed(args.exp.sage.orderings_seed)
-        orderings = [np.random.permutation(len(fsois)) for _ in range(args.exp.sage.nr_orderings)]
+        fixed_orderings = [np.random.permutation(input_vars) for _ in range(args.exp.sage.nr_orderings)]
 
         for model_name, model in models.items():
             for risk, risk_func in risks.items():
                 sage_explainer.model = model.predict
-                explanation, test_log_lik = sage_explainer.sage(X_test, y_test, loss=risk_func, orderings=orderings,
-                                                                nr_orderings=args.exp.sage.nr_orderings,
-                                                                nr_runs=args.exp.sage.nr_runs)
+                explanation, test_log_lik = sage_explainer.sage(X_test, y_test, loss=risk_func, fixed_orderings=fixed_orderings,
+                                                                nr_runs=args.exp.sage.nr_runs, return_test_log_lik=True,
+                                                                nr_resample_marginalize=args.exp.sage.nr_resample_marginalize)
                 log_lik.extend(test_log_lik)
-                fi = explanation.fi_vals(return_np=True).mean(1)
+                fi = explanation.fi_vals().mean()
 
                 for fsoi, input_var in enumerate(input_vars):
-                    var_results[f'sage/mean_{risk}_{model_name}_{input_var}'] = fi[fsoi]
+                    var_results[f'sage/mean_{risk}_{model_name}_{input_var}'] = fi[input_var]
 
         var_results['sage/mean_log_lik'] = np.mean(log_lik)
         var_results['sage/num_fitted_estimators'] = len(log_lik)
 
         mlflow.log_metrics(var_results, step=var_ind)
+
+    mlflow.end_run()
 
 
 if __name__ == "__main__":

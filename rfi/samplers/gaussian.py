@@ -47,6 +47,7 @@ class GaussianSampler(Sampler):
                                    train_context=train_context)
 
             def samplefunc(eval_context, **kwargs):
+                eval_context = eval_context[Sampler._order_fset(G)].to_numpy()
                 return gaussian_estimator.sample(eval_context, **kwargs)
 
             self._store_samplefunc(J, G, samplefunc, verbose=verbose)

@@ -104,8 +104,8 @@ def main(args: DictConfig):
 
         # Considering all the variables for input
         input_vars = [var for var in dag.var_names if var != target_var]
-        y_train, X_train = train_df.loc[:, target_var].values, train_df.loc[:, input_vars].values
-        y_test, X_test = test_df.loc[:, target_var].values, test_df.loc[:, input_vars].values
+        y_train, X_train = train_df.loc[:, target_var], train_df.loc[:, input_vars]
+        y_test, X_test = test_df.loc[:, target_var], test_df.loc[:, input_vars]
 
         # Initialising risks
         risks = {}
@@ -117,8 +117,8 @@ def main(args: DictConfig):
         for pred_model in args.predictors.pred_models:
             logger.info(f'Fitting {pred_model._target_} for target = {target_var} and inputs {input_vars}')
             model = instantiate(pred_model)
-            model.fit(X_train, y_train)
-            y_pred = model.predict(X_test)
+            model.fit(X_train.values, y_train.values)
+            y_pred = model.predict(X_test.values)
             models[pred_model._target_] = model
             for risk, risk_func in risks.items():
                 var_results[f'test_{risk}_{pred_model._target_}'] = risk_func(y_test, y_pred)
@@ -150,8 +150,8 @@ def main(args: DictConfig):
         prefix_2 = 'non_mb'
 
         for (G_vars, fsoi_vars, prefix) in zip([G_vars_1, G_vars_2], [fsoi_vars_1, fsoi_vars_2], [prefix_1, prefix_2]):
-            G = search_nonsorted(input_vars, G_vars)
-            fsoi = search_nonsorted(input_vars, fsoi_vars)
+            G = G_vars
+            fsoi = fsoi_vars
 
             rfi_gof_metrics = {}
             for f, f_var in zip(fsoi, fsoi_vars):
@@ -160,9 +160,10 @@ def main(args: DictConfig):
                 # GoF diagnostics
                 rfi_gof_results = {}
                 if estimator is not None:
-
+                    test_inputs = X_test[sampler._order_fset([f])].to_numpy()
+                    test_context = X_test[sampler._order_fset(G)].to_numpy()
                     rfi_gof_results[f'rfi/gof/{prefix}_mean_log_lik'] = \
-                        estimator.log_prob(inputs=X_test[:, f], context=X_test[:, G]).mean()
+                        estimator.log_prob(inputs=test_inputs, context=test_context).mean()
 
                 rfi_gof_metrics = {k: rfi_gof_metrics.get(k, []) + [rfi_gof_results.get(k, np.nan)]
                                    for k in set(list(rfi_gof_metrics.keys()) + list(rfi_gof_results.keys()))}
@@ -177,8 +178,7 @@ def main(args: DictConfig):
                         rfi_explainer = explainer.Explainer(model.predict, fsoi, X_train, sampler=sampler, loss=risk_func,
                                                             fs_names=input_vars)
                         mb_explanation = rfi_explainer.rfi(X_test, y_test, G, nr_runs=args.exp.rfi.nr_runs)
-                        var_results[f'rfi/{prefix}_mean_rfi_{risk}_{model_name}'] = \
-                            np.abs(mb_explanation.fi_vals(return_np=True)).mean()
+                        var_results[f'rfi/{prefix}_mean_rfi_{risk}_{model_name}'] = np.abs(mb_explanation.fi_vals().values).mean()
 
                 var_results = {**var_results,
                                **{k: np.nanmean(v) if len(G_vars) > 0 else np.nan for (k, v) in rfi_gof_metrics.items()}}

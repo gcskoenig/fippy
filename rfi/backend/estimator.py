@@ -46,7 +46,7 @@ class ConditionalDistributionEstimator(nn.Module):
 
         # Inputs / Context one-hot encoders
         self.context_enc = OneHotEncoder(drop='if_binary', sparse=False)
-        self.inputs_enc = OneHotEncoder(drop='if_binary', sparse=False)
+        self.inputs_enc = OneHotEncoder(sparse=False)
 
     def forward(self, *args):
         raise RuntimeError("Forward method cannot be called for a ConditionalDistributionEstimator object.")

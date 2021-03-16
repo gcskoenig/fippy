@@ -4,7 +4,7 @@ estimator_type: NormalisingFlowEstimator
 # Estimating model specific params
 estimator:
   _target_: rfi.backend.cnf.${estimator_type}
-  fit_method: fit_by_cv
+  fit_method: fit
   restrict_support: False
   fit_params:
     time_budget_s:

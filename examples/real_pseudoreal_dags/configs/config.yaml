@@ -32,8 +32,9 @@ exp:
   rfi:
     nr_runs: 50
   sage:
-    nr_runs: 100
-    nr_orderings: 10
+    nr_runs: 1
+    nr_orderings: 20
+    nr_resample_marginalize: 100
     orderings_seed: ${data.split_seed}
 
 

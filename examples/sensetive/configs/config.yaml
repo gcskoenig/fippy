@@ -38,6 +38,7 @@ predictors:
 exp:
   check_exisisting_hash: False
   mlflow_uri: http://127.0.0.1:5000
+  exclude_sensetive: True
   sensetive_vars: ['Age']
   discretize: ['Capital Gain']
   rfi:

@@ -80,7 +80,7 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
         'hidden_dim': tune.grid_search([None, 8]),
         'context_noise_std': tune.grid_search([0.1, 0.2]),
         'input_noise_std': tune.grid_search([0.01, 0.05]),
-        'weight_decay': tune.grid_search([0.01, 0.05])
+        'weight_decay': tune.grid_search([0.05, 0.1])
     }
 
     def __init__(self,

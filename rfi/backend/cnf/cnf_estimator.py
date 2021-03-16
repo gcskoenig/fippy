@@ -49,7 +49,7 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
             inputs_size: int = 1,
             transform_classes: Tuple[Type] = 2 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,),
             hidden_units: Tuple[int] = (16,),
-            base_distribution: Distribution = StandardNormal(shape=[1]),
+            base_distribution: Distribution = None,
             n_epochs: int = 1000,
             lr: float = 0.001,
             weight_decay: float = 0.0,
@@ -92,6 +92,8 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
                 [transform_cls(inputs_size=inputs_size, conditional=False) for transform_cls in transform_classes])
             embedding_net = None
 
+        if base_distribution is None:
+            base_distribution = StandardNormal(shape=[inputs_size])
         assert base_distribution._shape[0] == inputs_size
         Flow.__init__(self, transform, base_distribution, embedding_net)
 

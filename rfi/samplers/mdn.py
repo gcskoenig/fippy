@@ -35,7 +35,7 @@ class MDNSampler(Sampler):
             train_context = self.X_train[sorted(set(G))].to_numpy()
 
             # Categorical variables in context
-            cat_context = None
+            cat_ixs = None
             if not set(G).isdisjoint(self.cat_inputs):
                 G_cat = list(set(G).intersection(self.cat_inputs))
                 cat_ixs = utils.fset_to_ix(sorted(G), sorted(G_cat))
@@ -62,7 +62,7 @@ class MDNSampler(Sampler):
                 cntxt_sz = train_context.shape[1]
                 model = MixtureDensityNetworkEstimator(inputs_size=len(J),
                                                        context_size=cntxt_sz,
-                                                       cat_context=cat_context,
+                                                       cat_context=cat_ixs,
                                                        **self.fit_params)
 
             # Fitting a sampler
@@ -71,6 +71,7 @@ class MDNSampler(Sampler):
                                             **self.fit_params)
 
             def samplefunc(eval_context, **kwargs):
+                eval_context = eval_context[Sampler._order_fset(G)].to_numpy()
                 return model.sample(eval_context, **kwargs)
 
             self._store_samplefunc(J, G, samplefunc, verbose=verbose)

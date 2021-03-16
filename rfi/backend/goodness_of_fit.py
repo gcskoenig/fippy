@@ -12,6 +12,7 @@ import logging
 
 from rfi.backend.causality import StructuralEquationModel, LinearGaussianNoiseSEM
 from rfi.backend import ConditionalDistributionEstimator
+from rfi.samplers.sampler import Sampler
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,8 @@ class ConditionalGoodnessOfFit:
                 return log_prob_func(value.repeat(context_size, 1)).squeeze()
 
         logger.info("Initializing estimator's conditional distributions")
-        model_log_prob = estimator.conditional_distribution(test_df.loc[:, context_vars].values).log_prob
+        test_context = test_df[Sampler._order_fset(context_vars)].to_numpy()
+        model_log_prob = estimator.conditional_distribution(test_context).log_prob
 
         logger.info("Calculating integral")
         if self.name == 'conditional_kl_divergence' or self.name == 'conditional_hellinger_distance':

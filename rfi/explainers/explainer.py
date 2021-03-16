@@ -478,16 +478,11 @@ class Explainer:
                                                        ex_name=None)
         return ex
 
-# <<<<<<< SAGE-+-CDE-Benchmarking
-#     def sage(self, X_test, y_test, nr_orderings, orderings=None,
-#              nr_runs=10, sampler=None, loss=None,
-#              train_allowed=True, return_orderings=False, return_test_log_lik=True):
-# =======
-    def sage(self, type, X_test, y_test, partial_ordering, orderings=None,
-             nr_orderings=None, approx=math.sqrt,
+    def sage(self, X_test, y_test, fixed_orderings=None, partial_ordering=None,
+             nr_orderings=None, approx=math.sqrt, type='rfi',
              save_orderings=True, nr_runs=10, sampler=None,
              loss=None, train_allowed=True, D=None,
-             return_test_log_lik=True,
+             return_test_log_lik=False,
              nr_resample_marginalize=10):
         """
         Compute Shapley Additive Global Importance values.
@@ -497,6 +492,7 @@ class Explainer:
                 be used
             X_test: data to use for resampling and evaluation.
             y_test: labels for evaluation.
+            fixed_orderings: list of ready orderings
             nr_orderings: number of orderings in which features enter the model
             nr_runs: how often each value function shall be computed
             sampler: choice of sampler. Default None. Will throw an error
@@ -532,23 +528,10 @@ class Explainer:
                 loss = self.loss
                 logger.debug("Using class specified loss.")
 
-# <<<<<<< SAGE-+-CDE-Benchmarking
-#         if orderings is not None:
-#             orderings = np.array(orderings)
-#             assert len(orderings) == nr_orderings
-#             assert orderings.shape[1] == len(self.fsoi)
+        if fixed_orderings is not None:
+            fixed_orderings = np.array(fixed_orderings)
+            nr_orderings = len(fixed_orderings)
 
-#         lss = np.zeros((self.fsoi.shape[0], nr_runs, X_test.shape[0], nr_orderings))
-#         test_log_lik = []
-
-#         for ii in range(nr_orderings):
-#             ordering = np.random.permutation(len(self.fsoi)) if orderings is None else orderings[ii]
-#             # resample multiple times
-#             for kk in range(nr_runs):
-#                 # enter one feature at a time
-#                 y_hat_base = np.repeat(np.mean(self.model(X_test)), X_test.shape[0])
-#                 for jj in np.arange(1, len(self.fsoi), 1):
-# =======
         if nr_orderings is None:
             nr_unique = utils.nr_unique_perm(partial_ordering)
             if approx is not None:
@@ -571,12 +554,13 @@ class Explainer:
         arr = np.zeros((nr_orderings_saved * nr_runs * X_test.shape[0],
                         len(self.fsoi)))
         scores = pd.DataFrame(arr, index=index, columns=self.fsoi)
-
-        # lss = np.zeros(
-        #     (len(self.fsoi), nr_runs, X_test.shape[0], nr_orderings))
+        test_log_lik = []
 
         for ii in range(nr_orderings):
-            ordering = utils.sample_partial(partial_ordering)
+            if fixed_orderings is None:
+                ordering = utils.sample_partial(partial_ordering)
+            else:
+                ordering = fixed_orderings[ii]
             logging.info('Ordering : {}'.format(ordering))
 
             # ordering = np.random.permutation(len(self.fsoi))
@@ -590,30 +574,21 @@ class Explainer:
                     # by entering the respective feature
                     # store the result in the right place
                     # validate training of sampler
-# <<<<<<< SAGE-+-CDE-Benchmarking
-#                     impute, fixed = self.fsoi[ordering[jj:]], self.fsoi[ordering[:jj]]
-#                     logger.info(f'Ordering {ii + 1} / {nr_orderings}. Features split {jj} / {len(self.fsoi) - 1}. '
-#                                 f'Impute | Fixed : {impute} | {fixed}')
-
-# =======
                     impute, fixed = ordering[jj:], ordering[:jj]
-                    logger.debug('{}:{}:{}: fixed, impute: {}|{}'.format(
-                        ii, kk, jj, impute, fixed))
+                    logger.info('ordering {}: run {}: split {}: impute, fixed: {} | {}'.format(ii, kk, jj, impute, fixed))
 
                     if not sampler.is_trained(impute, fixed):
                         # train if allowed, otherwise raise error
                         if train_allowed:
                             estimator = sampler.train(impute, fixed)
-                            test_log_lik.append(estimator.log_prob(inputs=X_test[:, impute], context=X_test[:, fixed]).mean())
-                        else:
-# <<<<<<< SAGE-+-CDE-Benchmarking
-#                             raise RuntimeError('Sampler is not trained on {} | {}'.format(impute, fixed))
 
-#                     X_test_perturbed = np.array(X_test)
-#                     imps = sampler.sample(X_test, impute, fixed, num_samples=1)
-#                     imps = imps.reshape((X_test.shape[0], len(impute)))
-#                     X_test_perturbed[:, impute] = imps
-# =======
+                            # Evaluating test log-likelihood for diagnostics
+                            test_inputs = X_test[sampler._order_fset(impute)].to_numpy()
+                            test_context = X_test[sampler._order_fset(fixed)].to_numpy()
+                            log_lik = estimator.log_prob(inputs=test_inputs, context=test_context).mean()
+                            logger.info(f'Test log-likelihood: {log_lik}')
+                            test_log_lik.append(log_lik)
+                        else:
                             raise RuntimeError(
                                 'Sampler is not trained on '
                                 '{}|{}'.format(impute, fixed))
@@ -634,7 +609,7 @@ class Explainer:
                                           num_samples=nr_resample_marginalize)
 
                     X_test_perturbed[impute] = imps[impute].to_numpy()
-                    
+
                     # sample replacement, create replacement matrix
                     y_hat_new = self.model(X_test_perturbed[D])
 
@@ -649,23 +624,15 @@ class Explainer:
                     scores.loc[(ii, kk, slice(None)), ordering[jj - 1]] = diff
                     # lss[self.fsoi[ordering[jj - 1]], kk, :, ii] = lb - ln
                     y_hat_base = y_hat_new_marg
+
                 y_hat_new = self.model(X_test[D])
                 diff = loss(y_test, y_hat_base) - loss(y_test, y_hat_new)
-                scores.loc[(ii, kk, slice(None)), ordering[jj - 1]] = diff
+                scores.loc[(ii, kk, slice(None)), ordering[-1]] = diff
                 # lss[self.fsoi[ordering[-1]], kk, :, ii] = diff
 
-# <<<<<<< SAGE-+-CDE-Benchmarking
-#         result = explanation.Explanation(self.fsoi, lss.mean(3), fsoi_names=self.fs_names[self.fsoi], ex_name='SAGE')
+        result = explanation.Explanation(self.fsoi, scores, ex_name='SAGE')
 
-#         if return_orderings:
-#             raise NotImplementedError('Returning errors is not implemented yet.')
-
-#         if return_test_log_lik:
-#             return result, test_log_lik
-
-# =======
-        result = explanation.Explanation(
-            self.fsoi, scores,
-            ex_name='SAGE')
+        if return_test_log_lik:
+            return result, test_log_lik
 
         return result

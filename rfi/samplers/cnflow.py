@@ -39,7 +39,7 @@ class CNFSampler(Sampler):
             train_context = self.X_train[Sampler._order_fset(G)].to_numpy()
 
             # Categorical variables in context
-            cat_context = None
+            cat_ixs = None
             if not set(G).isdisjoint(self.cat_inputs):
                 G_cat = list(set(G).intersection(self.cat_inputs))
                 cat_ixs = utils.fset_to_ix(sorted(G), sorted(G_cat))
@@ -52,7 +52,7 @@ class CNFSampler(Sampler):
             if not set(J).isdisjoint(self.cat_inputs):
                 logger.info(f'One hot encoding for inputs features: {J}')
                 logger.info(f'Fitting categorical sampler for features {J}.'
-                            'Fitting method: {self.fit_method}.'
+                            f'Fitting method: {self.fit_method}.'
                             f'Fitting parameters: {self.fit_params}')
                 context_size = train_context.shape[1]
                 model = CategoricalEstimator(context_size=context_size,
@@ -61,11 +61,13 @@ class CNFSampler(Sampler):
             # Continuous variable as input
             else:
                 logger.info(f'Fitting continuous sampler for features {J}. '
-                            'Fitting method: {self.fit_method}. '
+                            f'Fitting method: {self.fit_method}. '
                             f'Fitting parameters: {self.fit_params}')
 
-                model = NormalisingFlowEstimator(inputs_size=len(J), context_size=train_context.shape[1], cat_context=cat_ixs,
-                                                 base_distribution=StandardNormal(shape=[len(J)]), **self.fit_params)
+                model = NormalisingFlowEstimator(inputs_size=len(J),
+                                                 context_size=train_context.shape[1],
+                                                 cat_context=cat_ixs,
+                                                 **self.fit_params)
 
             # Fitting a sampler
             getattr(model, self.fit_method)(train_inputs=train_inputs,
@@ -75,6 +77,7 @@ class CNFSampler(Sampler):
             def samplefunc(eval_context, **kwargs):
                 # eval_context: numpy array sorted by columname
                 # as numpy array
+                eval_context = eval_context[Sampler._order_fset(G)].to_numpy()
                 return model.sample(eval_context, **kwargs)
 
             self._store_samplefunc(J, G, samplefunc, verbose=verbose)
