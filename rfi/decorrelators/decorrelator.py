@@ -159,6 +159,6 @@ class Decorrelator:
                 "Decorrelator not trained for {} ⟂ {} | {}".format(K, J, C))
         else:
             decorrf = self._trained_decorrelation_funcs[(K_key, J_key, C_key)]
-            #X_test_np = Decorrelator._pd_to_np(X_test)  # ordering columns
+            # X_test_np = Decorrelator._pd_to_np(X_test)  # ordering columns
             decorrelated_data = decorrf(X_test)
             return decorrelated_data

@@ -195,7 +195,8 @@ class ConditionalDistributionEstimator(nn.Module):
 
                 estimator = cls(inputs_size=self.inputs_size, context_size=self.context_size, device=self.device,
                                 base_distribution=self._distribution if hasattr(self, '_distribution') else None,
-                                inputs_noise_nonlinearity=self.inputs_noise_nonlinearity if hasattr(self, 'inputs_noise_nonlinearity') else None,
+                                inputs_noise_nonlinearity=(self.inputs_noise_nonlinearity
+                                                           if hasattr(self, 'inputs_noise_nonlinearity') else None),
                                 context_normalization=self.context_normalization,
                                 inputs_normalization=self.inputs_normalization,
                                 batch_size=self.batch_size, cat_context=self.cat_context, **config)
@@ -220,7 +221,8 @@ class ConditionalDistributionEstimator(nn.Module):
                     f"Best config: {result.get_best_config()}. Refitting the best model.")
         self.__init__(self.context_size, self.inputs_size, device=self.device,
                       base_distribution=self._distribution if hasattr(self, '_distribution') else None,
-                      inputs_noise_nonlinearity=self.inputs_noise_nonlinearity if hasattr(self, 'inputs_noise_nonlinearity') else None,
+                      inputs_noise_nonlinearity=(self.inputs_noise_nonlinearity
+                                                 if hasattr(self, 'inputs_noise_nonlinearity') else None),
                       context_normalization=self.context_normalization,
                       inputs_normalization=self.inputs_normalization,
                       batch_size=self.batch_size, cat_context=self.cat_context,

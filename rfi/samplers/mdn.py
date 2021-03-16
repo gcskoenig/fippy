@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class MDNSampler(Sampler):
-    def __init__(self, X_train, fit_method='fit_by_cv', 
+    def __init__(self, X_train, fit_method='fit_by_cv',
                  fit_params={'time_budget_s': None}, **kwargs):
         super().__init__(X_train, **kwargs)
         self.fit_method = fit_method
