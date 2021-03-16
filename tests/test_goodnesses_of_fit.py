@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 
 SEED = 4242
 ASSERT_DECIMAL = 1
-SAMPLE_SIZE = 200
+SAMPLE_SIZE = 300
 DAG_N = 5
 DAG_P = 0.5
 DAG = DirectedAcyclicGraph.random_dag(DAG_N, DAG_P, seed=SEED)
