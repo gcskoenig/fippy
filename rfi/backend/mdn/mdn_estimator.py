@@ -5,6 +5,8 @@ from torch import Tensor
 import torch
 import torch.nn as nn
 import torch.utils.data as data_utils
+from copy import deepcopy
+import torch.nn.functional as F
 from torch.distributions import Normal, OneHotCategorical, MixtureSameFamily, Independent
 from ray import tune
 import torch.nn.init as init
@@ -169,7 +171,7 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
             train_data = data_utils.TensorDataset(train_inputs)
         train_loader = data_utils.DataLoader(train_data, shuffle=True, drop_last=True,
                                              batch_size=self.batch_size if self.batch_size is not None else len(train_data))
-
+        state_dict = deepcopy(self.state_dict())
         for i in range(self.n_epochs):
             for batch in train_loader:
                 if len(batch) == 2:
@@ -185,6 +187,12 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
                 # Forward pass
                 loss = - self.log_prob(inputs=noised_train_inputs, context=noised_train_context,
                                        data_normalization=False, context_one_hot_encoding=False).mean()
+                if torch.isnan(loss):
+                    self.load_state_dict(state_dict)
+                    return self
+                else:
+                    state_dict = deepcopy(self.state_dict())
+
                 loss.backward()
                 self.optimizer.step()
 
