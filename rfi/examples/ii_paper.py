@@ -165,3 +165,27 @@ ii_cause_effect = SyntheticExample(
                         'y': sigma_low}
     )
 )
+
+
+"""
+EXAMPLE 7: relevance_types
+
+Order: X_1, X_2, X_3, X_4, Y
+"""
+ii_relevance_types = SyntheticExample(
+    name='ii-relevance_types',
+    sem=LinearGaussianNoiseSEM(
+        dag=DirectedAcyclicGraph(
+            adjacency_matrix=np.array([[0, 0, 0, 1],
+                                       [0, 0, 1, 1],
+                                       [0, 0, 0, 0],
+                                       [0, 0, 0, 0]]),
+            var_names=['x1', 'x2', 'x3', 'y']
+        ),
+        coeff_dict={'x3': {'x2': 1.0},
+                    'y': {'x1': 1.0, 'x2': 1.0}},
+        noise_std_dict={'x1': sigma_high, 'x2': sigma_high,
+                        'x3': sigma_high,
+                        'y': sigma_high}
+    )
+)

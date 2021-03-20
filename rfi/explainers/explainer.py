@@ -76,7 +76,7 @@ class Explainer:
         else:
             return True
 
-    def rfi(self, X_eval, y_eval, G, D=None, sampler=None, loss=None,
+    def tdi(self, X_eval, y_eval, G, D=None, sampler=None, loss=None,
             nr_runs=10, return_perturbed=False, train_allowed=True):
         """Computes Relative Feature importance
 
@@ -186,7 +186,7 @@ class Explainer:
             logger.debug('Return explanation object only')
             return result
 
-    def rfa(self, X_eval, y_eval, K, D=None, sampler=None, decorrelator=None,
+    def tai(self, X_eval, y_eval, K, D=None, sampler=None, decorrelator=None,
             loss=None, nr_runs=10, return_perturbed=False, train_allowed=True,
             ex_name=None):
         """Computes Feature Association
@@ -293,13 +293,15 @@ class Explainer:
                                                 np.arange(nr_obs)])
         X_eval_tilde_rcnstr = pd.DataFrame([], index=index_rcnstr, columns=D)
 
-        # sample baseline
+        # sample baseline X^\emptyset
         X_eval_tilde_bsln = sampler.sample(X_eval, D, [], num_samples=nr_runs)
 
         # sample perturbed versions
         for foi in self.fsoi:
+            # X^foi
             sample = sampler.sample(X_eval, D, [foi], num_samples=nr_runs)
             for kk in np.arange(nr_runs):
+                # X^\emptyset,linked
                 sample_decorr = decorrelator.decorrelate(sample.loc[kk, :],
                                                          K, [foi], [])
                 sd_np = sample_decorr[D].to_numpy()
@@ -321,7 +323,7 @@ class Explainer:
                 scores.loc[(kk, slice(None)), foi] = l_pb - l_rc
 
         if ex_name is None:
-            ex_name = 'Unknown rfa'
+            ex_name = 'Unknown tai'
 
         # return explanation object
         result = explanation.Explanation(self.fsoi,
@@ -369,10 +371,10 @@ class Explainer:
         logger.info('#orderings: {}'.format(nr_orderings))
 
         explnr_fnc = None
-        if imp_type == 'rfi':
-            explnr_fnc = self.rfi
-        elif imp_type == 'rfa':
-            explnr_fnc = self.rfa
+        if imp_type == 'tdi':
+            explnr_fnc = self.tdi
+        elif imp_type == 'tai':
+            explnr_fnc = self.tai
         else:
             raise ValueError('Importance type '
                              '{} not implemented'.format(imp_type))
