@@ -79,7 +79,7 @@ EXAMPLE 4: Figure 2 from II paper
 Order: X_1, X_2, Y
 """
 ii_rhombus = SyntheticExample(
-    name='ii-inference-large',
+    name='ii_rhombus',
     sem=LinearGaussianNoiseSEM(
         dag=DirectedAcyclicGraph(
             adjacency_matrix=np.array([[0, 1, 1, 0],
