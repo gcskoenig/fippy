@@ -35,8 +35,8 @@ class GaussianDecorrelator(Decorrelator):
         C = Decorrelator._to_array(Decorrelator._order_fset(C))
         super().train(K, J, C, verbose=verbose)
 
-        K_intersect_J = np.intersect1d(K, J)
-        K_leftover = np.setdiff1d(np.setdiff1d(K, J), C)
+        K_intersect_J = np.intersect1d(K, J) # resample from X^C directly
+        K_leftover = np.setdiff1d(np.setdiff1d(K, J), C) # actually decorrelate
         K_intersect_J = Decorrelator._order_fset(K_intersect_J)
         K_leftover = Decorrelator._order_fset(K_leftover)
 
@@ -63,7 +63,7 @@ class GaussianDecorrelator(Decorrelator):
                 corr_coef = self.X_train.corr()
                 ordering = np.array(corr_coef.loc[J, K_leftover].sum().argsort())
 
-            K_leftover = np.array(K_leftover)[ordering]
+        K_leftover = np.array(K_leftover)[ordering]
 
         for jj in range(len(K_leftover)):
             logger.debug('{}(k) idp {} | {}'.format(K_leftover[jj], J, C))
@@ -74,9 +74,9 @@ class GaussianDecorrelator(Decorrelator):
             # build context and target, train
             # here: K_leftover[jj] | J cup C cup already_perturbed
             J_and_C = sorted(set(J).union(C))
-            Ptbd_cdf = sorted(set(K_leftover[:jj]).union(J_and_C))
+            Ptbd_cdf = sorted(set(K_leftover[:jj]).union(J_and_C))  # UNION is a mistake?
 
-            tupl = (self.X_train.loc[:, J_and_C].to_numpy(),
+            tupl = (self.X_train.loc[:, J_and_C].to_numpy(),  # ERROR remove this line?
                     self.X_train.loc[:, Ptbd_cdf].to_numpy())
             context_cdf_fit = np.concatenate(tupl, axis=1)  # for fit
             estimator_cdf.fit(self.X_train.loc[:, K_leftover[jj]].to_numpy(),
@@ -115,7 +115,7 @@ class GaussianDecorrelator(Decorrelator):
                 # build context and target, sample
                 # here: quantiles of K_leftover[jj] | J and C and perturbed
                 J_and_C = sorted(set(J).union(C))
-                Ptbd_cdf = sorted(set(K_leftover[:jj]).union(J_and_C))
+                Ptbd_cdf = sorted(set(K_leftover[:jj]).union(J_and_C))  # ERROR ?
                 tpl = (X_test.loc[:, J_and_C].to_numpy(),
                        values_test.loc[:, Ptbd_cdf].to_numpy())
                 context_cdf_test = np.concatenate(tpl, axis=1)  # for cdf
@@ -130,6 +130,7 @@ class GaussianDecorrelator(Decorrelator):
                        values_test.loc[:, Ptbd_icdf].to_numpy())
                 context_icdf_test = np.concatenate(tpl, axis=1)  # for cdf
                 tmp = estimator_icdf.icdf(qs_test, context_icdf_test)
+                #                          make_uniform=True)
                 values_test.loc[:, K_leftover[jj]] = tmp
 
             return values_test  # pandas dataframe

@@ -96,6 +96,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         mean_inp, mean_cont = joint_mean[inp_ind], joint_mean[cont_ind]
         self.mu_part = mean_inp - self.RegrCoeff @ mean_cont
         if not utils.isPD(self.Sigma):
+            breakpoint()
             logger.info('Making Sigma positive definite')
             self.Sigma = utils.nearestPD(self.Sigma)
         return self
@@ -142,7 +143,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         return qs
 
     def icdf(self, quantiles: np.array, context: np.array,
-             make_uniform=False) -> np.array:
+             make_uniform=False, normalize=False) -> np.array:
         """Calulates the quantile (cumulative distribution function)
         Only works for 1d inputs/targets
 
@@ -150,12 +151,25 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
             inputs: np.array with quantiles, shape = (-1)
             context: np.array with context values, shape = (-1, d_context)
         """
+        eps = 0.00001
         self.__check_target_1d()
         self.__check_positive_variance(adjust=True)
         m = self.conditional_distribution_univariate(context)
         quantiles = quantiles.flatten()
+        if normalize:
+            minv, maxv = np.min(quantiles), np.max(quantiles)
+            quantiles = (quantiles - minv + eps) / (maxv - minv)
+            while np.max(quantiles) >= 1:
+                quantiles = quantiles * (1 - eps)
         if make_uniform:
-            raise NotImplementedError('make_uniform=True not implemented yet')
+            qs_cln = np.linspace(0 + eps, 1 - eps, quantiles.shape[0])
+            sorting = np.argsort(quantiles)
+            inv_sorting = np.zeros(quantiles.shape[0], dtype=np.int)
+            inv_sorting[sorting] = np.arange(quantiles.shape[0], dtype=np.int)
+            qs_cln = qs_cln[inv_sorting]
+            corr = np.corrcoef(qs_cln, quantiles)
+            logger.debug('Old and cleaned quantiles correlation: {}'.format(corr[0, 1]))
+            quantiles = qs_cln
         values = m.icdf(torch.tensor(quantiles)).numpy().flatten()
         # values = np.zeros(quantiles.shape[0])
         # mu_part2 = self.RegrCoeff @ context.T
