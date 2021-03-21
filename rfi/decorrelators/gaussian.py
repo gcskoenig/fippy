@@ -48,6 +48,7 @@ class GaussianDecorrelator(Decorrelator):
 
         # sort K_leftover by decreasing partial correlation
         # TODO(gcsk) if partial correlation 1 or 0 replace with the respective originals
+        ordering = None
         if len(K_leftover) > 0:
             if len(C) > 0:
                 corrs = []
