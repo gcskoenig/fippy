@@ -4,6 +4,7 @@ from rfi.samplers.gaussian import GaussianSampler
 import rfi.utils as utils
 import numpy as np
 import logging
+import pingouin
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,25 @@ class GaussianDecorrelator(Decorrelator):
             intersectsampler.train(K_intersect_J, C)
 
         estimators = []  # will be filled with tuples (cdf, icdf)
+
+        # sort K_leftover by decreasing partial correlation
+        # TODO(gcsk) if partial correlation 1 or 0 replace with the respective originals
+        if len(K_leftover) > 0:
+            if len(C) > 0:
+                corrs = []
+                for kk in range(len(K_leftover)):
+                    abs_sum = 0
+                    for jj in range(len(J)):
+                        r = self.X_train.partial_corr(x=K_leftover[kk],
+                                                      y=J[kk], covar=C)
+                        abs_sum = abs_sum + abs(r)
+                    corrs.append(abs_sum)
+                ordering = np.argsort(corrs)
+            else:
+                corr_coef = self.X_train.corr()
+                ordering = np.array(corr_coef.loc[J, K_leftover].sum().argsort())
+
+            K_leftover = np.array(K_leftover)[ordering]
 
         for jj in range(len(K_leftover)):
             logger.debug('{}(k) idp {} | {}'.format(K_leftover[jj], J, C))
