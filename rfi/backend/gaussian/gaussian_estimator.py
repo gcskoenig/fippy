@@ -143,7 +143,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         return qs
 
     def icdf(self, quantiles: np.array, context: np.array,
-             make_uniform=False, normalize=False) -> np.array:
+             make_uniform=False, normalize=True) -> np.array:
         """Calulates the quantile (cumulative distribution function)
         Only works for 1d inputs/targets
 

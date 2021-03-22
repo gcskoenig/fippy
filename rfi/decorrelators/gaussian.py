@@ -9,6 +9,49 @@ import pingouin
 logger = logging.getLogger(__name__)
 
 
+class NaiveGaussianDecorrelator(Decorrelator):
+    """
+    Naive implementation that just independently resamples
+    the variables to be dropped.
+    """
+    def __init(self, X_train, X_val=None, **kwargs):
+        super().__init__(X_train, X_val=True)
+
+    def train(self, K, J, C, verbose=True):
+        """
+        Trains sampler using dataset to resample variable jj relative to G.
+        Args:
+            K: features to be knocked out from J cup C to C
+            J: features on top of baseline
+            C: baseline conditioning set
+            verbose: printing
+        """
+        K = Decorrelator._to_array(Decorrelator._order_fset(K))
+        J = Decorrelator._to_array(Decorrelator._order_fset(J))
+        C = Decorrelator._to_array(Decorrelator._order_fset(C))
+        super().train(K, J, C, verbose=verbose)
+
+        if len(K) > 0:
+            drop_sampler = GaussianSampler(self.X_train)
+            drop_sampler.train(K, C)
+
+        def decorrelationfunc(X_test):
+            values_test = X_test.copy()
+
+            # index in K that are in J can directly be resampled using C
+            if len(K) > 0:
+                smpl = drop_sampler.sample(X_test, K, C)
+                values_test.loc[:, K] = smpl.to_numpy()
+
+            return values_test  # pandas dataframe
+
+        self._store_decorrelationfunc(K, J, C,
+                                      decorrelationfunc,
+                                      verbose=verbose)
+
+        return None  # TODO implement returning/saving estimators
+
+
 class GaussianDecorrelator(Decorrelator):
     """
     Second order Gaussian Decorrelator.
@@ -61,10 +104,10 @@ class GaussianDecorrelator(Decorrelator):
                     corrs.append(abs_sum)
                 ordering = np.argsort(corrs)
             else:
-                corr_coef = self.X_train.corr()
+                corr_coef = self.X_train.corr().abs()
                 ordering = np.array(corr_coef.loc[J, K_leftover].sum().argsort())
 
-        K_leftover = np.array(K_leftover)[ordering]
+        K_leftover = np.array(K_leftover)[ordering].flatten()
 
         for jj in range(len(K_leftover)):
             logger.debug('{}(k) idp {} | {}'.format(K_leftover[jj], J, C))
