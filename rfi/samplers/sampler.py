@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 import rfi.utils as utils
-from rfi.samplers._utils import sample_id  # , sample_perm
+from rfi.samplers._utils import sample_id, sample_perm
 import logging
 from typing import Union, List
 
@@ -20,14 +20,16 @@ class Sampler:
 
     Attributes:
         X_train: reference to training data.
-        cat_inputs: List of indices of categorical features, if None - considering all the features as continuous
+        cat_inputs: List of categorical features, if None - considering all the features as continuous
+        fit_unconditional: Fit unconditional samplers, if False - using permutations
         _trained_sampling_funcs: dictionary with (fsoi, G) as key and callable sampler as value
     """
 
-    def __init__(self, X_train, cat_inputs: List[int] = None, **kwargs):
+    def __init__(self, X_train, cat_inputs: List[int] = None, fit_unconditional=False, **kwargs):
         """Initialize Sampler with X_train and mask."""
         self.X_train = X_train
         self.cat_inputs = self._to_array(cat_inputs if cat_inputs is not None else [])
+        self.fit_unconditional = fit_unconditional
         self._trained_sampling_funcs = {}
         self._trained_estimators = {}
 
@@ -53,7 +55,7 @@ class Sampler:
     @staticmethod
     def _pd_to_np(df):
         np_arr = df[sorted(df.columns)].to_numpy()
-        return np.arr
+        return np_arr
 
     def is_trained(self, J, G):
         """Indicates whether the Sampler has been trained
@@ -84,16 +86,16 @@ class Sampler:
         degenerate = True
 
         # are we conditioning on zero elements?
-        # if G.size == 0:
-        #     logger.debug('Degenerate Training: Empty G')
-        #     J_ixs = utils.fset_to_ix(self.X_train.columns, J)
-        #     self._store_samplefunc(J, G, sample_perm(J_ixs))
+        if G.size == 0 and not self.fit_unconditional:
+            logger.debug('Degenerate Training: Empty G')
+            # J_ixs = utils.fset_to_ix(self.X_train.columns, J)
+            self._store_samplefunc(J, G, sample_perm(J))
         # are all elements in G being conditioned upon?
-        if np.sum(1 - np.isin(J, G)) == 0:
+        elif np.sum(1 - np.isin(J, G)) == 0:
             logger.debug('Degenerate Training: J subseteq G')
-            J_ixs = utils.fset_to_ix(Sampler._order_fset(G),
-                                     Sampler._order_fset(J))
-            self._store_samplefunc(J, G, sample_id(J_ixs))
+            # J_ixs = utils.fset_to_ix(Sampler._order_fset(G),
+            #                          Sampler._order_fset(J))
+            self._store_samplefunc(J, G, sample_id(J))
         else:
             logger.debug('Training not degenerate.')
             degenerate = False
@@ -152,8 +154,7 @@ class Sampler:
             raise RuntimeError("Sampler not trained on {} | {}".format(J, G))
         else:
             sample_func = self._trained_sampling_funcs[(J_key, G_key)]
-            smpl = sample_func(X_test[Sampler._order_fset(G)].to_numpy(),
-                               num_samples=num_samples)
+            smpl = sample_func(X_test, num_samples=num_samples)
             snrs = np.arange(num_samples)
             obs = np.arange(X_test.shape[0])
             vss = [snrs, obs]
@@ -161,7 +162,10 @@ class Sampler:
             index = utils.create_multiindex(ns, vss)
 
             smpl = np.swapaxes(smpl, 0, 1)
-            smpl = smpl.reshape((-1, smpl.shape[2]))
+            if len(smpl.shape) == 3:
+                smpl = smpl.reshape((-1, smpl.shape[2]))
+            else:
+                smpl = smpl.reshape((-1, 1))
 
             df = pd.DataFrame(smpl, index=index,
                               columns=Sampler._order_fset(J))

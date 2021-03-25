@@ -13,6 +13,7 @@ import rfi.explanation.decomposition as decomposition_ex
 import enlighten  # TODO add to requirements
 import math
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -618,10 +619,11 @@ class Explainer:
                                                        ex_name=None)
         return ex
 
-    def sage(self, type, X_test, y_test, partial_ordering,
-             nr_orderings=None, approx=math.sqrt,
+    def sage(self, X_test, y_test, fixed_orderings=None, partial_ordering=None,
+             nr_orderings=None, approx=math.sqrt, type='rfi',
              save_orderings=True, nr_runs=10, sampler=None,
              loss=None, train_allowed=True, D=None,
+             return_test_log_lik=False,
              nr_resample_marginalize=10):
         """
         Compute Shapley Additive Global Importance values.
@@ -631,6 +633,7 @@ class Explainer:
                 be used
             X_test: data to use for resampling and evaluation.
             y_test: labels for evaluation.
+            fixed_orderings: list of ready orderings
             nr_orderings: number of orderings in which features enter the model
             nr_runs: how often each value function shall be computed
             sampler: choice of sampler. Default None. Will throw an error
@@ -639,6 +642,7 @@ class Explainer:
               both loss and self.loss are None.
             train_allowed: whether the explainer is allowed to
                 train the sampler
+            return_test_log_lik: return log-likelihood of conditional sampler on X_test
 
         Returns:
             result: an explanation object containing the respective
@@ -665,6 +669,10 @@ class Explainer:
                 loss = self.loss
                 logger.debug("Using class specified loss.")
 
+        if fixed_orderings is not None:
+            fixed_orderings = np.array(fixed_orderings)
+            nr_orderings = len(fixed_orderings)
+
         if nr_orderings is None:
             nr_unique = utils.nr_unique_perm(partial_ordering)
             if approx is not None:
@@ -687,12 +695,13 @@ class Explainer:
         arr = np.zeros((nr_orderings_saved * nr_runs * X_test.shape[0],
                         len(self.fsoi)))
         scores = pd.DataFrame(arr, index=index, columns=self.fsoi)
-
-        # lss = np.zeros(
-        #     (len(self.fsoi), nr_runs, X_test.shape[0], nr_orderings))
+        test_log_lik = []
 
         for ii in range(nr_orderings):
-            ordering = utils.sample_partial(partial_ordering)
+            if fixed_orderings is None:
+                ordering = utils.sample_partial(partial_ordering)
+            else:
+                ordering = fixed_orderings[ii]
             logging.info('Ordering : {}'.format(ordering))
 
             # ordering = np.random.permutation(len(self.fsoi))
@@ -707,15 +716,19 @@ class Explainer:
                     # store the result in the right place
                     # validate training of sampler
                     impute, fixed = ordering[jj:], ordering[:jj]
-                    logger.debug('{}:{}:{}: fixed, impute: {}|{}'.format(
-                        ii, kk, jj, impute, fixed))
+                    logger.info('ordering {}: run {}: split {}: impute, fixed: {} | {}'.format(ii, kk, jj, impute, fixed))
+
                     if not sampler.is_trained(impute, fixed):
                         # train if allowed, otherwise raise error
                         if train_allowed:
-                            sampler.train(impute, fixed)
-                            logger.info(
-                                'Training sampler on '
-                                '{}|{}'.format(impute, fixed))
+                            estimator = sampler.train(impute, fixed)
+
+                            # Evaluating test log-likelihood for diagnostics
+                            test_inputs = X_test[sampler._order_fset(impute)].to_numpy()
+                            test_context = X_test[sampler._order_fset(fixed)].to_numpy()
+                            log_lik = estimator.log_prob(inputs=test_inputs, context=test_context).mean()
+                            logger.info(f'Test log-likelihood: {log_lik}')
+                            test_log_lik.append(log_lik)
                         else:
                             raise RuntimeError(
                                 'Sampler is not trained on '
@@ -737,6 +750,7 @@ class Explainer:
                                           num_samples=nr_resample_marginalize)
 
                     X_test_perturbed[impute] = imps[impute].to_numpy()
+
                     # sample replacement, create replacement matrix
                     y_hat_new = self.model(X_test_perturbed[D])
 
@@ -751,13 +765,15 @@ class Explainer:
                     scores.loc[(ii, kk, slice(None)), ordering[jj - 1]] = diff
                     # lss[self.fsoi[ordering[jj - 1]], kk, :, ii] = lb - ln
                     y_hat_base = y_hat_new_marg
+
                 y_hat_new = self.model(X_test[D])
                 diff = loss(y_test, y_hat_base) - loss(y_test, y_hat_new)
-                scores.loc[(ii, kk, slice(None)), ordering[jj - 1]] = diff
+                scores.loc[(ii, kk, slice(None)), ordering[-1]] = diff
                 # lss[self.fsoi[ordering[-1]], kk, :, ii] = diff
 
-        result = explanation.Explanation(
-            self.fsoi, scores,
-            ex_name='SAGE')
+        result = explanation.Explanation(self.fsoi, scores, ex_name='SAGE')
+
+        if return_test_log_lik:
+            return result, test_log_lik
 
         return result

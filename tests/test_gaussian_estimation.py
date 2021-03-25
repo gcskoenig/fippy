@@ -16,6 +16,7 @@ X_train, y_train = dataset[ix_train, :-1], dataset[ix_train, -1]
 X_test, y_test = dataset[ix_test, :-1], dataset[ix_test, -1]
 
 J, G = [0, 1], [2, 3]  # TODO(gcsk): remove before release
+SEED = 42
 ASSERT_DECIMAL = 2
 
 
@@ -27,6 +28,7 @@ class TestGaussian:
 
         gaussian_estimator = GaussianConditionalEstimator()
         gaussian_estimator.fit(train_inputs=X_train[:, J], train_context=X_train[:, G])
+        np.random.seed(SEED)
         X_J_recovered = gaussian_estimator.sample(X_test[:, G], num_samples=1)
         X_J_recovered = X_J_recovered.reshape((X_J_recovered.shape[0], -1))
 
