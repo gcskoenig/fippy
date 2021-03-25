@@ -79,22 +79,19 @@ EXAMPLE 4: Figure 2 from II paper
 Order: X_1, X_2, Y
 """
 ii_rhombus = SyntheticExample(
-    name='ii-inference-large',
+    name='ii_rhombus',
     sem=LinearGaussianNoiseSEM(
         dag=DirectedAcyclicGraph(
-            adjacency_matrix=np.array([[0, 1, 1, 0, 0],
-                                       [0, 0, 0, 1, 0],
-                                       [0, 0, 0, 1, 0],
-                                       [0, 0, 0, 0, 1],
-                                       [0, 0, 0, 0, 0]]),
-            var_names=['x1', 'x2', 'x3', 'x4', 'y']
+            adjacency_matrix=np.array([[0, 1, 1, 0],
+                                       [0, 0, 0, 1],
+                                       [0, 0, 0, 1],
+                                       [0, 0, 0, 0]]),
+            var_names=['x1', 'x2', 'x3', 'y']
         ),
         coeff_dict={'x2': {'x1': 1.0}, 'x3': {'x1': 1.0},
-                    'x4': {'x2': 1.0, 'x3': 1.0},
-                    'y': {'x4': 1.0}},
+                    'y': {'x2': 1.0, 'x3': 1.0}},
         noise_std_dict={'x1': sigma_high, 'x2': sigma_high,
-                        'x3': sigma_high, 'x4': sigma_high,
-                        'y': sigma_low}
+                        'x3': sigma_high, 'y': sigma_medium}
     )
 )
 
@@ -152,16 +149,122 @@ ii_cause_effect = SyntheticExample(
     sem=LinearGaussianNoiseSEM(
         dag=DirectedAcyclicGraph(
             adjacency_matrix=np.array([[0, 1, 0, 0, 0],
-                                       [0, 0, 1, 0, 0],
-                                       [0, 0, 0, 1, 0],
                                        [0, 0, 0, 0, 1],
-                                       [0, 0, 0, 0, 0]]),
-            var_names=['x1', 'x2', 'y', 'x3', 'x4']
+                                       [0, 0, 0, 1, 0],
+                                       [0, 0, 0, 0, 0],
+                                       [0, 0, 1, 0, 0]]),
+            var_names=['x1', 'x2', 'x3', 'x4', 'y']
         ),
         coeff_dict={'x2': {'x1': 1.0}, 'x3': {'y': 1.0},
                     'y': {'x2': 1.0}, 'x4': {'x3': 1.0}},
+        noise_std_dict={'x1': sigma_medium, 'x2': sigma_medium,
+                        'x3': sigma_medium, 'x4': sigma_medium,
+                        'y': sigma_high}
+    )
+)
+
+
+"""
+EXAMPLE 7: relevance_types
+
+Order: X_1, X_2, X_3, X_4, Y
+"""
+ii_relevance_types = SyntheticExample(
+    name='ii-relevance_types',
+    sem=LinearGaussianNoiseSEM(
+        dag=DirectedAcyclicGraph(
+            adjacency_matrix=np.array([[0, 0, 0, 1],
+                                       [0, 0, 1, 1],
+                                       [0, 0, 0, 0],
+                                       [0, 0, 0, 0]]),
+            var_names=['x1', 'x2', 'x3', 'y']
+        ),
+        coeff_dict={'x3': {'x2': 1.0},
+                    'y': {'x1': 1.0, 'x2': 1.0}},
         noise_std_dict={'x1': sigma_high, 'x2': sigma_high,
-                        'x3': sigma_high, 'x4': sigma_high,
-                        'y': sigma_low}
+                        'x3': sigma_high,
+                        'y': sigma_high}
+    )
+)
+
+
+"""
+EXAMPLE 7: relevance_types
+
+Order: B, C, PSA, Y
+"""
+ii_psa = SyntheticExample(
+    name='ii-psa',
+    sem=LinearGaussianNoiseSEM(
+        dag=DirectedAcyclicGraph(
+            adjacency_matrix=np.array([[0, 0, 0, 1],
+                                       [0, 0, 1, 0],
+                                       [0, 0, 0, 1],
+                                       [0, 0, 0, 0]]),
+            var_names=['biomarkers', 'cycling', 'PSA', 'y']
+        ),
+        coeff_dict={'PSA': {'cycling': 1.0},
+                    'y': {'biomarkers': 1.0, 'PSA': 0.5}},
+        noise_std_dict={'PSA': sigma_medium, 'cycling': sigma_medium,
+                        'biomarkers': sigma_medium,
+                        'y': sigma_medium}
+    )
+)
+
+
+"""
+EXAMPLE 8: large
+"""
+
+ii_large = SyntheticExample(
+    name='ii-large',
+    sem=LinearGaussianNoiseSEM(
+        dag=DirectedAcyclicGraph(
+            adjacency_matrix=np.array([[0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                                       [0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0],
+                                       [0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0],
+                                       [0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0],
+                                       [0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                                       [0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0]]),
+            var_names=['x1', 'x2', 'x3','x4','x5','x6','x7','x8','x9','x10',
+                       'x11','x12','x13','x14','x15','x16','x17','x18', 'y']
+        ),
+        coeff_dict={'x6': {'x1': 1.0, 'x2': 1.0},
+                    'x7': {'x2': 1.0, 'x3': 1.0},
+                    'x8': {'x3': 1.0, 'x4': 1.0},
+                    'x9': {'x4': 1.0, 'x5': 1.0},
+                    'y': {'x6': 1.0, 'x7': 1.0, 'x8': 1.0, 'x9': 1.0},
+                    'x10': {'y': 1.0},
+                    'x11': {'y': 1.0},
+                    'x12': {'y': 1.0},
+                    'x13': {'y': 1.0},
+                    'x14': {'x10': 1.0},
+                    'x15': {'x11': 1.0, 'x10': 1.0},
+                    'x16': {'x12': 1.0, 'x11': 1.0},
+                    'x17': {'x13': 1.0, 'x12': 1.0},
+                    'x18': {'x13': 1.0}},
+        noise_std_dict={'x1': sigma_medium, 'x2': sigma_medium,
+                        'x3': sigma_medium, 'x4': sigma_medium,
+                        'x5': sigma_medium, 'x6': sigma_medium,
+                        'x7': sigma_medium, 'x8': sigma_medium,
+                        'x9': sigma_medium, 'x10': sigma_medium,
+                        'x11': sigma_medium, 'x12': sigma_medium,
+                        'x13': sigma_medium, 'x14': sigma_medium,
+                        'x15': sigma_medium, 'x16': sigma_medium,
+                        'x17': sigma_medium, 'x18': sigma_medium,
+                        'y': sigma_high}
     )
 )

@@ -6,6 +6,7 @@ from torch.distributions import Normal, MultivariateNormal, Distribution
 from statsmodels.stats.correlation_tools import cov_nearest
 import logging
 
+import rfi.backend.utils as utils
 from rfi.backend import ConditionalDistributionEstimator
 
 logger = logging.getLogger(__name__)
@@ -94,6 +95,10 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         self.Sigma = cov_inp - self.RegrCoeff @ cov_cont_inp
         mean_inp, mean_cont = joint_mean[inp_ind], joint_mean[cont_ind]
         self.mu_part = mean_inp - self.RegrCoeff @ mean_cont
+        if not utils.isPD(self.Sigma):
+            breakpoint()
+            logger.info('Making Sigma positive definite')
+            self.Sigma = utils.nearestPD(self.Sigma)
         return self
 
     def log_prob(self, inputs: np.array, context: np.array = None) -> np.array:
@@ -126,14 +131,19 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         """
         self.__check_target_1d()
         self.__check_positive_variance(adjust=True)
-        qs = np.zeros(inputs.shape[0])
-        mu_part2 = self.RegrCoeff @ context.T
-        for j in range(len(context)):
-            mu = self.mu_part + mu_part2[:, j]
-            qs[j] = norm.cdf(inputs[j], loc=mu, scale=np.sqrt(self.Sigma))
+        m = self.conditional_distribution_univariate(context)
+        inputs = inputs.flatten()
+        qs = m.cdf(torch.tensor(inputs)).numpy().flatten()
+        # qs = np.zeros(inputs.shape[0])
+        # mu_part2 = self.RegrCoeff @ context.T
+        # for j in range(len(context)):
+        #     mu = self.mu_part + mu_part2[:, j]
+        #     qs[j] = norm.cdf(inputs[j], loc=mu, scale=np.sqrt(self.Sigma))
+
         return qs
 
-    def icdf(self, quantiles: np.array, context: np.array) -> np.array:
+    def icdf(self, quantiles: np.array, context: np.array,
+             make_uniform=False, normalize=True) -> np.array:
         """Calulates the quantile (cumulative distribution function)
         Only works for 1d inputs/targets
 
@@ -141,29 +151,58 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
             inputs: np.array with quantiles, shape = (-1)
             context: np.array with context values, shape = (-1, d_context)
         """
+        eps = 0.00001
         self.__check_target_1d()
         self.__check_positive_variance(adjust=True)
-        values = np.zeros(quantiles.shape[0])
-        mu_part2 = self.RegrCoeff @ context.T
-        for j in range(len(context)):
-            mu = self.mu_part + mu_part2[:, j]
-            values[j] = norm.ppf(q=quantiles[j],
-                                 loc=mu,
-                                 scale=np.sqrt(self.Sigma))
+        m = self.conditional_distribution_univariate(context)
+        quantiles = quantiles.flatten()
+        if normalize:
+            minv, maxv = np.min(quantiles), np.max(quantiles)
+            quantiles = (quantiles - minv + eps) / (maxv - minv)
+            while np.max(quantiles) >= 1:
+                quantiles = quantiles * (1 - eps)
+        if make_uniform:
+            qs_cln = np.linspace(0 + eps, 1 - eps, quantiles.shape[0])
+            sorting = np.argsort(quantiles)
+            inv_sorting = np.zeros(quantiles.shape[0], dtype=np.int)
+            inv_sorting[sorting] = np.arange(quantiles.shape[0], dtype=np.int)
+            qs_cln = qs_cln[inv_sorting]
+            corr = np.corrcoef(qs_cln, quantiles)
+            logger.debug('Old and cleaned quantiles correlation: {}'.format(corr[0, 1]))
+            quantiles = qs_cln
+        values = m.icdf(torch.tensor(quantiles)).numpy().flatten()
+        # values = np.zeros(quantiles.shape[0])
+        # mu_part2 = self.RegrCoeff @ context.T
+        # for j in range(len(context)):
+        #     mu = self.mu_part + mu_part2[:, j]
+        #     values[j] = norm.ppf(q=quantiles[j],
+        #                          loc=mu,
+        #                          scale=np.sqrt(self.Sigma))
         return values
+
+    def conditional_distribution_univariate(self, context: np.array = None) -> Distribution:
+        mu_part2 = self.RegrCoeff @ context.T
+        mu = (self.mu_part + mu_part2).flatten()
+        return Normal(torch.tensor(mu).T,
+                      torch.tensor(self.Sigma.flatten()))
 
     def conditional_distribution(self,
                                  context: np.array = None) -> Distribution:
+        # Sigma = utils.nearestPD(self.Sigma)
         mu_part2 = self.RegrCoeff @ context.T
-        mu = self.mu_part + mu_part2
-        return MultivariateNormal(torch.tensor(mu).T, torch.tensor(self.Sigma))
+        mu = self.mu_part.reshape((-1, 1)) + mu_part2
+        return MultivariateNormal(torch.tensor(mu).T,
+                                  torch.tensor(self.Sigma))
 
     def sample(self, context: np.array = None, num_samples=1) -> np.array:
-        res = np.zeros((context.shape[0], num_samples, self.inp_ind.shape[0]))
-        mu_part2 = self.RegrCoeff @ context.T
-        for j in range(len(context)):
-            mu = self.mu_part + mu_part2[:, j]
-            res[j, :, :] = np.random.multivariate_normal(mu,
-                                                         self.Sigma,
-                                                         num_samples)
+        # res = np.zeros((context.shape[0], num_samples,
+        #                 self.inp_ind.shape[0]))
+        # for j in range(len(context)):
+        #     mu = self.mu_part + mu_part2[:, j]
+        #     res[j, :, :] = np.random.multivariate_normal(mu,
+        #                                                  self.Sigma,
+        #                                                  num_samples)
+        m = self.conditional_distribution(context)
+        smpl = m.sample((num_samples,)).numpy()
+        res = np.swapaxes(smpl, 0, 1)
         return res

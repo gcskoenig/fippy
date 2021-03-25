@@ -132,10 +132,11 @@ class Decorrelator:
         """Sample features of interest using trained resampler.
 
         Args:
-            J: Set of features to sample
-            C: relative feature set
             X_test: Data for which sampling shall be
                 performed. (format as self.X_train)
+            K: Set of features to sample
+            J: features to be removed
+            C: features to be preserved
             num_samples: number of resamples without
                 retraining shall be computed
 

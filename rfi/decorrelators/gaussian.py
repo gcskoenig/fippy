@@ -4,8 +4,52 @@ from rfi.samplers.gaussian import GaussianSampler
 import rfi.utils as utils
 import numpy as np
 import logging
+import pingouin
 
 logger = logging.getLogger(__name__)
+
+
+class NaiveGaussianDecorrelator(Decorrelator):
+    """
+    Naive implementation that just independently resamples
+    the variables to be dropped.
+    """
+    def __init(self, X_train, X_val=None, **kwargs):
+        super().__init__(X_train, X_val=True)
+
+    def train(self, K, J, C, verbose=True):
+        """
+        Trains sampler using dataset to resample variable jj relative to G.
+        Args:
+            K: features to be knocked out from J cup C to C
+            J: features on top of baseline
+            C: baseline conditioning set
+            verbose: printing
+        """
+        K = Decorrelator._to_array(Decorrelator._order_fset(K))
+        J = Decorrelator._to_array(Decorrelator._order_fset(J))
+        C = Decorrelator._to_array(Decorrelator._order_fset(C))
+        super().train(K, J, C, verbose=verbose)
+
+        if len(K) > 0:
+            drop_sampler = GaussianSampler(self.X_train)
+            drop_sampler.train(K, C)
+
+        def decorrelationfunc(X_test):
+            values_test = X_test.copy()
+
+            # index in K that are in J can directly be resampled using C
+            if len(K) > 0:
+                smpl = drop_sampler.sample(X_test, K, C)
+                values_test.loc[:, K] = smpl.to_numpy()
+
+            return values_test  # pandas dataframe
+
+        self._store_decorrelationfunc(K, J, C,
+                                      decorrelationfunc,
+                                      verbose=verbose)
+
+        return None  # TODO implement returning/saving estimators
 
 
 class GaussianDecorrelator(Decorrelator):
@@ -34,8 +78,8 @@ class GaussianDecorrelator(Decorrelator):
         C = Decorrelator._to_array(Decorrelator._order_fset(C))
         super().train(K, J, C, verbose=verbose)
 
-        K_intersect_J = np.intersect1d(K, J)
-        K_leftover = np.setdiff1d(np.setdiff1d(K, J), C)
+        K_intersect_J = np.intersect1d(K, J) # resample from X^C directly
+        K_leftover = np.setdiff1d(np.setdiff1d(K, J), C) # actually decorrelate
         K_intersect_J = Decorrelator._order_fset(K_intersect_J)
         K_leftover = Decorrelator._order_fset(K_leftover)
 
@@ -44,6 +88,26 @@ class GaussianDecorrelator(Decorrelator):
             intersectsampler.train(K_intersect_J, C)
 
         estimators = []  # will be filled with tuples (cdf, icdf)
+
+        # sort K_leftover by decreasing partial correlation
+        # TODO(gcsk) if partial correlation 1 or 0 replace with the respective originals
+        ordering = None
+        if len(K_leftover) > 0:
+            if len(C) > 0:
+                corrs = []
+                for kk in range(len(K_leftover)):
+                    abs_sum = 0
+                    for jj in range(len(J)):
+                        r = self.X_train.partial_corr(x=K_leftover[kk],
+                                                      y=J[kk], covar=C)
+                        abs_sum = abs_sum + abs(r)
+                    corrs.append(abs_sum)
+                ordering = np.argsort(corrs)
+            else:
+                corr_coef = self.X_train.corr().abs()
+                ordering = np.array(corr_coef.loc[J, K_leftover].sum().argsort())
+
+        K_leftover = np.array(K_leftover)[ordering].flatten()
 
         for jj in range(len(K_leftover)):
             logger.debug('{}(k) idp {} | {}'.format(K_leftover[jj], J, C))
@@ -54,9 +118,9 @@ class GaussianDecorrelator(Decorrelator):
             # build context and target, train
             # here: K_leftover[jj] | J cup C cup already_perturbed
             J_and_C = sorted(set(J).union(C))
-            Ptbd_cdf = sorted(set(K_leftover[:jj]).union(J_and_C))
+            Ptbd_cdf = sorted(set(K_leftover[:jj]).union(J_and_C))  # UNION is a mistake?
 
-            tupl = (self.X_train.loc[:, J_and_C].to_numpy(),
+            tupl = (self.X_train.loc[:, J_and_C].to_numpy(),  # ERROR remove this line?
                     self.X_train.loc[:, Ptbd_cdf].to_numpy())
             context_cdf_fit = np.concatenate(tupl, axis=1)  # for fit
             estimator_cdf.fit(self.X_train.loc[:, K_leftover[jj]].to_numpy(),
@@ -95,7 +159,7 @@ class GaussianDecorrelator(Decorrelator):
                 # build context and target, sample
                 # here: quantiles of K_leftover[jj] | J and C and perturbed
                 J_and_C = sorted(set(J).union(C))
-                Ptbd_cdf = sorted(set(K_leftover[:jj]).union(J_and_C))
+                Ptbd_cdf = sorted(set(K_leftover[:jj]).union(J_and_C))  # ERROR ?
                 tpl = (X_test.loc[:, J_and_C].to_numpy(),
                        values_test.loc[:, Ptbd_cdf].to_numpy())
                 context_cdf_test = np.concatenate(tpl, axis=1)  # for cdf
@@ -110,6 +174,7 @@ class GaussianDecorrelator(Decorrelator):
                        values_test.loc[:, Ptbd_icdf].to_numpy())
                 context_icdf_test = np.concatenate(tpl, axis=1)  # for cdf
                 tmp = estimator_icdf.icdf(qs_test, context_icdf_test)
+                #                          make_uniform=True)
                 values_test.loc[:, K_leftover[jj]] = tmp
 
             return values_test  # pandas dataframe
