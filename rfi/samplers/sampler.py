@@ -161,7 +161,6 @@ class Sampler:
             ns = ['sample', 'i']
             index = utils.create_multiindex(ns, vss)
 
-            breakpoint()
             if len(smpl.shape) > 1:
                 smpl = np.swapaxes(smpl, 0, 1)
             if len(smpl.shape) == 3:
