@@ -20,7 +20,7 @@ class Sampler:
 
     Attributes:
         X_train: reference to training data.
-        cat_inputs: List of indices of categorical features, if None - considering all the features as continuous
+        cat_inputs: List of categorical features, if None - considering all the features as continuous
         fit_unconditional: Fit unconditional samplers, if False - using permutations
         _trained_sampling_funcs: dictionary with (fsoi, G) as key and callable sampler as value
     """
