@@ -187,6 +187,31 @@ ii_relevance_types = SyntheticExample(
     )
 )
 
+
+"""
+EXAMPLE 7: relevance_types
+
+Order: B, C, PSA, Y
+"""
+ii_psa = SyntheticExample(
+    name='ii-psa',
+    sem=LinearGaussianNoiseSEM(
+        dag=DirectedAcyclicGraph(
+            adjacency_matrix=np.array([[0, 0, 0, 1],
+                                       [0, 0, 1, 0],
+                                       [0, 0, 0, 1],
+                                       [0, 0, 0, 0]]),
+            var_names=['biomarkers', 'cycling', 'PSA', 'y']
+        ),
+        coeff_dict={'PSA': {'cycling': 1.0},
+                    'y': {'biomarkers': 1.0, 'PSA': 0.5}},
+        noise_std_dict={'PSA': sigma_medium, 'cycling': sigma_medium,
+                        'biomarkers': sigma_medium,
+                        'y': sigma_medium}
+    )
+)
+
+
 """
 EXAMPLE 8: large
 """
