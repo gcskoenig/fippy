@@ -57,7 +57,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         cov = np.cov(X_train.T)
 
         n_in, n_co = train_inputs.shape[1], train_context.shape[1]
-        cov = cov.reshape((n_in+n_co, n_in+n_co)) # make sure its 2d
+        cov = cov.reshape((n_in + n_co, n_in + n_co))  # make sure its 2d
         inp_ind = np.arange(0, n_in, 1)
         cont_ind = np.arange(n_in, n_in + n_co, 1)
 
@@ -102,7 +102,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         @param inputs: np.array with random variable sample, shape = (-1, 1)
         @param context: np.array, conditioning sample
         """
-        inputs = inputs.reshape(-1, 1)
+        # inputs = inputs.reshape(-1, 1)
         assert context is not None
         # assert context_vars.shape[1] == 1
         assert len(context.shape) == 2

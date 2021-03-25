@@ -49,15 +49,17 @@ class TestNonGaussianEstimators:
             estimator.fit(train_inputs=y_train, verbose=True, val_inputs=y_test, log_frequency=1000)
 
             # Density check
-            int_res = integrate.quad(lambda x: np.exp(estimator.log_prob(x)), -np.inf, np.inf, limit=100)[0]
-            logging.info(f'Integral of density: {int_res}')
-            np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
+            with torch.no_grad():
+                int_res = integrate.quad(lambda x: np.exp(estimator.log_prob(x)), -np.inf, np.inf, limit=100)[0]
+                logging.info(f'Integral of density: {int_res}')
+                np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
 
             # Density plotting
             fig, ax = plt.subplots()
             x = np.linspace(y_train.min() - y_train.std(), y_train.max() + y_train.std(), 1000)
             sns.kdeplot(y_train, ax=ax)
-            ax.plot(x, np.exp(estimator.log_prob(x)))
+            with torch.no_grad():
+                ax.plot(x, np.exp(estimator.log_prob(x)))
             ax.set_title(f'Uni-variate unconditional density ({estimator_cls.__name__})')
             plt.show()
 
@@ -81,10 +83,11 @@ class TestNonGaussianEstimators:
                           log_frequency=1000)
 
             # Density check
-            int_res = integrate.quad_vec(lambda x: np.exp(estimator.log_prob(np.repeat(x, len(X_test)), context=X_test)),
-                                         -np.inf, np.inf, epsabs=EPSABS)[0]
-            logging.info(f'Mean integral of cond density: {int_res.mean()}')
-            np.testing.assert_array_almost_equal(int_res, np.ones(len(X_test)), ASSERT_DECIMAL)
+            with torch.no_grad():
+                int_res = integrate.quad_vec(lambda x: np.exp(estimator.log_prob(np.repeat(x, len(X_test)), context=X_test)),
+                                             -np.inf, np.inf, epsabs=EPSABS)[0]
+                logging.info(f'Mean integral of cond density: {int_res.mean()}')
+                np.testing.assert_array_almost_equal(int_res, np.ones(len(X_test)), ASSERT_DECIMAL)
 
             # Sampling
             with torch.no_grad():
@@ -99,14 +102,15 @@ class TestNonGaussianEstimators:
             data_train, data_test = train_test_split(data, random_state=42)
 
             estimator = estimator_cls(inputs_size=2, context_size=0, n_epochs=1000, input_noise_std=0.2, lr=0.02,
-                                      base_distribution=StandardNormal(shape=[2]), transform_classes=DEFAULT_TRANSFORMS)
+                                      transform_classes=DEFAULT_TRANSFORMS)
             estimator.fit(train_inputs=data_train, verbose=True, val_inputs=data_test, log_frequency=1000)
 
             # Density check
-            int_res = integrate.dblquad(lambda x, y: np.exp(estimator.log_prob(np.array([x, y]))), -np.inf, np.inf, -np.inf,
-                                        np.inf, epsabs=EPSABS)[0]
-            logging.info(f'Integral of density: {int_res}')
-            np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
+            with torch.no_grad():
+                int_res = integrate.dblquad(lambda x, y: np.exp(estimator.log_prob(np.array([x, y]))), -np.inf, np.inf, -np.inf,
+                                            np.inf, epsabs=EPSABS)[0]
+                logging.info(f'Integral of density: {int_res}')
+                np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
 
             # Density plotting
             fig, ax = plt.subplots()
@@ -116,7 +120,8 @@ class TestNonGaussianEstimators:
                                np.linspace(data_train[:, 1].min() - data_train[:, 1].std(),
                                            data_train[:, 1].max() + data_train[:, 1].std(),
                                            200))
-            z = np.exp(estimator.log_prob(np.stack((x.flatten(), y.flatten()), axis=1))).reshape(x.shape)
+            with torch.no_grad():
+                z = np.exp(estimator.log_prob(np.stack((x.flatten(), y.flatten()), axis=1))).reshape(x.shape)
             z = z[:-1, :-1]
             c = ax.pcolormesh(x, y, z, cmap='Blues', vmin=0.0, vmax=z.max())
             ax.set_title(f'Bi-variate unconditional density ({estimator_cls.__name__})')
@@ -144,20 +149,20 @@ class TestNonGaussianEstimators:
             X_train, X_test = X_train.reshape(-1, 1), X_test.reshape(-1, 1)
 
             estimator = estimator_cls(inputs_size=2, context_size=1, n_epochs=1000, input_noise_std=0.2, lr=0.02,
-                                      base_distribution=StandardNormal(shape=[2]), transform_classes=DEFAULT_TRANSFORMS,
-                                      cat_context=[0])
+                                      transform_classes=DEFAULT_TRANSFORMS, cat_context=[0])
             estimator.fit(train_inputs=y_train, train_context=X_train, verbose=True, val_inputs=y_test, val_context=X_test,
                           log_frequency=1000)
 
             # Density check
-            int_res = integrate.dblquad(lambda x, y: np.exp(estimator.log_prob(np.array([x, y]), context=np.zeros((1, 1)))),
-                                        -np.inf, np.inf, -np.inf, np.inf, epsabs=EPSABS)[0]
-            logging.info(f'Integral of conditional density (X = 0): {int_res}')
-            np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
-            int_res = integrate.dblquad(lambda x, y: np.exp(estimator.log_prob(np.array([x, y]), context=np.ones((1, 1)))),
-                                        -np.inf, np.inf, -np.inf, np.inf, epsabs=EPSABS)[0]
-            logging.info(f'Integral of conditional density (X = 0): {int_res}')
-            np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
+            with torch.no_grad():
+                int_res = integrate.dblquad(lambda x, y: np.exp(estimator.log_prob(np.array([x, y]), context=np.zeros((1, 1)))),
+                                            -np.inf, np.inf, -np.inf, np.inf, epsabs=EPSABS)[0]
+                logging.info(f'Integral of conditional density (X = 0): {int_res}')
+                np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
+                int_res = integrate.dblquad(lambda x, y: np.exp(estimator.log_prob(np.array([x, y]), context=np.ones((1, 1)))),
+                                            -np.inf, np.inf, -np.inf, np.inf, epsabs=EPSABS)[0]
+                logging.info(f'Integral of conditional density (X = 0): {int_res}')
+                np.testing.assert_almost_equal(int_res, 1.0, ASSERT_DECIMAL)
 
             # Density plotting
             fig, ax = plt.subplots()
@@ -168,8 +173,9 @@ class TestNonGaussianEstimators:
                                            y_train[:, 1].max() + y_train[:, 1].std(),
                                            200))
             inputs = np.stack((x.flatten(), y.flatten()), axis=1)
-            z0 = np.exp(estimator.log_prob(inputs, context=np.zeros((len(inputs), 1)))).reshape(x.shape)
-            z1 = np.exp(estimator.log_prob(inputs, context=np.ones((len(inputs), 1)))).reshape(x.shape)
+            with torch.no_grad():
+                z0 = np.exp(estimator.log_prob(inputs, context=np.zeros((len(inputs), 1)))).reshape(x.shape)
+                z1 = np.exp(estimator.log_prob(inputs, context=np.ones((len(inputs), 1)))).reshape(x.shape)
             z0 = z0[:-1, :-1]
             z1 = z1[:-1, :-1]
             c0 = ax.pcolormesh(x, y, z0, cmap='Blues', vmin=0.0, vmax=z0.max(), label='X = 0', alpha=0.5)

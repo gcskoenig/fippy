@@ -9,6 +9,7 @@ import numpy as np
 from nflows.transforms import CompositeTransform, PointwiseAffineTransform
 from typing import Type, Union, Tuple, List
 import torch
+import torch.utils.data as data_utils
 from copy import deepcopy
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import OneHotEncoder
@@ -31,13 +32,14 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
     """
 
     default_hparam_grid = {
-        'n_epochs': tune.grid_search([500, 1000, 1500]),
+        'n_epochs': tune.grid_search([500, 1000]),
         'hidden_units': tune.grid_search([(8,), (16,)]),
         'transform_classes': tune.grid_search([(ContextualPointwiseAffineTransform,),
-                                               2 * (ContextualInvertableRadialTransform,) + (
-                                               ContextualPointwiseAffineTransform,)]),
-        'context_noise_std': tune.grid_search([0.1, 0.2, 0.3]),
-        'input_noise_std': tune.grid_search([0.01, 0.05, 0.1]),
+                                               2 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,),
+                                               4 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,)
+                                               ]),
+        'context_noise_std': tune.grid_search([0.1, 0.2]),
+        'input_noise_std': tune.grid_search([0.01, 0.05]),
         'weight_decay': tune.grid_search([0.0, 1e-4])
     }
 
@@ -47,15 +49,17 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
             inputs_size: int = 1,
             transform_classes: Tuple[Type] = 2 * (ContextualInvertableRadialTransform,) + (ContextualPointwiseAffineTransform,),
             hidden_units: Tuple[int] = (16,),
-            base_distribution: Distribution = StandardNormal(shape=[1]),
+            base_distribution: Distribution = None,
             n_epochs: int = 1000,
             lr: float = 0.001,
             weight_decay: float = 0.0,
+            batch_size: int = None,
             input_noise_std: float = 0.05,
             context_noise_std: float = 0.1,
             cat_context: np.array = None,
             context_normalization=True,
             inputs_normalization=True,
+            inputs_noise_nonlinearity=torch.nn.Identity(),
             device='cpu',
             **kwargs
     ):
@@ -88,16 +92,19 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
                 [transform_cls(inputs_size=inputs_size, conditional=False) for transform_cls in transform_classes])
             embedding_net = None
 
+        if base_distribution is None:
+            base_distribution = StandardNormal(shape=[inputs_size])
         assert base_distribution._shape[0] == inputs_size
         Flow.__init__(self, transform, base_distribution, embedding_net)
 
         # Training params
         self.lr = lr
-        self.weight_decay = weight_decay
+        self.weight_decay = weight_decay if weight_decay is not None else 0.0
         self._init_optimizer(lr, weight_decay)
         self.n_epochs = n_epochs
         self.device = device
         self.to(self.device)
+        self.batch_size = batch_size
 
         # Regularisation
         self.input_noise_std = input_noise_std
@@ -118,6 +125,7 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
         # Normalisation
         self.context_normalization = context_normalization
         self.inputs_normalization = inputs_normalization
+        self.inputs_noise_nonlinearity = inputs_noise_nonlinearity
         self.inputs_mean, self.inputs_std = None, None
         self.context_mean, self.context_std = None, None
 
@@ -165,17 +173,30 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
         val_inputs, val_context = self._input_to_tensor(val_inputs, val_context)
         val_inputs, val_context = self._transform_normalise(val_inputs, val_context)
 
-        for i in range(self.n_epochs):
-            self.optimizer.zero_grad()
-            # Adding noise to data
-            noised_train_inputs = self._add_noise(train_inputs, self.input_noise_std)
-            noised_train_context = self._add_noise(train_context, self.context_noise_std)
+        if train_context is not None:
+            train_data = data_utils.TensorDataset(train_inputs, train_context)
+        else:
+            train_data = data_utils.TensorDataset(train_inputs)
+        train_loader = data_utils.DataLoader(train_data, shuffle=True, drop_last=True,
+                                             batch_size=self.batch_size if self.batch_size is not None else len(train_data))
 
-            # Forward pass
-            loss = - self.log_prob(inputs=noised_train_inputs, context=noised_train_context,
-                                   data_normalization=False, context_one_hot_encoding=False).mean()
-            loss.backward()
-            self.optimizer.step()
+        for i in range(self.n_epochs):
+            for batch in train_loader:
+                if len(batch) == 2:
+                    batch_train_inputs, batch_train_context = batch
+                else:
+                    batch_train_inputs, batch_train_context = batch[0], None
+
+                self.optimizer.zero_grad()
+                # Adding noise to data
+                noised_train_inputs = self._add_noise(batch_train_inputs, self.input_noise_std, self.inputs_noise_nonlinearity)
+                noised_train_context = self._add_noise(batch_train_context, self.context_noise_std)
+
+                # Forward pass
+                loss = - self.log_prob(inputs=noised_train_inputs, context=noised_train_context,
+                                       data_normalization=False, context_one_hot_encoding=False).mean()
+                loss.backward()
+                self.optimizer.step()
 
             if verbose and (i + 1) % log_frequency == 0:
                 with torch.no_grad():

@@ -64,7 +64,7 @@ class Explanation:
             pd.DataFrame with index: sample and fsoi as columns
         """
         # self._check_shape()
-        # arr = np.mean(self.lss, axis=(2))
+        # arr = np.mean(self.scores, axis=(2))
         # if return_np:
         #     return arr
         # else:
