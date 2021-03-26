@@ -186,10 +186,11 @@ class Explainer:
             logger.debug('Return explanation object only')
             return result
 
-    def tdi_from(self, K, B, J, X_eval, y_eval, D=None, sampler=None,
-                 decorrelator=None, loss=None, nr_runs=10,
-                 return_perturbed=False, train_allowed=True,
-                 target='Y', marginalize=False):
+    def dr_from(self, K, B, J, X_eval, y_eval, D=None, sampler=None,
+                decorrelator=None, loss=None, nr_runs=10,
+                return_perturbed=False, train_allowed=True,
+                target='Y', marginalize=False,
+                nr_resample_marginalize=5):
         """Computes Relative Feature importance
 
         Args:
@@ -217,8 +218,8 @@ class Explainer:
         if target not in ['Y', 'Y_hat']:
             raise ValueError('Y and Y_hat are the only valid targets.')
 
-        if marginalize:
-            raise NotImplementedError('Marginalization not implemented yet.')
+        # if marginalize:
+        #     raise NotImplementedError('Marginalization not implemented yet.')
 
         if sampler is None:
             if self._sampler_specified():
@@ -269,7 +270,7 @@ class Explainer:
             txt = txt + '{} idp {}|{}'.format(R, J, [])
             logger.debug(txt)
 
-        desc = 'TDI({} | {} <- {})'.format(K, B, J)
+        desc = 'DR({} | {} <- {})'.format(K, B, J)
 
         # initialize array for the perturbed samples
         nr_obs = X_eval.shape[0]
@@ -280,38 +281,212 @@ class Explainer:
         # perturbed_foiss = np.zeros((nr_fsoi, nr_runs, nr_obs))
 
         # sample perturbed versions
-        X_R_J = sampler.sample(X_eval, R, J, num_samples=nr_runs)
-
-        breakpoint()
 
         scores = pd.DataFrame([], index=index)
         # lss = np.zeros((nr_fsoi, nr_runs, X_eval.shape[0]))
 
         for kk in np.arange(0, nr_runs, 1):
-            # replaced with perturbed
-            X_tilde_baseline = X_eval.copy()
-            X_tilde_foreground = X_eval.copy()
 
-            X_R_empty_linked = decorrelator.decorrelate(X_R_J.loc[kk, :], R, J, [])
+            X_R_J = sampler.sample(X_eval, R, J,
+                                   num_samples=nr_resample_marginalize)
+            index = X_R_J.index
 
-            arr = X_R_empty_linked[R].to_numpy()
-            X_tilde_baseline[R] = arr
-            X_tilde_foreground[R] = arr
-            X_tilde_foreground[K] = X_R_J.loc[(kk, slice(None)), J].to_numpy()
+            df_yh = pd.DataFrame(index=index,
+                                 columns=['y_hat_baseline',
+                                          'y_hat_foreground'])
 
-            # make sure model can handle it (selection and ordering)
-            X_tilde_baseline = X_tilde_baseline[D]
-            X_tilde_foreground = X_tilde_foreground[D]
+            for ll in np.arange(0, nr_resample_marginalize, 1):
+
+                X_tilde_baseline = X_eval.copy()
+                X_tilde_foreground = X_eval.copy()
+
+                arr_reconstr = X_R_J.loc[ll, :][R].to_numpy()
+                X_tilde_foreground[R] = arr_reconstr
+
+                X_R_empty_linked = decorrelator.decorrelate(X_tilde_foreground,
+                                                            R, J, [])
+                X_tilde_baseline[R] = X_R_empty_linked[R].to_numpy()
+                RoK = list(set(R) - set(K))
+                X_tilde_foreground[RoK] = X_R_empty_linked[RoK].to_numpy()
+
+                # make sure model can handle it (selection and ordering)
+                X_tilde_baseline = X_tilde_baseline[D]
+                X_tilde_foreground = X_tilde_foreground[D]
+
+                y_hat_baseline = self.model(X_tilde_baseline)
+                y_hat_foreground = self.model(X_tilde_foreground)
+
+                df_yh.loc[(ll, slice(None)), 'y_hat_baseline'] = y_hat_baseline
+                df_yh.loc[(ll, slice(None)), 'y_hat_foreground'] = y_hat_foreground
+
+            df_yh = df_yh.astype({'y_hat_baseline': 'float', 'y_hat_foreground': 'float'})
+            df_yh = df_yh.mean(level='i')
 
             # compute difference in observationwise loss
             if target == 'Y':
-                loss_baseline = loss(y_eval, self.model(X_tilde_baseline))
-                loss_foreground = loss(y_eval, self.model(X_tilde_foreground))
+                loss_baseline = loss(y_eval, df_yh['y_hat_baseline'])
+                loss_foreground = loss(y_eval, df_yh['y_hat_foreground'])
                 diffs = (loss_baseline - loss_foreground)
                 scores.loc[(kk, slice(None)), 'score'] = diffs
+            elif target == 'Y_hat':
+                diffs = loss(df_yh['y_hat_foreground'],
+                             df_yh['y_hat_baseline'])
+                scores.loc[(kk, slice(None)), 'score'] = diffs
+
+        # return explanation object
+        ex_name = desc
+        result = explanation.Explanation(
+            self.fsoi, scores,
+            ex_name=ex_name)
+
+        if return_perturbed:
+            raise NotImplementedError('return_perturbed=True not implemented.')
+        else:
+            logger.debug('Return explanation object only')
+            return result
+
+    def ar_via(self, J, C, K, X_eval, y_eval, D=None, sampler=None,
+               decorrelator=None, loss=None, nr_runs=10,
+               return_perturbed=False, train_allowed=True,
+               target='Y', marginalize=False,
+               nr_resample_marginalize=5):
+        """Computes Relative Feature importance
+
+        Args:
+            K: features of interest
+            B: baseline features
+            J: "from" conditioning set
+            X_eval: data to use for resampling and evaluation.
+            y_eval: labels for evaluation.
+            D: features, used by the predictive model
+            sampler: choice of sampler. Default None. Will throw an error
+              when sampler is None and self.sampler is None as well.
+            loss: choice of loss. Default None. Will throw an Error when
+              both loss and self.loss are None.
+            nr_runs: how often the experiment shall be run
+            return_perturbed: whether the sampled perturbed versions
+                shall be returned
+            train_allowed: whether the explainer is allowed to train
+                the sampler
+
+        Returns:
+            result: An explanation object with the RFI computation
+            perturbed_foiss (optional): perturbed features of
+                interest if return_perturbed
+        """
+        if target not in ['Y', 'Y_hat']:
+            raise ValueError('Y and Y_hat are the only valid targets.')
+
+        # if marginalize:
+        #     raise NotImplementedError('Marginalization not implemented yet.')
+
+        if sampler is None:
+            if self._sampler_specified():
+                sampler = self.sampler
+                logger.debug("Using class specified sampler.")
+
+        if decorrelator is None:
+            if self._decorrelator_specified():
+                decorrelator = self.decorrelator
+                logger.debug("Using class specified decorrelator.")
+
+        if loss is None:
+            if self._loss_specified():
+                loss = self.loss
+                logger.debug("Using class specified loss.")
+
+        if D is None:
+            D = X_eval.columns
+
+        if not set(J).isdisjoint(set(C)):
+            raise ValueError('J and C are not disjoint.')
+
+        # check whether sampler is trained for baseline dropped features
+        R = list(set(D) - set(C))
+        R_ = list(set(R) - set(J))
+        CuJ = list(set(C).union(J))
+        if not sampler.is_trained(R_, CuJ):
+            # train if allowed, otherwise raise error
+            if train_allowed:
+                sampler.train(R_, CuJ)
+                logger.info('Training sampler on {}|{}'.format(R_, CuJ))
             else:
-                raise NotImplementedError('Y_hat not implemented yet.')
-            # lss[jj, kk, :] = loss_pert - loss_orig
+                raise RuntimeError(
+                    'Sampler is not trained on {}|{}'.format(R_, CuJ))
+        else:
+            txt = '\tCheck passed: Sampler is already trained on'
+            txt = txt + '{}|{}'.format(R, J)
+            logger.debug(txt)
+
+        if not decorrelator.is_trained(K, J, C):
+            # train if allowed, otherwise raise error
+            if train_allowed:
+                decorrelator.train(K, J, C)
+                logger.info('Training decorrelator on {} idp {} |{}'.format(K, J, C))
+            else:
+                raise RuntimeError(
+                    'Sampler is not trained on {} idp {} |{}'.format(K, J, C))
+        else:
+            txt = '\tCheck passed: decorrelator is already trained on'
+            txt = txt + '{} idp {}|{}'.format(K, J, C)
+            logger.debug(txt)
+
+        desc = 'AR({} | {} -> {})'.format(J, C, K)
+
+        # initialize array for the perturbed samples
+        nr_obs = X_eval.shape[0]
+        index = utils.create_multiindex(['sample', 'i'],
+                                        [np.arange(nr_runs),
+                                         np.arange(nr_obs)])
+
+        scores = pd.DataFrame([], index=index)
+
+        for kk in np.arange(0, nr_runs, 1):
+
+            # sample perturbed versions
+            X_R_CuJ = sampler.sample(X_eval, R_, CuJ, num_samples=nr_resample_marginalize)
+            index = X_R_CuJ.index
+
+            df_yh = pd.DataFrame(index=index,
+                                 columns=['y_hat_baseline',
+                                          'y_hat_foreground'])
+
+            for ll in np.arange(0, nr_resample_marginalize, 1):
+
+                X_tilde_baseline = X_eval.copy()
+                X_tilde_foreground = X_eval.copy()
+
+                arr_reconstr = X_R_CuJ.loc[(ll, slice(None)), R_].to_numpy()
+                X_tilde_foreground[R_] = arr_reconstr
+
+                X_R_decorr = decorrelator.decorrelate(X_tilde_foreground, K, J, C)
+                arr_decorr = X_R_decorr[R].to_numpy()
+
+                X_tilde_baseline[R] = arr_decorr
+
+                # make sure model can handle it (selection and ordering)
+                X_tilde_baseline = X_tilde_baseline[D]
+                X_tilde_foreground = X_tilde_foreground[D]
+
+                y_hat_baseline = self.model(X_tilde_baseline)
+                y_hat_foreground = self.model(X_tilde_foreground)
+
+                df_yh.loc[(ll, slice(None)), 'y_hat_baseline'] = y_hat_baseline
+                df_yh.loc[(ll, slice(None)), 'y_hat_foreground'] = y_hat_foreground
+
+            df_yh = df_yh.astype({'y_hat_baseline': 'float', 'y_hat_foreground': 'float'})
+            df_yh = df_yh.mean(level='i')
+
+            # compute difference in observationwise loss
+            if target == 'Y':
+                loss_baseline = loss(y_eval, df_yh['y_hat_baseline'])
+                loss_foreground = loss(y_eval, df_yh['y_hat_foreground'])
+                diffs = (loss_baseline - loss_foreground)
+                scores.loc[(kk, slice(None)), 'score'] = diffs
+            elif target == 'Y_hat':
+                diffs = loss(df_yh['y_hat_foreground'],
+                             df_yh['y_hat_baseline'])
+                scores.loc[(kk, slice(None)), 'score'] = diffs
 
         # return explanation object
         ex_name = desc
@@ -618,11 +793,11 @@ class Explainer:
                                                        ex_name=None)
         return ex
 
-    def sage(self, type, X_test, y_test, partial_ordering,
-             nr_orderings=None, approx=math.sqrt,
-             save_orderings=True, nr_runs=10, sampler=None,
-             loss=None, train_allowed=True, D=None,
-             nr_resample_marginalize=10):
+    def sage_old(self, type, X_test, y_test, partial_ordering,
+                 nr_orderings=None, approx=math.sqrt,
+                 save_orderings=True, nr_runs=10, sampler=None,
+                 loss=None, train_allowed=True, D=None,
+                 nr_resample_marginalize=10):
         """
         Compute Shapley Additive Global Importance values.
         Args:
@@ -647,9 +822,6 @@ class Explainer:
             orderings (optional): an array containing the respective
                 orderings if return_orderings
         """
-        # the method is currently not build for situations
-        # where we are only interested in
-        # a subset of the model's features
         if X_test.shape[1] != len(self.fsoi):
             logger.debug('self.fsoi: {}'.format(self.fsoi))
             logger.debug('#features in model: {}'.format(X_test.shape[1]))
@@ -702,6 +874,8 @@ class Explainer:
                 y_hat_base = np.repeat(
                     np.mean(self.model(X_test[D])), X_test.shape[0])
                 for jj in np.arange(1, len(ordering), 1):
+                    # TODO: check if jj in features for which the score shall
+                    # TODO: be computed
                     # compute change in performance
                     # by entering the respective feature
                     # store the result in the right place
@@ -755,6 +929,112 @@ class Explainer:
                 diff = loss(y_test, y_hat_base) - loss(y_test, y_hat_new)
                 scores.loc[(ii, kk, slice(None)), ordering[jj - 1]] = diff
                 # lss[self.fsoi[ordering[-1]], kk, :, ii] = diff
+
+        result = explanation.Explanation(
+            self.fsoi, scores,
+            ex_name='SAGE')
+
+        return result
+
+
+    def sage(self, X_test, y_test, partial_ordering,
+             nr_orderings=None, approx=math.sqrt,
+             save_orderings=True, nr_runs=10, sampler=None,
+             loss=None, train_allowed=True, D=None,
+             nr_resample_marginalize=10, target='Y',
+             G=[], method='associative'):
+        """
+        Compute Shapley Additive Global Importance values.
+        Args:
+            type: either 'rfi' or 'rfa', depending on whether conditional
+                or marginal resampling of the remaining features shall
+                be used
+            X_test: data to use for resampling and evaluation.
+            y_test: labels for evaluation.
+            nr_orderings: number of orderings in which features enter the model
+            nr_runs: how often each value function shall be computed
+            sampler: choice of sampler. Default None. Will throw an error
+              when sampler is None and self.sampler is None as well.
+            loss: choice of loss. Default None. Will throw an Error when
+              both loss and self.loss are None.
+            train_allowed: whether the explainer is allowed to
+                train the sampler
+
+        Returns:
+            result: an explanation object containing the respective
+                pairwise lossdifferences with shape
+                (nr_fsoi, nr_runs, nr_obs, nr_orderings)
+            orderings (optional): an array containing the respective
+                orderings if return_orderings
+        """
+        if X_test.shape[1] != len(self.fsoi):
+            logger.debug('self.fsoi: {}'.format(self.fsoi))
+            logger.debug('#features in model: {}'.format(X_test.shape[1]))
+            raise RuntimeError('self.fsoi is not identical to all features')
+
+        if method not in ['associative', 'direct']:
+            raise ValueError('only methods associative or direct implemented')
+
+        if sampler is None:
+            if self._sampler_specified():
+                sampler = self.sampler
+                logger.debug("Using class specified sampler.")
+
+        if loss is None:
+            if self._loss_specified():
+                loss = self.loss
+                logger.debug("Using class specified loss.")
+
+        if nr_orderings is None:
+            nr_unique = utils.nr_unique_perm(partial_ordering)
+            if approx is not None:
+                nr_orderings = math.floor(approx(nr_unique))
+            else:
+                nr_orderings = nr_unique
+
+        if D is None:
+            D = X_test.columns
+
+        nr_orderings_saved = 1
+        if save_orderings:
+            nr_orderings_saved = nr_orderings
+
+        # create dataframe for computation results
+        index = utils.create_multiindex(['ordering', 'sample', 'id'],
+                                        [np.arange(nr_orderings_saved),
+                                         np.arange(nr_runs),
+                                         np.arange(X_test.shape[0])])
+        arr = np.zeros((nr_orderings_saved * nr_runs * X_test.shape[0],
+                        len(self.fsoi)))
+        scores = pd.DataFrame(arr, index=index, columns=self.fsoi)
+
+        # lss = np.zeros(
+        #     (len(self.fsoi), nr_runs, X_test.shape[0], nr_orderings))
+
+        for ii in range(nr_orderings):
+            ordering = utils.sample_partial(partial_ordering)
+            logging.info('Ordering : {}'.format(ordering))
+
+            for jj in np.arange(1, len(ordering), 1):
+                # TODO: check if jj in features for which the score shall
+                # TODO: be computed
+                # compute change in performance
+                # by entering the respective feature
+                # store the result in the right place
+                # validate training of sampler
+                J, C = [ordering[jj - 1]], ordering[:jj - 1]
+                if method == 'associative':
+                    ex = self.ar_via(J, C, G, X_test, y_test,
+                                     target=target, marginalize=True,
+                                     nr_runs=nr_runs,
+                                     nr_resample_marginalize=nr_resample_marginalize)
+                elif method == 'direct':
+                    ex = self.dr_from(J, C, G, X_test, y_test,
+                                      target=target, marginalize=True,
+                                      nr_runs=nr_runs,
+                                      nr_resample_marginalize=nr_resample_marginalize)
+                scores_arr = ex.scores.to_numpy()
+                scores.loc[(ii, slice(None), slice(None)), ordering[jj - 1]] = scores_arr
 
         result = explanation.Explanation(
             self.fsoi, scores,
