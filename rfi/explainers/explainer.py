@@ -652,7 +652,9 @@ class Explainer:
 
     def decomposition(self, imp_type, fsoi, partial_ordering, X_eval, y_eval,
                       nr_orderings=None, nr_runs=3, show_pbar=True,
-                      approx=math.sqrt, save_orderings=True, **kwargs):
+                      approx=math.sqrt, save_orderings=True,
+                      sage_partial_ordering=None,
+                      target='Y', **kwargs):
         """
         Given a partial ordering, this code allows to decompose
         feature importance or feature association for a given set of
@@ -684,14 +686,15 @@ class Explainer:
 
         logger.info('#orderings: {}'.format(nr_orderings))
 
-        explnr_fnc = None
-        if imp_type == 'tdi':
-            explnr_fnc = self.tdi
-        elif imp_type == 'tai':
-            explnr_fnc = self.tai
-        else:
-            raise ValueError('Importance type '
-                             '{} not implemented'.format(imp_type))
+        if imp_type not in ['tdi', 'tai', 'sage']:
+            raise ValueError('Only tdi, tai and sage '
+                             'implemented for imp_type.')
+
+        if imp_type == 'sage' and sage_partial_ordering is None:
+            raise ValueError('Please specify a sage ordering.')
+
+        if target not in ['Y', 'Y_hat']:
+            raise ValueError('Only Y and Y_hat implemented as target.')
 
         # values (nr_perm, nr_runs, nr_components, nr_fsoi)
         # components are: (elements of ordering,..., remainder)
@@ -729,6 +732,14 @@ class Explainer:
                         len(self.fsoi)))
         decomposition = pd.DataFrame(arr, index=index, columns=self.fsoi)
         # values = np.zeros((nr_orderings, nr_runs, nr_components, len(fsoi)))
+        orderings = pd.DataFrame(index=np.arange(nr_orderings), columns=['ordering'])
+
+        # in the first sage call an ordering object is returned
+        # that is then fed to sage again
+        # to ensure that always the same orderings are used
+        # for the computation
+        # allow a more reliable approximation
+        sage_orderings = None
 
         if show_pbar:
             mgr = enlighten.get_manager()
@@ -741,9 +752,23 @@ class Explainer:
 
             ordering = utils.sample_partial(partial_ordering)
             logging.info('Ordering : {}'.format(ordering))
+            orderings.loc[kk, 'ordering'] = ordering
 
             # total values
-            expl = explnr_fnc(X_eval, y_eval, [], nr_runs=nr_runs, **kwargs)
+            expl = None
+            if imp_type == 'tdi':
+                expl = self.tdi(X_eval, y_eval, [],
+                                nr_runs=nr_runs, **kwargs)
+            elif imp_type == 'tai':
+                expl = self.tai(X_eval, y_eval, [],
+                                nr_runs=nr_runs, **kwargs)
+            elif imp_type == 'sage':
+                tupl = self.sage(X_eval, y_eval, partial_ordering,
+                                 nr_orderings=nr_orderings,
+                                 nr_runs=nr_runs, target=target,
+                                 G=X_eval.columns, orderings=sage_orderings,
+                                 **kwargs)
+                expl, sage_orderings = tupl
             fi_vals = expl.fi_vals().to_numpy()
 
             # store total values
@@ -763,9 +788,25 @@ class Explainer:
                 G = ordering[:jj]
 
                 # compute and store feature importance
-                expl = explnr_fnc(X_eval, y_eval, G, nr_runs=nr_runs, **kwargs)
+                expl = None
+                if imp_type == 'tdi':
+                    expl = self.tdi(X_eval, y_eval, G,
+                                    nr_runs=nr_runs, **kwargs)
+                elif imp_type == 'tai':
+                    expl = self.tai(X_eval, y_eval, G,
+                                    nr_runs=nr_runs, **kwargs)
+                elif imp_type == 'sage':
+                    G_ = list(set(X_eval.columns) - set(G))
+                    tupl = self.sage(X_eval, y_eval, partial_ordering,
+                                     nr_orderings=nr_orderings,
+                                     nr_runs=nr_runs, target=target,
+                                     G=G_, orderings=sage_orderings,
+                                     **kwargs)
+                    expl, sage_orderings = tupl
+
                 current = expl.fi_vals().to_numpy()
 
+                fi_vals = None
                 # compute difference
                 fi_vals = previous - current
 
@@ -791,14 +832,15 @@ class Explainer:
         ex = decomposition_ex.DecompositionExplanation(self.fsoi,
                                                        decomposition,
                                                        ex_name=None)
-        return ex
+        return ex, orderings
 
     def sage(self, X_test, y_test, partial_ordering,
              nr_orderings=None, approx=math.sqrt,
              save_orderings=True, nr_runs=10, sampler=None,
              loss=None, train_allowed=True, D=None,
              nr_resample_marginalize=10, target='Y',
-             G=[], method='associative'):
+             G=None, method='associative',
+             marginalize=True, orderings=None, **kwargs):
         """
         Compute Shapley Additive Global Importance values.
         Args:
@@ -823,6 +865,9 @@ class Explainer:
             orderings (optional): an array containing the respective
                 orderings if return_orderings
         """
+        if G is None:
+            G = X_test.columns
+
         if X_test.shape[1] != len(self.fsoi):
             logger.debug('self.fsoi: {}'.format(self.fsoi))
             logger.debug('#features in model: {}'.format(X_test.shape[1]))
@@ -841,12 +886,15 @@ class Explainer:
                 loss = self.loss
                 logger.debug("Using class specified loss.")
 
-        if nr_orderings is None:
-            nr_unique = utils.nr_unique_perm(partial_ordering)
-            if approx is not None:
-                nr_orderings = math.floor(approx(nr_unique))
-            else:
-                nr_orderings = nr_unique
+        if orderings is None:
+            if nr_orderings is None:
+                nr_unique = utils.nr_unique_perm(partial_ordering)
+                if approx is not None:
+                    nr_orderings = math.floor(approx(nr_unique))
+                else:
+                    nr_orderings = nr_unique
+        else:
+            nr_orderings = orderings.shape[0]
 
         if D is None:
             D = X_test.columns
@@ -864,11 +912,22 @@ class Explainer:
                         len(self.fsoi)))
         scores = pd.DataFrame(arr, index=index, columns=self.fsoi)
 
+        orderings_sampled = None
+        if orderings is None:
+            orderings_sampled = pd.DataFrame(index=np.arange(nr_orderings),
+                                             columns=['ordering'])
+
         # lss = np.zeros(
         #     (len(self.fsoi), nr_runs, X_test.shape[0], nr_orderings))
 
         for ii in range(nr_orderings):
-            ordering = utils.sample_partial(partial_ordering)
+            ordering = None
+            if orderings is None:
+                ordering = utils.sample_partial(partial_ordering)
+                orderings_sampled.loc[ii, 'ordering'] = ordering
+            else:
+                ordering = orderings.loc[ii, 'ordering']
+
             logging.info('Ordering : {}'.format(ordering))
 
             for jj in np.arange(1, len(ordering), 1):
@@ -881,14 +940,16 @@ class Explainer:
                 J, C = [ordering[jj - 1]], ordering[:jj - 1]
                 if method == 'associative':
                     ex = self.ar_via(J, C, G, X_test, y_test,
-                                     target=target, marginalize=True,
+                                     target=target, marginalize=marginalize,
                                      nr_runs=nr_runs,
-                                     nr_resample_marginalize=nr_resample_marginalize)
+                                     nr_resample_marginalize=nr_resample_marginalize,
+                                     **kwargs)
                 elif method == 'direct':
                     ex = self.dr_from(J, C, G, X_test, y_test,
-                                      target=target, marginalize=True,
+                                      target=target, marginalize=marginalize,
                                       nr_runs=nr_runs,
-                                      nr_resample_marginalize=nr_resample_marginalize)
+                                      nr_resample_marginalize=nr_resample_marginalize,
+                                      **kwargs)
                 scores_arr = ex.scores.to_numpy()
                 scores.loc[(ii, slice(None), slice(None)), ordering[jj - 1]] = scores_arr
 
@@ -896,4 +957,7 @@ class Explainer:
             self.fsoi, scores,
             ex_name='SAGE')
 
-        return result
+        if orderings is None:
+            orderings = orderings_sampled
+
+        return result, orderings
