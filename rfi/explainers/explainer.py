@@ -289,6 +289,7 @@ class Explainer:
 
             X_R_J = sampler.sample(X_eval, R, J,
                                    num_samples=nr_resample_marginalize)
+
             index = X_R_J.index
 
             df_yh = pd.DataFrame(index=index,
@@ -319,7 +320,8 @@ class Explainer:
                 df_yh.loc[(ll, slice(None)), 'y_hat_baseline'] = y_hat_baseline
                 df_yh.loc[(ll, slice(None)), 'y_hat_foreground'] = y_hat_foreground
 
-            df_yh = df_yh.astype({'y_hat_baseline': 'float', 'y_hat_foreground': 'float'})
+            df_yh = df_yh.astype({'y_hat_baseline': 'float',
+                                  'y_hat_foreground': 'float'})
             df_yh = df_yh.mean(level='i')
 
             # compute difference in observationwise loss
@@ -329,8 +331,8 @@ class Explainer:
                 diffs = (loss_baseline - loss_foreground)
                 scores.loc[(kk, slice(None)), 'score'] = diffs
             elif target == 'Y_hat':
-                diffs = loss(df_yh['y_hat_foreground'],
-                             df_yh['y_hat_baseline'])
+                diffs = loss(df_yh['y_hat_baseline'],
+                             df_yh['y_hat_foreground'])
                 scores.loc[(kk, slice(None)), 'score'] = diffs
 
         # return explanation object
@@ -398,6 +400,9 @@ class Explainer:
         if D is None:
             D = X_eval.columns
 
+        if not marginalize:
+            nr_resample_marginalize = 1
+
         if not set(J).isdisjoint(set(C)):
             raise ValueError('J and C are not disjoint.')
 
@@ -444,6 +449,7 @@ class Explainer:
         for kk in np.arange(0, nr_runs, 1):
 
             # sample perturbed versions
+            X_R_CuJ2 = None
             X_R_CuJ = sampler.sample(X_eval, R_, CuJ, num_samples=nr_resample_marginalize)
             index = X_R_CuJ.index
 
@@ -474,7 +480,8 @@ class Explainer:
                 df_yh.loc[(ll, slice(None)), 'y_hat_baseline'] = y_hat_baseline
                 df_yh.loc[(ll, slice(None)), 'y_hat_foreground'] = y_hat_foreground
 
-            df_yh = df_yh.astype({'y_hat_baseline': 'float', 'y_hat_foreground': 'float'})
+            df_yh = df_yh.astype({'y_hat_baseline': 'float',
+                                  'y_hat_foreground': 'float'})
             df_yh = df_yh.mean(level='i')
 
             # compute difference in observationwise loss
@@ -484,8 +491,8 @@ class Explainer:
                 diffs = (loss_baseline - loss_foreground)
                 scores.loc[(kk, slice(None)), 'score'] = diffs
             elif target == 'Y_hat':
-                diffs = loss(df_yh['y_hat_foreground'],
-                             df_yh['y_hat_baseline'])
+                diffs = loss(df_yh['y_hat_baseline'],
+                             df_yh['y_hat_foreground'])
                 scores.loc[(kk, slice(None)), 'score'] = diffs
 
         # return explanation object
@@ -651,9 +658,10 @@ class Explainer:
             return result
 
     def decomposition(self, imp_type, fsoi, partial_ordering, X_eval, y_eval,
-                      nr_orderings=None, nr_runs=3, show_pbar=True,
+                      nr_orderings=None, nr_orderings_sage=None,
+                      nr_runs=3, show_pbar=True,
                       approx=math.sqrt, save_orderings=True,
-                      sage_partial_ordering=None,
+                      sage_partial_ordering=None, orderings=None,
                       target='Y', **kwargs):
         """
         Given a partial ordering, this code allows to decompose
@@ -677,12 +685,15 @@ class Explainer:
                 component and each feature. numpy.array with shape
                 (#components, #fsoi)
         """
-        if nr_orderings is None:
-            nr_unique = utils.nr_unique_perm(partial_ordering)
-            if approx is not None:
-                nr_orderings = math.floor(approx(nr_unique))
-            else:
-                nr_orderings = nr_unique
+        if orderings is None:
+            if nr_orderings is None:
+                nr_unique = utils.nr_unique_perm(partial_ordering)
+                if approx is not None:
+                    nr_orderings = math.floor(approx(nr_unique))
+                else:
+                    nr_orderings = nr_unique
+        else:
+            nr_orderings = orderings.shape[0]
 
         logger.info('#orderings: {}'.format(nr_orderings))
 
@@ -695,6 +706,9 @@ class Explainer:
 
         if target not in ['Y', 'Y_hat']:
             raise ValueError('Only Y and Y_hat implemented as target.')
+
+        if nr_orderings_sage is None:
+            nr_orderings_sage = nr_orderings
 
         # values (nr_perm, nr_runs, nr_components, nr_fsoi)
         # components are: (elements of ordering,..., remainder)
@@ -732,7 +746,8 @@ class Explainer:
                         len(self.fsoi)))
         decomposition = pd.DataFrame(arr, index=index, columns=self.fsoi)
         # values = np.zeros((nr_orderings, nr_runs, nr_components, len(fsoi)))
-        orderings = pd.DataFrame(index=np.arange(nr_orderings), columns=['ordering'])
+        orderings_sampled = pd.DataFrame(index=np.arange(nr_orderings),
+                                         columns=['ordering'])
 
         # in the first sage call an ordering object is returned
         # that is then fed to sage again
@@ -746,13 +761,20 @@ class Explainer:
             pbar = mgr.counter(total=nr_orderings, desc='decomposition',
                                unit='orderings')
 
+        # ordering history helps to avoid duplicate orderings
+        ord_hist = None
         for kk in np.arange(nr_orderings):
             if show_pbar:
                 pbar.update()
 
-            ordering = utils.sample_partial(partial_ordering)
-            logging.info('Ordering : {}'.format(ordering))
-            orderings.loc[kk, 'ordering'] = ordering
+            ordering = None
+            if orderings is None:
+                ordering, ord_hist = utils.sample_partial(partial_ordering,
+                                                          ord_hist)
+                logging.info('Ordering : {}'.format(ordering))
+                orderings_sampled.loc[kk, 'ordering'] = ordering
+            else:
+                ordering = orderings.loc[kk, 'ordering']
 
             # total values
             expl = None
@@ -764,7 +786,7 @@ class Explainer:
                                 nr_runs=nr_runs, **kwargs)
             elif imp_type == 'sage':
                 tupl = self.sage(X_eval, y_eval, partial_ordering,
-                                 nr_orderings=nr_orderings,
+                                 nr_orderings=nr_orderings_sage,
                                  nr_runs=nr_runs, target=target,
                                  G=X_eval.columns, orderings=sage_orderings,
                                  **kwargs)
@@ -798,7 +820,7 @@ class Explainer:
                 elif imp_type == 'sage':
                     G_ = list(set(X_eval.columns) - set(G))
                     tupl = self.sage(X_eval, y_eval, partial_ordering,
-                                     nr_orderings=nr_orderings,
+                                     nr_orderings=nr_orderings_sage,
                                      nr_runs=nr_runs, target=target,
                                      G=G_, orderings=sage_orderings,
                                      **kwargs)
@@ -829,6 +851,8 @@ class Explainer:
                                           'remainder', kk)
                 decomposition.loc['remainder', 0, :] = fi_vals
 
+        if orderings is None:
+            orderings = orderings_sampled
         ex = decomposition_ex.DecompositionExplanation(self.fsoi,
                                                        decomposition,
                                                        ex_name=None)
@@ -919,11 +943,13 @@ class Explainer:
 
         # lss = np.zeros(
         #     (len(self.fsoi), nr_runs, X_test.shape[0], nr_orderings))
-
+        # ord hist helps to avoid duplicate histories
+        ord_hist = None
         for ii in range(nr_orderings):
             ordering = None
             if orderings is None:
-                ordering = utils.sample_partial(partial_ordering)
+                ordering, ord_hist = utils.sample_partial(partial_ordering,
+                                                          ord_hist)
                 orderings_sampled.loc[ii, 'ordering'] = ordering
             else:
                 ordering = orderings.loc[ii, 'ordering']
