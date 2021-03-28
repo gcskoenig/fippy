@@ -11,6 +11,8 @@ from rfi.backend import ConditionalDistributionEstimator
 
 logger = logging.getLogger(__name__)
 
+# update this whole module to use pytorch?
+# https://rickwierenga.com/blog/machine%20learning/numpy-vs-pytorch-linalg.html
 
 class GaussianConditionalEstimator(ConditionalDistributionEstimator):
     """
