@@ -13,6 +13,7 @@ import rfi.explanation.decomposition as decomposition_ex
 import enlighten  # TODO add to requirements
 import math
 
+idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
 
 
@@ -656,6 +657,95 @@ class Explainer:
         else:
             logger.debug('Return explanation object only')
             return result
+
+    def viafrom(self, imp_type, fsoi, X_eval, y_eval, target='Y', nr_runs=10,
+                show_pbar=True, components=None, **kwargs):
+        """
+        Either computs the pfi under only one variable being reconstructed for
+        every feature (ar_via),
+        or the component of the pfi of every feature from
+        single variables (dr_from)
+        """
+        if imp_type not in ['ar_via', 'dr_from']:
+            raise ValueError('Only ar_via and dr_from'
+                             'implemented for imp_type.')
+
+        if target not in ['Y', 'Y_hat']:
+            raise ValueError('Only Y and Y_hat implemented as target.')
+
+        # values (nr_perm, nr_runs, nr_components, nr_fsoi)
+        # components are: (elements of ordering,..., remainder)
+        # elements of ordering are sorted in increasing order
+
+        if components is None:
+            components = X_eval.columns
+        components = list(components)
+        components.append('total')
+        nr_components = len(components)
+
+        # create dataframe for computation results
+        # orderings is just for compatibility with other decompositions
+        index = utils.create_multiindex(['component', 'orderings', 'sample'],
+                                        [components,
+                                         np.arange(1),
+                                         np.arange(nr_runs)])
+        arr = np.zeros((nr_components * nr_runs * 1, len(fsoi)))
+        decomposition = pd.DataFrame(arr, index=index, columns=fsoi)
+
+        if show_pbar:
+            mgr = enlighten.get_manager()
+            pbar = mgr.counter(total=nr_components * len(fsoi),
+                               desc='naive_decomposition',
+                               unit='{} runs'.format(imp_type))
+
+        # helper funciton to compute the remainder
+        def get_rmd(fs, f):
+            rmd = list(set(fs).difference([f]))
+            return rmd
+
+        # iterate over features
+        for foi in fsoi:
+
+            fi_vals_total = None
+            if imp_type == 'ar_via':  # compute ar of foi over emptyset
+                expl = self.ar_via([foi], [], X_eval.columns,
+                                   X_eval, y_eval, nr_runs=nr_runs,
+                                   target=target, **kwargs)
+                fi_vals_total = expl.fi_vals().to_numpy()
+            elif imp_type == 'dr_from':  # compute total PFI (over rmd)
+                rmd = get_rmd(X_eval.columns, foi)
+                expl = self.dr_from([foi], rmd, X_eval.columns,
+                                    X_eval, y_eval, nr_runs=nr_runs,
+                                    target=target, **kwargs)
+                fi_vals_total = expl.fi_vals().to_numpy()
+            decomposition.loc[idx['total', 0, :], foi] = fi_vals_total
+
+            # iterate over components
+            for component in get_rmd(components, 'total'):
+                if show_pbar:
+                    pbar.update()
+
+                fi_vals = None
+                if imp_type == 'ar_via':
+                    rmd = get_rmd(X_eval.columns, component)
+                    expl = self.ar_via([foi], [], rmd,
+                                       X_eval, y_eval, nr_runs=nr_runs,
+                                       target=target, **kwargs)
+                    fi_vals = expl.fi_vals().to_numpy()
+                    diff = fi_vals - fi_vals_total
+                    decomposition.loc[idx[component, 0, :], foi] = diff
+                elif imp_type == 'dr_from':
+                    rmd = get_rmd(X_eval.columns, foi)
+                    expl = self.dr_from([foi], rmd, [component],
+                                        X_eval, y_eval, nr_runs=nr_runs,
+                                        target=target, **kwargs)
+                    fi_vals = expl.fi_vals().to_numpy()
+                    decomposition.loc[idx[component, 0, :], foi] = fi_vals
+
+        ex = decomposition_ex.DecompositionExplanation(self.fsoi,
+                                                       decomposition,
+                                                       ex_name=None)
+        return ex
 
     def decomposition(self, imp_type, fsoi, partial_ordering, X_eval, y_eval,
                       nr_orderings=None, nr_orderings_sage=None,
