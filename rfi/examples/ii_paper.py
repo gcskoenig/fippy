@@ -269,7 +269,6 @@ ii_large = SyntheticExample(
     )
 )
 
-
 ii_adult = SyntheticExample(
     name='ii-adult',
     sem=LinearGaussianNoiseSEM(
@@ -278,12 +277,12 @@ ii_adult = SyntheticExample(
                                        [0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1],
                                        [0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1],
                                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
-                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
                                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]),
             var_names=['age', 'race', 'sex', 'capital gain', 'relationship', 'occupation',
                        'marital status', 'education num', 'workclass', 'hours per week',
@@ -306,5 +305,45 @@ ii_adult = SyntheticExample(
                         'marital status': sigma_medium, 'education num': sigma_medium,
                         'workclass': sigma_medium, 'hours per week': sigma_medium,
                         'predicted income': sigma_medium}
+    )
+)
+
+ii_adult_sparse = SyntheticExample(
+    name='ii-adult-sparse',
+    sem=LinearGaussianNoiseSEM(
+        dag=DirectedAcyclicGraph(
+            adjacency_matrix=np.array([[0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]),
+            var_names=['age', 'race', 'sex', 'capital gain', 'education num',
+                       'hours per week', 'marital status', 'occupation',
+                       'relationship', 'workclass',
+                       'predicted income']
+        ),
+        coeff_dict={'capital gain': {'age': 0.5},
+                    'relationship': {'sex': 0.5},
+                    'occupation': {'race': 0.5, 'sex': 0.5},
+                    'marital status': {'race': 0.5},
+                    'education num': {'age': 0.5},
+                    'workclass': {'sex': 0.5},
+                    'hours per week': {'age': 0.5, 'race': 0.5},
+                    'predicted income': {'race': 0.5, 'sex': 0.5, 'capital gain': 0.5,
+                                         'relationship': 0.5, 'occupation': 0.5,
+                                         'marital status': 0.5, 'education num': 0.5,
+                                         'workclass': 0.5, 'hours per week': 0.5}},
+        noise_std_dict={'age': sigma_veryhigh, 'race': sigma_veryhigh,
+                        'sex': sigma_veryhigh, 'capital gain': sigma_medium,
+                        'relationship': sigma_medium, 'occupation': sigma_medium,
+                        'marital status': sigma_medium, 'education num': sigma_medium,
+                        'workclass': sigma_medium, 'hours per week': sigma_medium,
+                        'predicted income': sigma_veryhigh}
     )
 )

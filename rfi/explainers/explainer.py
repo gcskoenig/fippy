@@ -219,6 +219,8 @@ class Explainer:
         if target not in ['Y', 'Y_hat']:
             raise ValueError('Y and Y_hat are the only valid targets.')
 
+        if not marginalize:
+            nr_resample_marginalize = 1
         # if marginalize:
         #     raise NotImplementedError('Marginalization not implemented yet.')
 
@@ -282,7 +284,6 @@ class Explainer:
         # perturbed_foiss = np.zeros((nr_fsoi, nr_runs, nr_obs))
 
         # sample perturbed versions
-
         scores = pd.DataFrame([], index=index)
         # lss = np.zeros((nr_fsoi, nr_runs, X_eval.shape[0]))
 
@@ -732,7 +733,7 @@ class Explainer:
                                        X_eval, y_eval, nr_runs=nr_runs,
                                        target=target, **kwargs)
                     fi_vals = expl.fi_vals().to_numpy()
-                    diff = fi_vals - fi_vals_total
+                    diff = fi_vals_total - fi_vals
                     decomposition.loc[idx[component, 0, :], foi] = diff
                 elif imp_type == 'dr_from':
                     rmd = get_rmd(X_eval.columns, foi)
