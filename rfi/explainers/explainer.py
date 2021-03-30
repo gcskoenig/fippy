@@ -685,7 +685,7 @@ class Explainer:
 
         # create dataframe for computation results
         # orderings is just for compatibility with other decompositions
-        index = utils.create_multiindex(['component', 'orderings', 'sample'],
+        index = utils.create_multiindex(['component', 'ordering', 'sample'],
                                         [components,
                                          np.arange(1),
                                          np.arange(nr_runs)])

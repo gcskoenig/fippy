@@ -268,3 +268,43 @@ ii_large = SyntheticExample(
                         'y': sigma_high}
     )
 )
+
+
+ii_adult = SyntheticExample(
+    name='ii-adult',
+    sem=LinearGaussianNoiseSEM(
+        dag=DirectedAcyclicGraph(
+            adjacency_matrix=np.array([[0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0],
+                                       [0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1],
+                                       [0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]),
+            var_names=['age', 'race', 'sex', 'capital gain', 'relationship', 'occupation',
+                       'marital status', 'education num', 'workclass', 'hours per week',
+                       'predicted income']
+        ),
+        coeff_dict={'capital gain': {'age': 0.5, 'race': 0.5},
+                    'relationship': {'age': 0.5},
+                    'occupation': {'age': 0.5, 'race': 0.5, 'sex': 0.5},
+                    'marital status': {'age': 0.5, 'race': 0.5},
+                    'education num': {'age': 0.2, 'race': 0.7, 'sex': 0.4},
+                    'workclass': {'age': 0.5, 'race': 0.5, 'sex': 0.5},
+                    'hours per week': {'age': 0.5, 'sex': 0.5},
+                    'predicted income': {'race': 0.5, 'sex': 0.5, 'capital gain': 0.2,
+                                         'relationship': 0.2, 'occupation': 1.0,
+                                         'marital status': 0.2, 'education num': 1.0,
+                                         'workclass': 1.0, 'hours per week': 1.0}},
+        noise_std_dict={'age': sigma_medium, 'race': sigma_medium,
+                        'sex': sigma_medium, 'capital gain': sigma_medium,
+                        'relationship': sigma_medium, 'occupation': sigma_medium,
+                        'marital status': sigma_medium, 'education num': sigma_medium,
+                        'workclass': sigma_medium, 'hours per week': sigma_medium,
+                        'predicted income': sigma_medium}
+    )
+)

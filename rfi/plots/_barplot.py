@@ -74,7 +74,7 @@ def fi_sns_gbarplot(dex, ax=None, figsize=None):
     return ax
 
 
-def fi_sns_wbarplots(dex, fs=None, ax=None, figsize=None):
+def fi_sns_wbarplots(dex, fs=None, ax=None, figsize=None, col_wrap=5):
     if ax is None:
         f, ax = plt.subplots(figsize=figsize)
     df = dex.fi_decomp().reset_index()
@@ -87,7 +87,7 @@ def fi_sns_wbarplots(dex, fs=None, ax=None, figsize=None):
     if fs is not None:
         df = df[df['feature'].isin(fs)].copy()
         df.feature = df.feature.cat.remove_unused_categories().copy()
-    g = sns.FacetGrid(df, col='feature')
+    g = sns.FacetGrid(df, col='feature', col_wrap=col_wrap)
     g.map(sns.barplot, 'importance', 'component',
           order=sorted(df.component.unique()))
 

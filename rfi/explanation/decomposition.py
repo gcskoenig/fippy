@@ -108,11 +108,11 @@ class DecompositionExplanation(Explanation):
         """
         return fi_sns_gbarplot(self, figsize=figsize, ax=ax)
 
-    def decomp_wbarplots(self, figsize=None, ax=None, fs=None):
+    def decomp_wbarplots(self, figsize=None, ax=None, fs=None, col_wrap=5):
         """
         multiplot where the features that shall be visualized can be specified
         using the fs argument.
         fs include "total" or "remainder" if the respective components
         are part of the decomposition
         """
-        return fi_sns_wbarplots(self, figsize=figsize, ax=ax, fs=fs)
+        return fi_sns_wbarplots(self, figsize=figsize, ax=ax, fs=fs, col_wrap=col_wrap)
