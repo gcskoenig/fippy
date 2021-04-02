@@ -667,8 +667,8 @@ class Explainer:
         or the component of the pfi of every feature from
         single variables (dr_from)
         """
-        if imp_type not in ['ar_via', 'dr_from']:
-            raise ValueError('Only ar_via and dr_from'
+        if imp_type not in ['ar_via', 'dr_from', 'sage']:
+            raise ValueError('Only ar_via, sage and dr_from'
                              'implemented for imp_type.')
 
         if target not in ['Y', 'Y_hat']:
@@ -703,6 +703,25 @@ class Explainer:
         def get_rmd(fs, f):
             rmd = list(set(fs).difference([f]))
             return rmd
+
+        if imp_type == 'sage':
+            expl, ordering = self.sage(X_eval, y_eval, [tuple(fsoi)],
+                                       **kwargs)
+            fi_vals_total = expl.fi_vals()[fsoi].to_numpy()
+            decomposition.loc[idx['total', 0, :], fsoi] = fi_vals_total
+
+            for component in get_rmd(components, 'total'):
+                rmd = get_rmd(X_eval.columns, component)
+                expl, ordering = self.sage(X_eval, y_eval, [tuple(fsoi)],
+                                           G=rmd, **kwargs)
+                fi_vals = expl.fi_vals()[fsoi].to_numpy()
+                diff = fi_vals_total - fi_vals
+                decomposition.loc[idx[component, 0, :], fsoi] = diff
+
+            ex = decomposition_ex.DecompositionExplanation(self.fsoi,
+                                                           decomposition,
+                                                           ex_name=None)
+            return ex
 
         # iterate over features
         for foi in fsoi:

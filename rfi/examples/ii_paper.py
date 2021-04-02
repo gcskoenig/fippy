@@ -340,10 +340,10 @@ ii_adult_sparse = SyntheticExample(
                                          'marital status': 0.5, 'education num': 0.5,
                                          'workclass': 0.5, 'hours per week': 0.5}},
         noise_std_dict={'age': sigma_veryhigh, 'race': sigma_veryhigh,
-                        'sex': sigma_veryhigh, 'capital gain': sigma_medium,
-                        'relationship': sigma_medium, 'occupation': sigma_medium,
-                        'marital status': sigma_medium, 'education num': sigma_medium,
-                        'workclass': sigma_medium, 'hours per week': sigma_medium,
+                        'sex': sigma_veryhigh, 'capital gain': sigma_high,
+                        'relationship': sigma_high, 'occupation': sigma_high,
+                        'marital status': sigma_high, 'education num': sigma_high,
+                        'workclass': sigma_high, 'hours per week': sigma_high,
                         'predicted income': sigma_veryhigh}
     )
 )
