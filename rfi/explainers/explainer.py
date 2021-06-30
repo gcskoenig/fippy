@@ -263,24 +263,30 @@ class Explainer:
                return_perturbed=False, train_allowed=True,
                target='Y', marginalize=False,
                nr_resample_marginalize=5):
-        """Computes Relative Feature importance
+        """Computes AI via
 
         Args:
-            K: features of interest
-            B: baseline features
-            J: "from" conditioning set
+            J: variables of interest
+            C: baseline variables/coalition variables
+            K: "via" feature set
             X_eval: data to use for resampling and evaluation.
             y_eval: labels for evaluation.
             D: features, used by the predictive model
             sampler: choice of sampler. Default None. Will throw an error
-              when sampler is None and self.sampler is None as well.
+                when sampler is None and self.sampler is None as well.
+            decorrelator: choice of decorrelator. Raises error when
+                both decorrelator argument and self.decorrelator are None.
             loss: choice of loss. Default None. Will throw an Error when
-              both loss and self.loss are None.
+                both loss and self.loss are None.
             nr_runs: how often the experiment shall be run
             return_perturbed: whether the sampled perturbed versions
                 shall be returned
             train_allowed: whether the explainer is allowed to train
                 the sampler
+            target: whether loss shall be computed against Y or Y_hat
+            marginalize: whether marginalization shall be performed
+            nr_resample_marginalize: sample size for marginilization
+                computation
 
         Returns:
             result: An explanation object with the RFI computation
@@ -289,9 +295,6 @@ class Explainer:
         """
         if target not in ['Y', 'Y_hat']:
             raise ValueError('Y and Y_hat are the only valid targets.')
-
-        # if marginalize:
-        #     raise NotImplementedError('Marginalization not implemented yet.')
 
         if sampler is None:
             if self._sampler_specified():
@@ -317,11 +320,19 @@ class Explainer:
         if not set(J).isdisjoint(set(C)):
             raise ValueError('J and C are not disjoint.')
 
-        # check whether sampler is trained for baseline dropped features
-        R = list(set(D) - set(C))
-        R_ = list(set(R) - set(J))
-        CuJ = list(set(C).union(J))
-        if not sampler.is_trained(R_, CuJ):
+        # TODO resolve the following comment block
+        '''
+        check whether this code is in line with the paper
+        in the paper only K gets access to J
+        whereas here all variables except for K have access to J
+        so we kind of go the other way around
+        that should be consistent!
+        '''
+        # check whether sampler is trained for baseline non-coalition variables
+        R = list(set(D) - set(C)) # background non-coalition variables
+        R_ = list(set(R) - set(J)) # foreground non-coalition
+        CuJ = list(set(C).union(J)) # foreground coalition variables
+        if not sampler.is_trained(R_, CuJ): # sampler for foreground non-coalition
             # train if allowed, otherwise raise error
             if train_allowed:
                 sampler.train(R_, CuJ)
@@ -334,6 +345,7 @@ class Explainer:
             txt = txt + '{}|{}'.format(R, J)
             logger.debug(txt)
 
+        # decorrelator for background non-coalition
         if not decorrelator.is_trained(K, J, C):
             # train if allowed, otherwise raise error
             if train_allowed:
@@ -524,6 +536,9 @@ class Explainer:
                 # store the result in the right place
                 # validate training of sampler
                 J, C = [ordering[jj - 1]], ordering[:jj - 1]
+                ex = None
+
+                # we have already asserted that method is either associative or direct
                 if method == 'associative':
                     ex = self.ai_via(J, C, G, X_test, y_test,
                                      target=target, marginalize=marginalize,
@@ -533,6 +548,7 @@ class Explainer:
                 elif method == 'direct':
                     ex = self.di_from(J, C, G, X_test, y_test, nr_runs=nr_runs, target=target, marginalize=marginalize,
                                       nr_resample_marginalize=nr_resample_marginalize, **kwargs)
+
                 scores_arr = ex.scores.to_numpy()
                 scores.loc[(ii, slice(None), slice(None)), ordering[jj - 1]] = scores_arr
 
@@ -544,6 +560,114 @@ class Explainer:
             orderings = orderings_sampled
 
         return result, orderings
+
+    def viafrom(self, imp_type, fsoi, X_eval, y_eval, target='Y', nr_runs=10,
+                show_pbar=True, components=None, **kwargs):
+        """
+        Either computes the pfi under only one variable being reconstructed for
+        every feature (ai_via),
+        or the component of the pfi of every feature from
+        single variables (dr_from)
+        """
+        if imp_type not in ['ar_via', 'dr_from', 'sage']:
+            raise ValueError('Only ar_via, sage and dr_from'
+                             'implemented for imp_type.')
+
+        if target not in ['Y', 'Y_hat']:
+            raise ValueError('Only Y and Y_hat implemented as target.')
+
+        # values (nr_perm, nr_runs, nr_components, nr_fsoi)
+        # components are: (elements of ordering,..., remainder)
+        # elements of ordering are sorted in increasing order
+
+        if components is None:
+            components = X_eval.columns
+        components = list(components)
+        components.append('total')
+        nr_components = len(components)
+
+        # create dataframe for computation results
+        # orderings is just for compatibility with other decompositions
+        index = utils.create_multiindex(['component', 'ordering', 'sample'],
+                                        [components,
+                                         np.arange(1),
+                                         np.arange(nr_runs)])
+        arr = np.zeros((nr_components * nr_runs * 1, len(fsoi)))
+        decomposition = pd.DataFrame(arr, index=index, columns=fsoi)
+
+        if show_pbar:
+            mgr = enlighten.get_manager()
+            pbar = mgr.counter(total=nr_components * len(fsoi),
+                               desc='naive_decomposition',
+                               unit='{} runs'.format(imp_type))
+
+        # helper funciton to compute the remainder
+        def get_rmd(fs, f):
+            rmd = list(set(fs).difference([f]))
+            return rmd
+
+        if imp_type == 'sage':
+            expl, ordering = self.sage(X_eval, y_eval, [tuple(fsoi)],
+                                       **kwargs)
+            fi_vals_total = expl.fi_vals()[fsoi].to_numpy()
+            decomposition.loc[idx['total', 0, :], fsoi] = fi_vals_total
+
+            for component in get_rmd(components, 'total'):
+                rmd = get_rmd(X_eval.columns, component)
+                expl, ordering = self.sage(X_eval, y_eval, [tuple(fsoi)],
+                                           G=rmd, **kwargs)
+                fi_vals = expl.fi_vals()[fsoi].to_numpy()
+                diff = fi_vals_total - fi_vals
+                decomposition.loc[idx[component, 0, :], fsoi] = diff
+
+            ex = decomposition_ex.DecompositionExplanation(self.fsoi,
+                                                           decomposition,
+                                                           ex_name=None)
+            return ex
+
+        # iterate over features
+        for foi in fsoi:
+
+            fi_vals_total = None
+            if imp_type == 'ar_via':  # compute ar of foi over emptyset
+                expl = self.ai_via([foi], [], X_eval.columns,
+                                   X_eval, y_eval, nr_runs=nr_runs,
+                                   target=target, **kwargs)
+                fi_vals_total = expl.fi_vals().to_numpy()
+            elif imp_type == 'dr_from':  # compute total PFI (over rmd)
+                rmd = get_rmd(X_eval.columns, foi)
+                expl = self.di_from([foi], rmd, X_eval.columns,
+                                    X_eval, y_eval, nr_runs=nr_runs,
+                                    target=target, **kwargs)
+                fi_vals_total = expl.fi_vals().to_numpy()
+            decomposition.loc[idx['total', 0, :], foi] = fi_vals_total
+
+            # iterate over components
+            for component in get_rmd(components, 'total'):
+                if show_pbar:
+                    pbar.update()
+
+                fi_vals = None
+                if imp_type == 'ar_via':
+                    rmd = get_rmd(X_eval.columns, component)
+                    expl = self.ai_via([foi], [], rmd,
+                                       X_eval, y_eval, nr_runs=nr_runs,
+                                       target=target, **kwargs)
+                    fi_vals = expl.fi_vals().to_numpy()
+                    diff = fi_vals_total - fi_vals
+                    decomposition.loc[idx[component, 0, :], foi] = diff
+                elif imp_type == 'dr_from':
+                    rmd = get_rmd(X_eval.columns, foi)
+                    expl = self.di_from([foi], rmd, [component],
+                                        X_eval, y_eval, nr_runs=nr_runs,
+                                        target=target, **kwargs)
+                    fi_vals = expl.fi_vals().to_numpy()
+                    decomposition.loc[idx[component, 0, :], foi] = fi_vals
+
+        ex = decomposition_ex.DecompositionExplanation(self.fsoi,
+                                                       decomposition,
+                                                       ex_name=None)
+        return ex
 
     def decomposition(self, imp_type, fsoi, partial_ordering, X_eval, y_eval,
                       nr_orderings=None, nr_orderings_sage=None,
@@ -669,6 +793,7 @@ class Explainer:
 
             # total values
             expl = None
+            # TODO fix dependency on tdi/tai? remove tdi/tai or leave in the code?
             if imp_type == 'tdi':
                 expl = self.tdi(X_eval, y_eval, [],
                                 nr_runs=nr_runs, **kwargs)
@@ -1007,110 +1132,3 @@ class Explainer:
     #         logger.debug('Return explanation object only')
     #         return result
 
-   # def viafrom(self, imp_type, fsoi, X_eval, y_eval, target='Y', nr_runs=10,
-    #             show_pbar=True, components=None, **kwargs):
-    #     """
-    #     Either computes the pfi under only one variable being reconstructed for
-    #     every feature (ai_via),
-    #     or the component of the pfi of every feature from
-    #     single variables (dr_from)
-    #     """
-    #     if imp_type not in ['ar_via', 'dr_from', 'sage']:
-    #         raise ValueError('Only ar_via, sage and dr_from'
-    #                          'implemented for imp_type.')
-
-    #     if target not in ['Y', 'Y_hat']:
-    #         raise ValueError('Only Y and Y_hat implemented as target.')
-
-    #     # values (nr_perm, nr_runs, nr_components, nr_fsoi)
-    #     # components are: (elements of ordering,..., remainder)
-    #     # elements of ordering are sorted in increasing order
-
-    #     if components is None:
-    #         components = X_eval.columns
-    #     components = list(components)
-    #     components.append('total')
-    #     nr_components = len(components)
-
-    #     # create dataframe for computation results
-    #     # orderings is just for compatibility with other decompositions
-    #     index = utils.create_multiindex(['component', 'ordering', 'sample'],
-    #                                     [components,
-    #                                      np.arange(1),
-    #                                      np.arange(nr_runs)])
-    #     arr = np.zeros((nr_components * nr_runs * 1, len(fsoi)))
-    #     decomposition = pd.DataFrame(arr, index=index, columns=fsoi)
-
-    #     if show_pbar:
-    #         mgr = enlighten.get_manager()
-    #         pbar = mgr.counter(total=nr_components * len(fsoi),
-    #                            desc='naive_decomposition',
-    #                            unit='{} runs'.format(imp_type))
-
-    #     # helper funciton to compute the remainder
-    #     def get_rmd(fs, f):
-    #         rmd = list(set(fs).difference([f]))
-    #         return rmd
-
-    #     if imp_type == 'sage':
-    #         expl, ordering = self.sage(X_eval, y_eval, [tuple(fsoi)],
-    #                                    **kwargs)
-    #         fi_vals_total = expl.fi_vals()[fsoi].to_numpy()
-    #         decomposition.loc[idx['total', 0, :], fsoi] = fi_vals_total
-
-    #         for component in get_rmd(components, 'total'):
-    #             rmd = get_rmd(X_eval.columns, component)
-    #             expl, ordering = self.sage(X_eval, y_eval, [tuple(fsoi)],
-    #                                        G=rmd, **kwargs)
-    #             fi_vals = expl.fi_vals()[fsoi].to_numpy()
-    #             diff = fi_vals_total - fi_vals
-    #             decomposition.loc[idx[component, 0, :], fsoi] = diff
-
-    #         ex = decomposition_ex.DecompositionExplanation(self.fsoi,
-    #                                                        decomposition,
-    #                                                        ex_name=None)
-    #         return ex
-
-    #     # iterate over features
-    #     for foi in fsoi:
-
-    #         fi_vals_total = None
-    #         if imp_type == 'ar_via':  # compute ar of foi over emptyset
-    #             expl = self.ar_via([foi], [], X_eval.columns,
-    #                                X_eval, y_eval, nr_runs=nr_runs,
-    #                                target=target, **kwargs)
-    #             fi_vals_total = expl.fi_vals().to_numpy()
-    #         elif imp_type == 'dr_from':  # compute total PFI (over rmd)
-    #             rmd = get_rmd(X_eval.columns, foi)
-    #             expl = self.dr_from([foi], rmd, X_eval.columns,
-    #                                 X_eval, y_eval, nr_runs=nr_runs,
-    #                                 target=target, **kwargs)
-    #             fi_vals_total = expl.fi_vals().to_numpy()
-    #         decomposition.loc[idx['total', 0, :], foi] = fi_vals_total
-
-    #         # iterate over components
-    #         for component in get_rmd(components, 'total'):
-    #             if show_pbar:
-    #                 pbar.update()
-
-    #             fi_vals = None
-    #             if imp_type == 'ar_via':
-    #                 rmd = get_rmd(X_eval.columns, component)
-    #                 expl = self.ar_via([foi], [], rmd,
-    #                                    X_eval, y_eval, nr_runs=nr_runs,
-    #                                    target=target, **kwargs)
-    #                 fi_vals = expl.fi_vals().to_numpy()
-    #                 diff = fi_vals_total - fi_vals
-    #                 decomposition.loc[idx[component, 0, :], foi] = diff
-    #             elif imp_type == 'dr_from':
-    #                 rmd = get_rmd(X_eval.columns, foi)
-    #                 expl = self.dr_from([foi], rmd, [component],
-    #                                     X_eval, y_eval, nr_runs=nr_runs,
-    #                                     target=target, **kwargs)
-    #                 fi_vals = expl.fi_vals().to_numpy()
-    #                 decomposition.loc[idx[component, 0, :], foi] = fi_vals
-
-    #     ex = decomposition_ex.DecompositionExplanation(self.fsoi,
-    #                                                    decomposition,
-    #                                                    ex_name=None)
-    #     return ex
