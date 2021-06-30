@@ -98,7 +98,6 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         mean_inp, mean_cont = joint_mean[inp_ind], joint_mean[cont_ind]
         self.mu_part = mean_inp - self.RegrCoeff @ mean_cont
         if not utils.isPD(self.Sigma):
-            breakpoint()
             logger.info('Making Sigma positive definite')
             self.Sigma = utils.nearestPD(self.Sigma)
         return self
