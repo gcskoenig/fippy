@@ -115,9 +115,7 @@ class Explainer:
             raise ValueError('Y and Y_hat are the only valid targets.')
 
         if not marginalize:
-            # TODO check whether the reasoning here is correct
-            # this line is at least misunderstandable
-            # so we should explain what is going on
+            # if we take expecation over one sample that coincides with taking only one sample
             nr_resample_marginalize = 1
 
         if sampler is None:
@@ -320,43 +318,34 @@ class Explainer:
         if not set(J).isdisjoint(set(C)):
             raise ValueError('J and C are not disjoint.')
 
-        # TODO resolve the following comment block
-        '''
-        check whether this code is in line with the paper
-        in the paper only K gets access to J
-        whereas here all variables except for K have access to J
-        so we kind of go the other way around
-        that should be consistent!
-        '''
-        # check whether sampler is trained for baseline non-coalition variables
-        R = list(set(D) - set(C)) # background non-coalition variables
-        R_ = list(set(R) - set(J)) # foreground non-coalition
-        CuJ = list(set(C).union(J)) # foreground coalition variables
+        # sampler trained for baseline non-coalition variables R_?
+        R = list(set(D) - set(C))  # background non-coalition variables
+        R_ = list(set(R) - set(J))  # foreground non-coalition
+        CuJ = list(set(C).union(J))  # foreground coalition variables
         if not sampler.is_trained(R_, CuJ): # sampler for foreground non-coalition
             # train if allowed, otherwise raise error
             if train_allowed:
                 sampler.train(R_, CuJ)
                 logger.info('Training sampler on {}|{}'.format(R_, CuJ))
             else:
-                raise RuntimeError(
-                    'Sampler is not trained on {}|{}'.format(R_, CuJ))
+                raise RuntimeError('Sampler is not trained on {}|{}'.format(R_, CuJ))
         else:
             txt = '\tCheck passed: Sampler is already trained on'
             txt = txt + '{}|{}'.format(R, J)
             logger.debug(txt)
 
-        # decorrelator for background non-coalition
-        if not decorrelator.is_trained(K, J, C):
+        # decorrelator for remainder R trained?
+        if not decorrelator.is_trained(R, J, C):
             # train if allowed, otherwise raise error
             if train_allowed:
-                decorrelator.train(K, J, C)
-                logger.info('Training decorrelator on {} idp {} |{}'.format(K, J, C))
+                decorrelator.train(R, J, C)
+                logger.info('Training decorrelator on {} idp {} |{}'.format(R, J, C))
             else:
                 raise RuntimeError(
-                    'Sampler is not trained on {} idp {} |{}'.format(K, J, C))
+                    'Sampler is not trained on {} idp {} |{}'.format(R, J, C))
         else:
             txt = '\tCheck passed: decorrelator is already trained on'
-            txt = txt + '{} idp {}|{}'.format(K, J, C)
+            txt = txt + '{} idp {}|{}'.format(R, J, C)
             logger.debug(txt)
 
         desc = 'AR({} | {} -> {})'.format(J, C, K)
@@ -372,7 +361,6 @@ class Explainer:
         for kk in np.arange(0, nr_runs, 1):
 
             # sample perturbed versions
-            X_R_CuJ2 = None
             X_R_CuJ = sampler.sample(X_eval, R_, CuJ, num_samples=nr_resample_marginalize)
             index = X_R_CuJ.index
 
@@ -380,15 +368,18 @@ class Explainer:
                                  columns=['y_hat_baseline',
                                           'y_hat_foreground'])
 
+            # create foreground and background samples and make predictions
             for ll in np.arange(0, nr_resample_marginalize, 1):
 
                 X_tilde_baseline = X_eval.copy()
                 X_tilde_foreground = X_eval.copy()
 
+                # copy ll-th sample for R_ variables
                 arr_reconstr = X_R_CuJ.loc[(ll, slice(None)), R_].to_numpy()
                 X_tilde_foreground[R_] = arr_reconstr
 
-                X_R_decorr = decorrelator.decorrelate(X_tilde_foreground, K, J, C)
+                # deocorellate X_R and copy
+                X_R_decorr = decorrelator.decorrelate(X_tilde_foreground, R, J, C)
                 arr_decorr = X_R_decorr[R].to_numpy()
 
                 X_tilde_baseline[R] = arr_decorr
@@ -397,17 +388,19 @@ class Explainer:
                 X_tilde_baseline = X_tilde_baseline[D]
                 X_tilde_foreground = X_tilde_foreground[D]
 
+                # create and store prediction
                 y_hat_baseline = self.model(X_tilde_baseline)
                 y_hat_foreground = self.model(X_tilde_foreground)
 
                 df_yh.loc[(ll, slice(None)), 'y_hat_baseline'] = y_hat_baseline
                 df_yh.loc[(ll, slice(None)), 'y_hat_foreground'] = y_hat_foreground
 
+            # convert and aggregate predictions
             df_yh = df_yh.astype({'y_hat_baseline': 'float',
                                   'y_hat_foreground': 'float'})
             df_yh = df_yh.mean(level='i')
 
-            # compute difference in observationwise loss
+            # compute difference in observation-wise loss
             if target == 'Y':
                 loss_baseline = loss(y_eval, df_yh['y_hat_baseline'])
                 loss_foreground = loss(y_eval, df_yh['y_hat_foreground'])
@@ -431,35 +424,48 @@ class Explainer:
             return result
 
     def sage(self, X_test, y_test, partial_ordering,
-             nr_orderings=None, approx=math.sqrt,
-             save_orderings=True, nr_runs=10, sampler=None,
-             loss=None, train_allowed=True, D=None,
-             nr_resample_marginalize=10, target='Y',
-             G=None, method='associative',
-             marginalize=True, orderings=None, **kwargs):
+             target='Y', method='associative', G=None, marginalize=True,
+             nr_orderings=None, nr_runs=10, nr_resample_marginalize=10, approx=math.sqrt,
+             sampler=None, loss=None, D=None, orderings=None,
+             save_orderings=True, **kwargs):
         """
         Compute Shapley Additive Global Importance values.
         Args:
-            type: either 'rfi' or 'rfa', depending on whether conditional
-                or marginal resampling of the remaining features shall
-                be used
-            X_test: data to use for resampling and evaluation.
+            X_test: pandas df to use for resampling and evaluation.
             y_test: labels for evaluation.
-            nr_orderings: number of orderings in which features enter the model
+            partial_ordering: tuple of items or lists that define a
+                (partial) ordering
+            target: whether loss should be computed with respect to 'Y' or 'Y_hat'
+            method: whether conditional sampling ('associative') or marginal sampling ('direct')
+                shall be used
+            G: if method='associative', G specifies the via features,
+                if method='direct', G specifies the from variables,
+                if G=None it is set to X_test.columns
+            marginalize: whether the marginalized or the non-marginalized
+                prediction function shall be used
+            nr_orderings: number of orderings that shall be evaluated
             nr_runs: how often each value function shall be computed
+            nr_resample_marginalize: How many samples shall be used for the
+                marginalization
+            approx: if nr_orderings=None, approx determines the number of
+                orderings w.r.t to the all possible orderings
             sampler: choice of sampler. Default None. Will throw an error
               when sampler is None and self.sampler is None as well.
             loss: choice of loss. Default None. Will throw an Error when
               both loss and self.loss are None.
-            train_allowed: whether the explainer is allowed to
-                train the sampler
-
+            D: specifies features of interest (for which SAGE values are computed).
+                By default set to X.columns (if D=None).
+            orderings: If specified the provided orderings are used for the
+                computation. overrides partial ordering, but does not override
+                nr_orderings
+            save_orderings: whether the aggregates scores or the score for every
+                ordering shall be returned
         Returns:
             result: an explanation object containing the respective
                 pairwise lossdifferences with shape
                 (nr_fsoi, nr_runs, nr_obs, nr_orderings)
-            orderings (optional): an array containing the respective
-                orderings if return_orderings
+            orderings(optional): if save_orderings=True, an array containing the respective
+                orderings is returned
         """
         if G is None:
             G = X_test.columns
@@ -552,25 +558,42 @@ class Explainer:
                 scores_arr = ex.scores.to_numpy()
                 scores.loc[(ii, slice(None), slice(None)), ordering[jj - 1]] = scores_arr
 
-        result = explanation.Explanation(
-            self.fsoi, scores,
-            ex_name='SAGE')
+        result = explanation.Explanation(self.fsoi, scores, ex_name='SAGE')
 
         if orderings is None:
             orderings = orderings_sampled
 
-        return result, orderings
+        if save_orderings:
+            return result, orderings
+        else:
+            return result
 
     def viafrom(self, imp_type, fsoi, X_eval, y_eval, target='Y', nr_runs=10,
                 show_pbar=True, components=None, **kwargs):
         """
-        Either computes the pfi under only one variable being reconstructed for
-        every feature (ai_via),
-        or the component of the pfi of every feature from
-        single variables (dr_from)
+        Computes a simple fast decomposition of DI(X_j|X_{-j}), AI(X_j|X_\emptyset) or (conditional) SAGE.
+
+        For DI(X_j|X_{-j}), each DI_from(X_j|X_{-j} <- X_k) is computed (for k \in components)
+            and compared to empty "from set"
+        For AI(X_j|X_\emptyset) each AI_via(X_j|X_\emptyset -> X_k|X_{-k}) is computed and compared with
+            full "via" set
+        For conditional SAGE, SAGE is computed where every AI_via statement is replaced as described above
+
+        Arguments:
+            imp_type: either 'ai_via', 'di_from' or 'sage'. for sage the default method is used,
+                but can be passed via the respective keyword arguments
+            fsoi: features of interest
+            X_eval: X_eval dataset
+            y_eval: y_eval data
+            target: whether one wants to evaluate against 'Y' or 'Y_hat'
+            nr_runs: over how many runs the result shall be averaged
+            show_pbar: whether progress bar shall be presented
+            components: for which components the result shall be computed.
+                if components==None, then X_eval.columns is assigned
+            **kwargs: keyword arguments are passed to ai_via, di_from or sage
         """
-        if imp_type not in ['ar_via', 'dr_from', 'sage']:
-            raise ValueError('Only ar_via, sage and dr_from'
+        if imp_type not in ['ai_via', 'di_from', 'sage']:
+            raise ValueError('Only ai_via, sage and di_from'
                              'implemented for imp_type.')
 
         if target not in ['Y', 'Y_hat']:
@@ -601,17 +624,30 @@ class Explainer:
                                desc='naive_decomposition',
                                unit='{} runs'.format(imp_type))
 
-        # helper funciton to compute the remainder
+        # helper funciton to compute the remainder for a specific feature
         def get_rmd(fs, f):
+            """fs: all features, f: feature"""
             rmd = list(set(fs).difference([f]))
             return rmd
 
         if imp_type == 'sage':
+            # TODO implement direct version as well
+            #  then (G is not remainder but only one item, baseline is empty G)
+
+            # make sure that associative method is used
+            if 'method' in kwargs:
+                if kwargs['method'] != 'associative':
+                    raise NotImplementedError('for sage only the method associative is implemented for viafrom')
+            else:
+                kwargs['method'] = 'associative'
+
+            # compute SAGE with G=full feature set
             expl, ordering = self.sage(X_eval, y_eval, [tuple(fsoi)],
                                        **kwargs)
             fi_vals_total = expl.fi_vals()[fsoi].to_numpy()
             decomposition.loc[idx['total', 0, :], fsoi] = fi_vals_total
 
+            # compute SAGE without each of the components and compute difference
             for component in get_rmd(components, 'total'):
                 rmd = get_rmd(X_eval.columns, component)
                 expl, ordering = self.sage(X_eval, y_eval, [tuple(fsoi)],
@@ -620,6 +656,7 @@ class Explainer:
                 diff = fi_vals_total - fi_vals
                 decomposition.loc[idx[component, 0, :], fsoi] = diff
 
+            # store decomposition result
             ex = decomposition_ex.DecompositionExplanation(self.fsoi,
                                                            decomposition,
                                                            ex_name=None)
@@ -628,6 +665,7 @@ class Explainer:
         # iterate over features
         for foi in fsoi:
 
+            # compute baseline
             fi_vals_total = None
             if imp_type == 'ar_via':  # compute ar of foi over emptyset
                 expl = self.ai_via([foi], [], X_eval.columns,
@@ -681,8 +719,8 @@ class Explainer:
         features into its respective indirect or direct components.
 
         Args:
-            imp_type: Either 'rfi' or 'rfa'
-            fois: features, for which the importance scores (of type imp_type)
+            imp_type: Either 'associative', 'direct' or 'sage'
+            fsoi: features, for which the importance scores (of type imp_type)
                 are to be decomposed.
             partial_ordering: partial ordering for the decomposition
                 of the form (1, 2, [3, 4, 5], 6) where the ordering
@@ -692,8 +730,17 @@ class Explainer:
             y_test: test labels
             nr_orderings: number of total orderings to sample
                 (given the partial) ordering
+            nr_orderings_sage: if sage is to be decomposed,
+                the number of orderings for sage can be passed seperately
             nr_runs: number of runs for each feature importance score
                 computation
+            show_pbar: whether progress bar shall be shown
+            approx: nr_orderings is set to approx(#unique_orderings) (if nr_orderings not specified)
+            save_orderings: whether every ordering shall be stored
+            sage_partial_ordering: if desired a separate partial ordering can be passed to sage
+            orderings: orderings can be passed as well, overriding the sampling from partial_ordering
+            target: either 'Y_hat' or Y
+            **kwargs: are passed to the respective importance technique
 
         Returns:
             means, stds: means and standard deviations for each
@@ -712,8 +759,8 @@ class Explainer:
 
         logger.info('#orderings: {}'.format(nr_orderings))
 
-        if imp_type not in ['tdi', 'tai', 'sage']:
-            raise ValueError('Only tdi, tai and sage '
+        if imp_type not in ['direct', 'associative', 'sage']:
+            raise ValueError('Only direct, associative and sage '
                              'implemented for imp_type.')
 
         if imp_type == 'sage' and sage_partial_ordering is None:
@@ -794,6 +841,7 @@ class Explainer:
             # total values
             expl = None
             # TODO fix dependency on tdi/tai? remove tdi/tai or leave in the code?
+            #  it should work with viafrom as well, right?
             if imp_type == 'tdi':
                 expl = self.tdi(X_eval, y_eval, [],
                                 nr_runs=nr_runs, **kwargs)
