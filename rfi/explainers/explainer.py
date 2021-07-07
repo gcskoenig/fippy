@@ -382,6 +382,8 @@ class Explainer:
                 X_R_decorr = decorrelator.decorrelate(X_tilde_foreground, R, J, C)
                 arr_decorr = X_R_decorr[R].to_numpy()
 
+                # TODO make use of features K to selectively update
+                #  background to foreground (only features K ar updated)
                 X_tilde_baseline[R] = arr_decorr
 
                 # make sure model can handle it (selection and ordering)
@@ -743,9 +745,8 @@ class Explainer:
             **kwargs: are passed to the respective importance technique
 
         Returns:
-            means, stds: means and standard deviations for each
-                component and each feature. numpy.array with shape
-                (#components, #fsoi)
+            dex: Decomposition Explanation object
+            orderings: orderings that were provided/used
         """
         if orderings is None:
             if nr_orderings is None:
@@ -840,6 +841,7 @@ class Explainer:
 
             # total values
             expl = None
+            # TODO leverage fsoi argument in the function calls
             # TODO fix dependency on tdi/tai? remove tdi/tai or leave in the code?
             #  it should work with viafrom as well, right?
             if imp_type == 'tdi':
@@ -892,7 +894,6 @@ class Explainer:
 
                 current = expl.fi_vals().to_numpy()
 
-                fi_vals = None
                 # compute difference
                 fi_vals = previous - current
 
@@ -924,10 +925,9 @@ class Explainer:
 
     # def tdi(self, X_eval, y_eval, G, D=None, sampler=None, loss=None,
     #         nr_runs=10, return_perturbed=False, train_allowed=True):
-    #     """Computes Relative Feature importance
-    #
-    #     # TODO(gcsk): allow handing a sample as argument
-    #     #             (without needing sampler)
+    #     """Computes Relative Feature importance for every feature
+    #          meaning we get an explanation where for every feature we get
+    #          DI(X_j|X_-j <- X_G)
     #
     #     Args:
     #         X_eval: data to use for resampling and evaluation.
@@ -1033,15 +1033,18 @@ class Explainer:
     # def tai(self, X_eval, y_eval, K, D=None, sampler=None, decorrelator=None,
     #         loss=None, nr_runs=10, return_perturbed=False, train_allowed=True,
     #         ex_name=None):
-    #     """Computes Feature Association
-
+    #     """Computes total feature association
+    #
+    #
     #     Args:
     #         X_eval: data to use for resampling and evaluation.
     #         y_eval: labels for evaluation.
-    #         K: features not to be reconstracted
+    #         K: features not to be reconstructed?
     #         D: model features (including their required ordering)
     #         sampler: choice of sampler. Default None. Will throw an error
     #           when sampler is None and self.sampler is None as well.
+    #         decorrelator: choice of decorrelator. Same behaviour for None
+    #           as for sampler
     #         loss: choice of loss. Default None. Will throw an Error when
     #           both loss and self.loss are None.
     #         nr_runs: how often the experiment shall be run
@@ -1049,32 +1052,33 @@ class Explainer:
     #             versions shall be returned
     #         train_allowed: whether the explainer is allowed
     #             to train the sampler
-
+    #
     #     Returns:
     #         result: An explanation object with the RFI computation
     #         perturbed_foiss (optional): perturbed features of
     #             interest if return_perturbed
     #     """
-
+    #
     #     if sampler is None:
     #         if self._sampler_specified():  # may throw an error
     #             sampler = self.sampler
     #             logger.debug("Using class specified sampler.")
-
+    #
     #     if decorrelator is None:
     #         if self._decorrelator_specified():  # may throw error
     #             decorrelator = self.decorrelator
     #             logger.debug("Using class specified decorrelator")
-
+    #
     #     if loss is None:
     #         if self._loss_specified():  # may throw an error
     #             loss = self.loss
     #             logger.debug("Using class specified loss.")
-
+    #
     #     if D is None:
     #         D = X_eval.columns
     #     # all_fs = np.arange(X_test.shape[1])
-
+    #
+    #     # TODO: this sampler is not necessary anymore?
     #     # check whether the sampler is trained for the baseline perturbation
     #     if not sampler.is_trained(D, []):
     #         # train if allowed, otherwise raise error
@@ -1088,7 +1092,7 @@ class Explainer:
     #         txt = '\tCheck passed: Sampler is already trained on '
     #         txt = txt + '{}|{}'.format(D, [])
     #         logger.debug(txt)
-
+    #
     #     # check for each of the features of interest
     #     for foi in self.fsoi:
     #         if not sampler.is_trained(D, [foi]):
@@ -1104,7 +1108,7 @@ class Explainer:
     #             txt = '\tCheck passed: Sampler is already trained on '
     #             txt = txt + '{}|{}'.format(D, [foi])
     #             logger.debug(txt)
-
+    #
     #     # check whether decorrelators have been trained
     #     for foi in self.fsoi:
     #         if not decorrelator.is_trained(K, [foi], []):
@@ -1121,37 +1125,40 @@ class Explainer:
     #             logger.debug('\tCheck passed: '
     #                          'Decorrelator is already trained on '
     #                          '{} {} | {}'.format(K, [foi], []))
-
+    #
     #     # initialize array for the perturbed samples
     #     nr_obs = X_eval.shape[0]
-
+    #
     #     # initialize pandas dataframes for X_eval_tilde baseline
     #     # and X_eval_tilde reconstrcted
+    #     # TODO evaluate whether those two lines are still necessary?
     #     index_bsln = utils.create_multiindex(['sample', 'i'],
     #                                          [np.arange(nr_runs),
     #                                           np.arange(nr_obs)])
     #     X_eval_tilde_bsln = pd.DataFrame([], index=index_bsln, columns=D)
-
+    #
     #     # index_rcnstr = utils.create_multiindex(['foi', 'sample', 'i'],
     #     #                                        [self.fsoi,
     #     #                                         np.arange(nr_runs),
     #     #                                         np.arange(nr_obs)])
     #     # X_eval_tilde_rcnstr = pd.DataFrame([], index=index_rcnstr, columns=D)
-
+    #
     #     # create empty scores data frame
     #     index_scores = utils.create_multiindex(['sample', 'i'],
     #                                            [np.arange(nr_runs),
     #                                             np.arange(nr_obs)])
     #     scores = pd.DataFrame([], index=index_scores)
-
+    #
     #     # sample baseline X^\emptyset
+    #     # TODO evaluate whether this here is unneccesarily complex
+    #     # TODO could we directly evaluate the difference with the formula for AI_via from the paper?
     #     X_eval_tilde_bsln = sampler.sample(X_eval, D, [], num_samples=nr_runs)
     #     lss_baseline = []
     #     for kk in np.arange(nr_runs):
     #         X_bl = X_eval_tilde_bsln.loc[(kk, slice(None)), D]
     #         l_pb = loss(y_eval, self.model(X_bl))
     #         lss_baseline.append(l_pb)
-
+    #
     #     # sample perturbed versions
     #     for foi in self.fsoi:
     #         # X^foi
@@ -1165,10 +1172,10 @@ class Explainer:
     #             # sd = X_eval_tilde_rcnstr.loc[(foi, kk, slice(None)), D]
     #             l_rc = loss(y_eval, self.model(sd_np))
     #             scores.loc[(kk, slice(None)), foi] = lss_baseline[kk] - l_rc
-
+    #
     #     if ex_name is None:
     #         ex_name = 'Unknown tai'
-
+    #
     #     # return explanation object
     #     result = explanation.Explanation(self.fsoi,
     #                                      scores,
