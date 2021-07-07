@@ -27,6 +27,12 @@ The library is accompagnied by our ICPR paper [[arXiv]](https://arxiv.org/abs/20
 python setup.py install --user
 ```
 
+or alternatively
+
+```
+python setup.py develop
+```
+
 ## Use Case
 
 ```
