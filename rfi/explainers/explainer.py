@@ -30,7 +30,7 @@ class Explainer:
         decorrelator: default decorrelator
         loss: default loss.
     """
-
+    # TODO make sampler (and decorrelator?) normal arugments (no keyword arguments)
     def __init__(self, model, fsoi, X_train, sampler=None, decorrelator=None,
                  loss=None):
         """Inits Explainer with sem, mask and potentially sampler and loss"""
@@ -72,7 +72,6 @@ class Explainer:
             raise ValueError("Loss has not been specified.")
         else:
             return True
-
 
     def di_from(self, K, B, J, X_eval, y_eval, D=None, sampler=None,
                 decorrelator=None, loss=None, nr_runs=10,
@@ -322,7 +321,7 @@ class Explainer:
         R = list(set(D) - set(C))  # background non-coalition variables
         R_ = list(set(R) - set(J))  # foreground non-coalition
         CuJ = list(set(C).union(J))  # foreground coalition variables
-        if not sampler.is_trained(R_, CuJ): # sampler for foreground non-coalition
+        if not sampler.is_trained(R_, CuJ):  # sampler for foreground non-coalition
             # train if allowed, otherwise raise error
             if train_allowed:
                 sampler.train(R_, CuJ)
@@ -378,7 +377,7 @@ class Explainer:
                 arr_reconstr = X_R_CuJ.loc[(ll, slice(None)), R_].to_numpy()
                 X_tilde_foreground[R_] = arr_reconstr
 
-                # deocorellate X_R and copy
+                # decorellate X_R and copy
                 X_R_decorr = decorrelator.decorrelate(X_tilde_foreground, R, J, C)
                 arr_decorr = X_R_decorr[R].to_numpy()
 
@@ -427,7 +426,8 @@ class Explainer:
 
     def sage(self, X_test, y_test, partial_ordering,
              target='Y', method='associative', G=None, marginalize=True,
-             nr_orderings=None, nr_runs=10, nr_resample_marginalize=10, approx=math.sqrt,
+             nr_orderings=None, approx=math.sqrt, convergence=False,
+             nr_runs=10, nr_resample_marginalize=10,
              sampler=None, loss=None, D=None, orderings=None,
              save_orderings=True, **kwargs):
         """
@@ -436,7 +436,7 @@ class Explainer:
             X_test: pandas df to use for resampling and evaluation.
             y_test: labels for evaluation.
             partial_ordering: tuple of items or lists that define a
-                (partial) ordering
+                (partial) ordering, no ordering: ([X_1, X_2, ...])
             target: whether loss should be computed with respect to 'Y' or 'Y_hat'
             method: whether conditional sampling ('associative') or marginal sampling ('direct')
                 shall be used
@@ -451,6 +451,7 @@ class Explainer:
                 marginalization
             approx: if nr_orderings=None, approx determines the number of
                 orderings w.r.t to the all possible orderings
+            convergence: Whether convergence detection shall be used
             sampler: choice of sampler. Default None. Will throw an error
               when sampler is None and self.sampler is None as well.
             loss: choice of loss. Default None. Will throw an Error when
@@ -479,6 +480,9 @@ class Explainer:
 
         if method not in ['associative', 'direct']:
             raise ValueError('only methods associative or direct implemented')
+
+        if convergence:
+            raise NotImplementedError('Convergence detection has not been implemented yet.')
 
         if sampler is None:
             if self._sampler_specified():
@@ -537,6 +541,9 @@ class Explainer:
             logging.info('Ordering : {}'.format(ordering))
 
             for jj in np.arange(1, len(ordering), 1):
+                # TODO(gcsk,cph): convergence detection like in SAGE paper
+                #  see https://github.com/iancovert/sage/blob/master/sage/permutation_estimator.py
+
                 # TODO: check if jj in features for which the score shall
                 # TODO: be computed
                 # compute change in performance
