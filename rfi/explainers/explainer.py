@@ -73,6 +73,8 @@ class Explainer:
         else:
             return True
 
+    # Elementary Feature Importance Techniques
+
     def di_from(self, K, B, J, X_eval, y_eval, D=None, sampler=None,
                 decorrelator=None, loss=None, nr_runs=10,
                 return_perturbed=False, train_allowed=True,
@@ -424,6 +426,65 @@ class Explainer:
             logger.debug('Return explanation object only')
             return result
 
+    def dis_from_ordering(self, ordering, J, X_eval, y_eval, **kwargs):
+        """Computes DI from X_J for every feature and the respective coalition as
+        specified by the ordering.
+
+        Args:
+            ordering: tuple with ordered columnnames
+            J: "from" set (invariant for all features)
+            X_eval: test data
+            y_eval: test label
+            **kwargs: keyword arguments that are passed di_from
+        """
+        # TODO
+
+    def ais_via_ordering(self, ordering, K, X_eval, y_eval, **kwargs):
+        """Computes AI via X_K for every variable and the respective context coalition
+        as specified by the ordering. I.e for ordering=(X_1, X_2, X_3), the method returns
+        AI(X_1 via X_K), AI(X_2|X_1 via X_K) and AI(X_3|X_1, X_2 via X_K).
+
+        Args:
+            ordering: tuple with ordered columnnames
+            K: specifies via feature X_K (invariant for all evaluated variables X_j)
+            X_eval: evaluation data
+            y_eval: evaluation label
+            **kwargs: keyword arguments that are passed to ai_via
+        """
+        # TODO
+
+    def dis_from_fixed(self, J, X_eval, y_eval, baseline='empty', baselinefunc=None, **kwargs):
+        """Computes DI from X_J for every feature given a feature-dependent baseline. For example,
+        the baseline can be specified to be empty or the respective remainder B:=D\K. The baseline
+        can be specified in a flexible manner by providing a baselinefunc.
+
+        Args:
+            J: indices specifying the "from" set X_J
+            X_eval: evaluation data
+            y_eval: evalaution labels
+            baseline: either 'empty' (B = emptyset) or 'remainder' (B = D\k)
+            baselinefunc: function that takes k and D as arguments and returns the respective
+                baseline set B. Overrides baseline
+        """
+        # TODO
+
+    def ais_via_fixed(self, K, X_eval, y_eval, context='empty', contextfunc=None, **kwargs):
+        """Computes AI via X_K for every variable given a variable-dependent context. For example,
+        the context can be specified to be a function of the variable j and the set of all variables,
+        e.g. C=D\j.
+
+        Args:
+            K: indices specifying the "via" set X_K
+            X_eval: evaluation data
+            y_Eval: evaluation labels
+            context: either 'empty' or 'remainder (C=D\j)
+            contextfunc: function that takes j and D as arguments and returns the respective baseline
+                set C=f(j,D). Overrides baseline argument.
+        """
+        # TODO
+
+    # Advanced Feature Importance
+
     def sage(self, X_test, y_test, partial_ordering,
              target='Y', method='associative', G=None, marginalize=True,
              nr_orderings=None, approx=math.sqrt, convergence=False,
@@ -474,6 +535,7 @@ class Explainer:
             G = X_test.columns
 
         if X_test.shape[1] != len(self.fsoi):
+            # TODO: update to check whether column names match.
             logger.debug('self.fsoi: {}'.format(self.fsoi))
             logger.debug('#features in model: {}'.format(X_test.shape[1]))
             raise RuntimeError('self.fsoi is not identical to all features')
@@ -516,6 +578,7 @@ class Explainer:
                                         [np.arange(nr_orderings_saved),
                                          np.arange(nr_runs),
                                          np.arange(X_test.shape[0])])
+        # TODO: evluate whether initializing with the empty array is necessary
         arr = np.zeros((nr_orderings_saved * nr_runs * X_test.shape[0],
                         len(self.fsoi)))
         scores = pd.DataFrame(arr, index=index, columns=self.fsoi)
@@ -530,6 +593,8 @@ class Explainer:
         # ord hist helps to avoid duplicate histories
         ord_hist = None
         for ii in range(nr_orderings):
+            # TODO(gcsk,cph): convergence detection like in SAGE paper
+            #  see https://github.com/iancovert/sage/blob/master/sage/permutation_estimator.py
             ordering = None
             if orderings is None:
                 ordering, ord_hist = utils.sample_partial(partial_ordering,
@@ -541,9 +606,6 @@ class Explainer:
             logging.info('Ordering : {}'.format(ordering))
 
             for jj in np.arange(1, len(ordering), 1):
-                # TODO(gcsk,cph): convergence detection like in SAGE paper
-                #  see https://github.com/iancovert/sage/blob/master/sage/permutation_estimator.py
-
                 # TODO: check if jj in features for which the score shall
                 # TODO: be computed
                 # compute change in performance
@@ -576,6 +638,8 @@ class Explainer:
             return result, orderings
         else:
             return result
+
+    # Decompositions
 
     def viafrom(self, imp_type, fsoi, X_eval, y_eval, target='Y', nr_runs=10,
                 show_pbar=True, components=None, **kwargs):
