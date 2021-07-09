@@ -1,6 +1,6 @@
 """Explanations are the output of Explainers.
 
-Aggregated or obser-wise wise results can be
+Aggregated or observation-wise wise results can be
 accessed. Plotting functionality is available.
 """
 # import numpy as np

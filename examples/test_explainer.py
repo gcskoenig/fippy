@@ -38,8 +38,10 @@ X_test, y_test = df_test[xcolumns], df_test[ycolumn]
 
 reg_lin.fit(X_train[train_on], y_train)
 
+
 def mod_predict(X):
     return reg_lin.predict(X[train_on])
+
 
 scoring = [mean_squared_error, r2_score]
 names = ['MSE', 'r2_score']
@@ -100,15 +102,15 @@ plt.show()
 
 # test decompositions
 
-ex8, orderings8 = wrk.decomposition('direct', fsoi, partial_ordering, X_test, y_test, approx=lambda x:x)
+ex8, orderings8 = wrk.decomposition('direct', fsoi, partial_ordering, X_test, y_test, approx=lambda x: x)
 ex8.decomp_hbarplot()
 plt.show()
 
-ex9, orderings9 = wrk.decomposition('associative', fsoi, partial_ordering, X_test, y_test, approx=lambda x:x)
+ex9, orderings9 = wrk.decomposition('associative', fsoi, partial_ordering, X_test, y_test, approx=lambda x: x)
 ex9.decomp_hbarplot()
 plt.show()
 
-ex10, orderings10 = wrk.decomposition('sage', fsoi, partial_ordering, X_test, y_test, approx=lambda x:x,
+ex10, orderings10 = wrk.decomposition('sage', fsoi, partial_ordering, X_test, y_test, approx=lambda x: x,
                                       sage_partial_ordering=partial_ordering, nr_orderings_sage=5)
 ex10.decomp_hbarplot()
 plt.show()

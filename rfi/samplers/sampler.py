@@ -9,7 +9,7 @@ import pandas as pd
 import rfi.utils as utils
 from rfi.samplers._utils import sample_id  # , sample_perm
 import logging
-from typing import Union, List
+from typing import List
 
 logger = logging.getLogger(__name__)
 

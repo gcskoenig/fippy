@@ -1,9 +1,7 @@
-from typing import Type, Union, Tuple, List
 import numpy as np
-from scipy.stats import norm, multivariate_normal
+from scipy.stats import multivariate_normal
 import torch
 from torch.distributions import Normal, MultivariateNormal, Distribution
-from statsmodels.stats.correlation_tools import cov_nearest
 import logging
 
 import rfi.backend.utils as utils
@@ -71,7 +69,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
 
         Args:
             joint_mean: means for all variables
-            cov: cov for all variables
+            joint_cov: cov for all variables
             inp_ind: indices of variables to be sampled
             cont_ind: "context" variable indexes (conditioning set)
         """
@@ -149,7 +147,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         Only works for 1d inputs/targets
 
         Args:
-            inputs: np.array with quantiles, shape = (-1)
+            quantiles: np.array with quantiles, shape = (-1)
             context: np.array with context values, shape = (-1, d_context)
         """
         eps = 0.00001
