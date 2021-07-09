@@ -4,6 +4,9 @@ import logging
 from torch import Tensor
 import torch
 import torch.nn as nn
+import torch.utils.data as data_utils
+from copy import deepcopy
+import torch.nn.functional as F
 from torch.distributions import Normal, OneHotCategorical, MixtureSameFamily, Independent
 from ray import tune
 import torch.nn.init as init
@@ -74,12 +77,12 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
     """
 
     default_hparam_grid = {
-        'n_epochs': tune.grid_search([500, 1000, 1500]),
-        'n_components': tune.grid_search([3, 5, 10]),
-        'hidden_dim': tune.grid_search([None, 8, 16]),
-        'context_noise_std': tune.grid_search([0.1, 0.2, 0.3]),
-        'input_noise_std': tune.grid_search([0.01, 0.05, 0.1]),
-        'weight_decay': tune.grid_search([0.0, 1e-4])
+        'n_epochs': tune.grid_search([500, 1000]),
+        'n_components': tune.grid_search([4, 6, 10]),
+        'hidden_dim': tune.grid_search([None, 8]),
+        'context_noise_std': tune.grid_search([0.1, 0.2]),
+        'input_noise_std': tune.grid_search([0.01, 0.05]),
+        'weight_decay': tune.grid_search([0.05, 0.1])
     }
 
     def __init__(self,
@@ -90,6 +93,7 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
                  n_epochs: int = 1000,
                  lr: float = 0.001,
                  weight_decay: float = 0.0,
+                 batch_size: int = None,
                  input_noise_std: float = 0.05,
                  context_noise_std: float = 0.1,
                  cat_context: np.array = None,
@@ -107,11 +111,12 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
 
         # Training details
         self.lr = lr
-        self.weight_decay = weight_decay
+        self.weight_decay = weight_decay if weight_decay is not None else 0.0
         self._init_optimizer(lr, weight_decay)
         self.n_epochs = n_epochs
         self.device = device
         self.to(self.device)
+        self.batch_size = batch_size
 
         # Regularisation
         self.input_noise_std = input_noise_std
@@ -160,17 +165,36 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
         val_inputs, val_context = self._input_to_tensor(val_inputs, val_context)
         val_inputs, val_context = self._transform_normalise(val_inputs, val_context)
 
+        if train_context is not None:
+            train_data = data_utils.TensorDataset(train_inputs, train_context)
+        else:
+            train_data = data_utils.TensorDataset(train_inputs)
+        train_loader = data_utils.DataLoader(train_data, shuffle=True, drop_last=True,
+                                             batch_size=self.batch_size if self.batch_size is not None else len(train_data))
+        state_dict = deepcopy(self.state_dict())
         for i in range(self.n_epochs):
-            self.optimizer.zero_grad()
-            # Adding noise to data
-            noised_train_inputs = self._add_noise(train_inputs, self.input_noise_std)
-            noised_train_context = self._add_noise(train_context, self.context_noise_std)
+            for batch in train_loader:
+                if len(batch) == 2:
+                    batch_train_inputs, batch_train_context = batch
+                else:
+                    batch_train_inputs, batch_train_context = batch[0], None
 
-            # Forward pass
-            loss = - self.log_prob(inputs=noised_train_inputs, context=noised_train_context,
-                                   data_normalization=False, context_one_hot_encoding=False).mean()
-            loss.backward()
-            self.optimizer.step()
+                self.optimizer.zero_grad()
+                # Adding noise to data
+                noised_train_inputs = self._add_noise(batch_train_inputs, self.input_noise_std)
+                noised_train_context = self._add_noise(batch_train_context, self.context_noise_std)
+
+                # Forward pass
+                loss = - self.log_prob(inputs=noised_train_inputs, context=noised_train_context,
+                                       data_normalization=False, context_one_hot_encoding=False).mean()
+                if torch.isnan(loss):
+                    self.load_state_dict(state_dict)
+                    return self
+                else:
+                    state_dict = deepcopy(self.state_dict())
+
+                loss.backward()
+                self.optimizer.step()
 
             if verbose and (i + 1) % log_frequency == 0:
                 with torch.no_grad():
@@ -220,6 +244,17 @@ class MixtureDensityNetworkEstimator(ConditionalDistributionEstimator, nn.Module
 
     def sample(self, context: Union[np.array, Tensor] = None, num_samples: int = 1, data_normalization=True,
                context_one_hot_encoding=True) -> Union[np.array, Tensor]:
+        """
+        Sampling from conditional distribution
+
+        Args:
+            num_samples: Number of samples per global_context
+            context: Conditioning global_context
+            data_normalization: Perform data normalisation
+
+        Returns: np.array or Tensor with shape (context.shape[0], num_samples)
+
+        """
 
         return_numpy, context, _ = self._preprocess_data(None, context, data_normalization, context_one_hot_encoding, False)
 

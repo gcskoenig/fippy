@@ -8,7 +8,7 @@ from omegaconf import DictConfig, OmegaConf
 import importlib
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, KBinsDiscretizer
 import seaborn as sns
 import pandas as pd
 from os.path import dirname, abspath
@@ -38,13 +38,27 @@ def main(args: DictConfig):
     data_df, y = shap.datasets.adult()
     data_df['Salary'] = y
 
+    # Binning for Capital Gain
+    if args.exp.discretize:
+        discretized_vars = set(list(args.exp.discretize))
+        discretizer = KBinsDiscretizer(n_bins=50, encode='ordinal', strategy='uniform')
+        data_df.loc[:, discretized_vars] = discretizer.fit_transform(data_df.loc[:, discretized_vars].values).astype(int)
+
     target_var = {'Salary'}
     all_inputs_vars = set(data_df.columns) - target_var
     sensetive_vars = set(list(args.exp.sensetive_vars))
-    wo_sens_inputs_vars = all_inputs_vars - sensetive_vars
+    if args.exp.exclude_sensetive:
+        wo_sens_inputs_vars = all_inputs_vars - sensetive_vars
+    else:
+        wo_sens_inputs_vars = all_inputs_vars
     cat_vars = set(data_df.select_dtypes(exclude=[np.floating]).columns.values)
+    cont_vars = all_inputs_vars - cat_vars
     logger.info(f'Target var: {target_var}, all_inputs: {all_inputs_vars}, sensetive_vars: {sensetive_vars}, '
                 f'cat_vars: {cat_vars}')
+
+    if args.data.standard_normalize:
+        standard_normalizer = StandardScaler()
+        data_df.loc[:, cont_vars] = standard_normalizer.fit_transform(data_df[cont_vars].values)
 
     train_df, test_df = train_test_split(data_df, test_size=args.data.test_ratio, random_state=args.data.split_seed)
     y_train, X_train, X_train_wo_sens = train_df[target_var], train_df[all_inputs_vars], train_df[wo_sens_inputs_vars]
@@ -112,9 +126,9 @@ def main(args: DictConfig):
 
     mlflow.log_metrics(pred_results, step=0)
 
-    sampler = instantiate(args.estimator.sampler, X_train=X_train.values, fit_method=args.estimator.fit_method,
+    sampler = instantiate(args.estimator.sampler, X_train=X_train, fit_method=args.estimator.fit_method,
                           fit_params=args.estimator.fit_params,
-                          cat_inputs=search_nonsorted(list(all_inputs_vars), list(cat_vars)))
+                          cat_inputs=list(cat_vars))
 
     wo_sens_inputs_vars_list = sorted(list(wo_sens_inputs_vars))
     mlflow.log_param('features_sequence', str(wo_sens_inputs_vars_list))
@@ -124,34 +138,41 @@ def main(args: DictConfig):
         logger.info(f'Analysing the importance of feature: {fsoi_var}')
 
         interpret_results = {}
-        fsoi = search_nonsorted(list(all_inputs_vars), [fsoi_var])
-        R_j = search_nonsorted(list(all_inputs_vars), list(wo_sens_inputs_vars))
+        # fsoi = search_nonsorted(list(all_inputs_vars), [fsoi_var])
+        R_j = list(wo_sens_inputs_vars)
 
         # Permutation feature importance
         G_pfi, name_pfi = [], 'pfi'
-        sampler.train(fsoi, G_pfi)
+        sampler.train([fsoi_var], G_pfi)
 
         # Conditional feature importance
-        G_cfi, name_cfi = search_nonsorted(list(all_inputs_vars), list(wo_sens_inputs_vars - {fsoi_var})), 'cfi'
-        estimator = sampler.train(fsoi, G_cfi)
-        interpret_results['cfi/gof/mean_log_lik'] = estimator.log_prob(inputs=X_test.values[:, fsoi],
-                                                                       context=X_test.values[:, G_cfi]).mean()
+        G_cfi, name_cfi = list(wo_sens_inputs_vars - {fsoi_var}), 'cfi'
+        estimator = sampler.train([fsoi_var], G_cfi)
+        test_inputs = X_test[sampler._order_fset([fsoi_var])].to_numpy()
+        test_context = X_test[sampler._order_fset(G_cfi)].to_numpy()
+        interpret_results['cfi/gof/mean_log_lik'] = estimator.log_prob(inputs=test_inputs, context=test_context).mean()
 
         # Relative feature importance (sensetive ignored vars)
-        G_rfi, name_rfi = search_nonsorted(list(all_inputs_vars), list(sensetive_vars)), 'rfi'
-        estimator = sampler.train(fsoi, G_rfi)
-        interpret_results['rfi/gof/mean_log_lik'] = estimator.log_prob(inputs=X_test.values[:, fsoi],
-                                                                       context=X_test.values[:, G_rfi]).mean()
+        G_rfi, name_rfi = list(sensetive_vars), 'rfi'
+        estimator = sampler.train([fsoi_var], G_rfi)
+        test_inputs = X_test[sampler._order_fset([fsoi_var])].to_numpy()
+        test_context = X_test[sampler._order_fset(G_rfi)].to_numpy()
+        if estimator is not None:
+            interpret_results['rfi/gof/mean_log_lik'] = estimator.log_prob(inputs=test_inputs, context=test_context).mean()
+        else:
+            interpret_results['rfi/gof/mean_log_lik'] = np.nan
 
         for model_name, model in models.items():
             for risk, risk_func in risks.items():
-                rfi_explainer = explainer.Explainer(models_pred_funcs[risk], fsoi, X_train.values, sampler=sampler,
+                rfi_explainer = explainer.Explainer(models_pred_funcs[risk], [fsoi_var], X_train, sampler=sampler,
                                                     loss=risk_func, fs_names=list(all_inputs_vars))
                 for G, name in zip([G_pfi, G_cfi, G_rfi], [name_pfi, name_cfi, name_rfi]):
-                    mb_explanation = rfi_explainer.rfi(X_test.values, y_test, G, R_j, nr_runs=args.exp.rfi.nr_runs)
-                    interpret_results[f'{name}/mean_{risk}_{model_name}'] = np.abs(mb_explanation.fi_vals(return_np=True)).mean()
+                    mb_explanation = rfi_explainer.rfi(X_test, y_test, G, R_j, nr_runs=args.exp.rfi.nr_runs)
+                    interpret_results[f'{name}/mean_{risk}_{model_name}'] = np.abs(mb_explanation.fi_vals().values).mean()
 
         mlflow.log_metrics(interpret_results, step=i)
+
+    mlflow.end_run()
 
 
 if __name__ == "__main__":
