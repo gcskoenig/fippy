@@ -9,6 +9,8 @@ import itertools
 import pandas as pd
 import logging
 import math
+import warnings
+import functools
 
 logger = logging.getLogger(__name__)
 
@@ -164,3 +166,18 @@ def check_existing_hash(args: DictConfig, exp_name: str) -> bool:
             experiment_ids=ids
         )
         return len(existing_runs) > 0
+
+
+def deprecated(func):
+    """This is a decorator which can be used to mark functions
+    as deprecated. It will result in a warning being emitted
+    when the function is used."""
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        warnings.simplefilter('always', DeprecationWarning)  # turn off filter
+        warnings.warn("Call to deprecated function {}.".format(func.__name__),
+                      category=DeprecationWarning,
+                      stacklevel=2)
+        warnings.simplefilter('default', DeprecationWarning)  # reset filter
+        return func(*args, **kwargs)
+    return new_func
