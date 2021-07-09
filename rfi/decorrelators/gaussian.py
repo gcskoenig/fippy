@@ -1,10 +1,8 @@
 from rfi.decorrelators.decorrelator import Decorrelator
 from rfi.backend.gaussian import GaussianConditionalEstimator
 from rfi.samplers.gaussian import GaussianSampler
-import rfi.utils as utils
 import numpy as np
 import logging
-import pingouin
 
 logger = logging.getLogger(__name__)
 
@@ -17,19 +15,18 @@ class NaiveGaussianDecorrelator(Decorrelator):
     def __init(self, X_train, X_val=None, **kwargs):
         super().__init__(X_train, X_val=True)
 
-    def train(self, K, J, C, verbose=True):
+    def train(self, K, J, C):
         """
         Trains sampler using dataset to resample variable jj relative to G.
         Args:
             K: features to be knocked out from J cup C to C
             J: features on top of baseline
             C: baseline conditioning set
-            verbose: printing
         """
         K = Decorrelator._to_array(Decorrelator._order_fset(K))
         J = Decorrelator._to_array(Decorrelator._order_fset(J))
         C = Decorrelator._to_array(Decorrelator._order_fset(C))
-        super().train(K, J, C, verbose=verbose)
+        super().train(K, J, C)
 
         if len(K) > 0:
             drop_sampler = GaussianSampler(self.X_train)
@@ -46,8 +43,7 @@ class NaiveGaussianDecorrelator(Decorrelator):
             return values_test  # pandas dataframe
 
         self._store_decorrelationfunc(K, J, C,
-                                      decorrelationfunc,
-                                      verbose=verbose)
+                                      decorrelationfunc)
 
         return None  # TODO implement returning/saving estimators
 
@@ -64,22 +60,21 @@ class GaussianDecorrelator(Decorrelator):
         """Initialize Decorrelator with X_train and mask."""
         super().__init__(X_train, X_val=X_val)
 
-    def train(self, K, J, C, verbose=True):
+    def train(self, K, J, C):
         """
         Trains sampler using dataset to resample variable jj relative to G.
         Args:
             K: features to be knocked out from J cup C to C
             J: features on top of baseline
             C: baseline conditioning set
-            verbose: printing
         """
         K = Decorrelator._to_array(Decorrelator._order_fset(K))
         J = Decorrelator._to_array(Decorrelator._order_fset(J))
         C = Decorrelator._to_array(Decorrelator._order_fset(C))
-        super().train(K, J, C, verbose=verbose)
+        super().train(K, J, C)
 
-        K_intersect_J = np.intersect1d(K, J) # resample from X^C directly
-        K_leftover = np.setdiff1d(np.setdiff1d(K, J), C) # actually decorrelate
+        K_intersect_J = np.intersect1d(K, J)  # resample from X^C directly
+        K_leftover = np.setdiff1d(np.setdiff1d(K, J), C)  # actually decorrelate
         K_intersect_J = Decorrelator._order_fset(K_intersect_J)
         K_leftover = Decorrelator._order_fset(K_leftover)
 
@@ -180,7 +175,6 @@ class GaussianDecorrelator(Decorrelator):
             return values_test  # pandas dataframe
 
         self._store_decorrelationfunc(K, J, C,
-                                      decorrelationfunc,
-                                      verbose=verbose)
+                                      decorrelationfunc)
 
         return None  # TODO implement returning/saving estimators
