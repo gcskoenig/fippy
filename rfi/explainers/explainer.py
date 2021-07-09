@@ -475,6 +475,8 @@ class Explainer:
             y_eval: evaluation label
             **kwargs: keyword arguments that are passed to ai_via
         """
+        # TODO add fsoi keyword argument in case we are only interested in a subset
+
         # compute ai_from for the first element
         J = [ordering[0]]
         C = []
@@ -621,11 +623,11 @@ class Explainer:
 
     # Advanced Feature Importance
 
-    def sage(self, X_test, y_test, partial_ordering,
+    def sage(self, X_eval, y_eval, partial_ordering,
              target='Y', method='associative', G=None, marginalize=True,
              nr_orderings=None, approx=math.sqrt, convergence=False,
              nr_runs=10, nr_resample_marginalize=10,
-             sampler=None, loss=None, D=None, orderings=None,
+             sampler=None, loss=None, fsoi=None, orderings=None,
              save_orderings=True, **kwargs):
         """
         Compute Shapley Additive Global Importance values.
@@ -653,8 +655,8 @@ class Explainer:
               when sampler is None and self.sampler is None as well.
             loss: choice of loss. Default None. Will throw an Error when
               both loss and self.loss are None.
-            D: specifies features of interest (for which SAGE values are computed).
-                By default set to X.columns (if D=None).
+            fsoi: specifies features of interest (for which SAGE values are computed).
+                  By default set to X.columns (if fsoi is None and self.fsoi is None).
             orderings: If specified the provided orderings are used for the
                 computation. overrides partial ordering, but does not override
                 nr_orderings
@@ -670,10 +672,10 @@ class Explainer:
         if G is None:
             G = X_eval.columns
 
-        if X_test.shape[1] != len(self.fsoi):
+        if X_eval.shape[1] != len(self.fsoi):
             # TODO: update to check whether column names match.
             logger.debug('self.fsoi: {}'.format(self.fsoi))
-            logger.debug('#features in model: {}'.format(X_test.shape[1]))
+            logger.debug('#features in model: {}'.format(X_eval.shape[1]))
             raise RuntimeError('self.fsoi is not identical to all features')
 
         if method not in ['associative', 'direct']:
@@ -702,22 +704,22 @@ class Explainer:
         else:
             nr_orderings = orderings.shape[0]
 
-        if D is None:
-            D = X_test.columns
+        if fsoi is None:
+            if self.fsoi is not None:
+                fsoi = self.fsoi
+            else:
+                fsoi = X_eval.columns
 
         nr_orderings_saved = 1
         if save_orderings:
             nr_orderings_saved = nr_orderings
 
         # create dataframe for computation results
-        index = utils.create_multiindex(['ordering', 'sample', 'id'],
+        index = utils.create_multiindex(['ordering', 'sample', 'i'],
                                         [np.arange(nr_orderings_saved),
                                          np.arange(nr_runs),
-                                         np.arange(X_test.shape[0])])
-        # TODO: evluate whether initializing with the empty array is necessary
-        arr = np.zeros((nr_orderings_saved * nr_runs * X_test.shape[0],
-                        len(self.fsoi)))
-        scores = pd.DataFrame(arr, index=index, columns=self.fsoi)
+                                         np.arange(X_eval.shape[0])])
+        scores = pd.DataFrame([], index=index)
 
         orderings_sampled = None
         if orderings is None:
@@ -725,7 +727,7 @@ class Explainer:
                                              columns=['ordering'])
 
         # lss = np.zeros(
-        #     (len(self.fsoi), nr_runs, X_test.shape[0], nr_orderings))
+        #     (len(self.fsoi), nr_runs, X_eval.shape[0], nr_orderings))
         # ord hist helps to avoid duplicate histories
         ord_hist = None
         for ii in range(nr_orderings):
@@ -754,10 +756,10 @@ class Explainer:
                                                 nr_runs=nr_runs, nr_resample_marginalize=nr_resample_marginalize,
                                                 **kwargs)
 
-            scores_arr = ex.scores.to_numpy()
-            scores.loc[(ii, slice(None), slice(None)), ordering[jj - 1]] = scores_arr
+            scores_arr = ex.scores[fsoi].to_numpy()
+            scores.loc[(ii, slice(None), slice(None)), fsoi] = scores_arr
 
-        result = explanation.Explanation(self.fsoi, scores, ex_name='SAGE')
+        result = explanation.Explanation(fsoi, scores, ex_name='SAGE')
 
         if orderings is None:
             orderings = orderings_sampled
