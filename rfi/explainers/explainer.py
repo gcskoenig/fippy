@@ -380,20 +380,23 @@ class Explainer:
                 X_tilde_foreground[R_] = arr_reconstr
 
                 # decorellate X_R and copy
+                # TODO would X_tilde_foreground[R] be ok as well?
                 X_R_decorr = decorrelator.decorrelate(X_tilde_foreground, R, J, C)
                 arr_decorr = X_R_decorr[R].to_numpy()
 
                 # TODO make use of features K to selectively update
                 #  background to foreground (only features K ar updated)
                 X_tilde_baseline[R] = arr_decorr
+                X_tilde_foreground_partial = X_tilde_baseline.copy()
+                X_tilde_foreground_partial[K] = X_tilde_foreground[K].to_numpy()
 
                 # make sure model can handle it (selection and ordering)
                 X_tilde_baseline = X_tilde_baseline[D]
-                X_tilde_foreground = X_tilde_foreground[D]
+                X_tilde_foreground_partial = X_tilde_foreground_partial[D]
 
                 # create and store prediction
                 y_hat_baseline = self.model(X_tilde_baseline)
-                y_hat_foreground = self.model(X_tilde_foreground)
+                y_hat_foreground = self.model(X_tilde_foreground_partial)
 
                 df_yh.loc[(ll, slice(None)), 'y_hat_baseline'] = y_hat_baseline
                 df_yh.loc[(ll, slice(None)), 'y_hat_foreground'] = y_hat_foreground
@@ -437,6 +440,7 @@ class Explainer:
             y_eval: test label
             **kwargs: keyword arguments that are passed di_from
         """
+        # TODO add fsoi argument to make more efficient in case we are only interested in a subset
 
         # compute di_from for the first element
         K = [ordering[0]]
@@ -664,7 +668,7 @@ class Explainer:
                 orderings is returned
         """
         if G is None:
-            G = X_test.columns
+            G = X_eval.columns
 
         if X_test.shape[1] != len(self.fsoi):
             # TODO: update to check whether column names match.
@@ -765,151 +769,12 @@ class Explainer:
 
     # Decompositions
 
-    def viafrom(self, imp_type, fsoi, X_eval, y_eval, target='Y', nr_runs=10,
-                show_pbar=True, components=None, **kwargs):
-        """
-        Computes a simple fast decomposition of DI(X_j|X_{-j}), AI(X_j|X_\emptyset) or (conditional) SAGE.
-
-        For DI(X_j|X_{-j}), each DI_from(X_j|X_{-j} <- X_k) is computed (for k \in components)
-            and compared to empty "from set"
-        For AI(X_j|X_\emptyset) each AI_via(X_j|X_\emptyset -> X_k|X_{-k}) is computed and compared with
-            full "via" set
-        For conditional SAGE, SAGE is computed where every AI_via statement is replaced as described above
-
-        Arguments:
-            imp_type: either 'ai_via', 'di_from' or 'sage'. for sage the default method is used,
-                but can be passed via the respective keyword arguments
-            fsoi: features of interest
-            X_eval: X_eval dataset
-            y_eval: y_eval data
-            target: whether one wants to evaluate against 'Y' or 'Y_hat'
-            nr_runs: over how many runs the result shall be averaged
-            show_pbar: whether progress bar shall be presented
-            components: for which components the result shall be computed.
-                if components==None, then X_eval.columns is assigned
-            **kwargs: keyword arguments are passed to ai_via, di_from or sage
-        """
-        if imp_type not in ['ai_via', 'di_from', 'sage']:
-            raise ValueError('Only ai_via, sage and di_from'
-                             'implemented for imp_type.')
-
-        if target not in ['Y', 'Y_hat']:
-            raise ValueError('Only Y and Y_hat implemented as target.')
-
-        # values (nr_perm, nr_runs, nr_components, nr_fsoi)
-        # components are: (elements of ordering,..., remainder)
-        # elements of ordering are sorted in increasing order
-
-        if components is None:
-            components = X_eval.columns
-        components = list(components)
-        components.append('total')
-        nr_components = len(components)
-
-        # create dataframe for computation results
-        # orderings is just for compatibility with other decompositions
-        index = utils.create_multiindex(['component', 'ordering', 'sample'],
-                                        [components,
-                                         np.arange(1),
-                                         np.arange(nr_runs)])
-        arr = np.zeros((nr_components * nr_runs * 1, len(fsoi)))
-        decomposition = pd.DataFrame(arr, index=index, columns=fsoi)
-
-        if show_pbar:
-            mgr = enlighten.get_manager()
-            pbar = mgr.counter(total=nr_components * len(fsoi),
-                               desc='naive_decomposition',
-                               unit='{} runs'.format(imp_type))
-
-        # helper funciton to compute the remainder for a specific feature
-        def get_rmd(fs, f):
-            """fs: all features, f: feature"""
-            rmd = list(set(fs).difference([f]))
-            return rmd
-
-        if imp_type == 'sage':
-            # TODO implement direct version as well
-            #  then (G is not remainder but only one item, baseline is empty G)
-
-            # make sure that associative method is used
-            if 'method' in kwargs:
-                if kwargs['method'] != 'associative':
-                    raise NotImplementedError('for sage only the method associative is implemented for viafrom')
-            else:
-                kwargs['method'] = 'associative'
-
-            # compute SAGE with G=full feature set
-            expl, ordering = self.sage(X_eval, y_eval, [tuple(fsoi)],
-                                       **kwargs)
-            fi_vals_total = expl.fi_vals()[fsoi].to_numpy()
-            decomposition.loc[idx['total', 0, :], fsoi] = fi_vals_total
-
-            # compute SAGE without each of the components and compute difference
-            for component in get_rmd(components, 'total'):
-                rmd = get_rmd(X_eval.columns, component)
-                expl, ordering = self.sage(X_eval, y_eval, [tuple(fsoi)],
-                                           G=rmd, **kwargs)
-                fi_vals = expl.fi_vals()[fsoi].to_numpy()
-                diff = fi_vals_total - fi_vals
-                decomposition.loc[idx[component, 0, :], fsoi] = diff
-
-            # store decomposition result
-            ex = decomposition_ex.DecompositionExplanation(self.fsoi,
-                                                           decomposition,
-                                                           ex_name=None)
-            return ex
-
-        # iterate over features
-        for foi in fsoi:
-
-            # compute baseline
-            fi_vals_total = None
-            if imp_type == 'ar_via':  # compute ar of foi over emptyset
-                expl = self.ai_via([foi], [], X_eval.columns,
-                                   X_eval, y_eval, nr_runs=nr_runs,
-                                   target=target, **kwargs)
-                fi_vals_total = expl.fi_vals().to_numpy()
-            elif imp_type == 'dr_from':  # compute total PFI (over rmd)
-                rmd = get_rmd(X_eval.columns, foi)
-                expl = self.di_from([foi], rmd, X_eval.columns,
-                                    X_eval, y_eval, nr_runs=nr_runs,
-                                    target=target, **kwargs)
-                fi_vals_total = expl.fi_vals().to_numpy()
-            decomposition.loc[idx['total', 0, :], foi] = fi_vals_total
-
-            # iterate over components
-            for component in get_rmd(components, 'total'):
-                if show_pbar:
-                    pbar.update()
-
-                fi_vals = None
-                if imp_type == 'ar_via':
-                    rmd = get_rmd(X_eval.columns, component)
-                    expl = self.ai_via([foi], [], rmd,
-                                       X_eval, y_eval, nr_runs=nr_runs,
-                                       target=target, **kwargs)
-                    fi_vals = expl.fi_vals().to_numpy()
-                    diff = fi_vals_total - fi_vals
-                    decomposition.loc[idx[component, 0, :], foi] = diff
-                elif imp_type == 'dr_from':
-                    rmd = get_rmd(X_eval.columns, foi)
-                    expl = self.di_from([foi], rmd, [component],
-                                        X_eval, y_eval, nr_runs=nr_runs,
-                                        target=target, **kwargs)
-                    fi_vals = expl.fi_vals().to_numpy()
-                    decomposition.loc[idx[component, 0, :], foi] = fi_vals
-
-        ex = decomposition_ex.DecompositionExplanation(self.fsoi,
-                                                       decomposition,
-                                                       ex_name=None)
-        return ex
-
     def decomposition(self, imp_type, fsoi, partial_ordering, X_eval, y_eval,
                       nr_orderings=None, nr_orderings_sage=None,
                       nr_runs=3, show_pbar=True,
                       approx=math.sqrt, save_orderings=True,
                       sage_partial_ordering=None, orderings=None,
-                      target='Y', **kwargs):
+                      target='Y', D=None, **kwargs):
         """
         Given a partial ordering, this code allows to decompose
         feature importance or feature association for a given set of
@@ -923,8 +788,8 @@ class Explainer:
                 of the form (1, 2, [3, 4, 5], 6) where the ordering
                 within a tuple is fixed and within a list may be
                 permuted.
-            X_test: test data
-            y_test: test labels
+            X_eval: test data
+            y_eval: test labels
             nr_orderings: number of total orderings to sample
                 (given the partial) ordering
             nr_orderings_sage: if sage is to be decomposed,
@@ -943,6 +808,9 @@ class Explainer:
             dex: Decomposition Explanation object
             orderings: orderings that were provided/used
         """
+        if D is None:
+            D = X_eval.columns
+
         if orderings is None:
             if nr_orderings is None:
                 nr_unique = utils.nr_unique_perm(partial_ordering)
@@ -968,6 +836,7 @@ class Explainer:
         if nr_orderings_sage is None:
             nr_orderings_sage = nr_orderings
 
+        # TODO adapt to account for fsoi
         # values (nr_perm, nr_runs, nr_components, nr_fsoi)
         # components are: (elements of ordering,..., remainder)
         # elements of ordering are sorted in increasing order
@@ -1039,17 +908,17 @@ class Explainer:
             # TODO leverage fsoi argument in the function calls
             # TODO fix dependency on tdi/tai? remove tdi/tai or leave in the code?
             #  it should work with viafrom as well, right?
-            if imp_type == 'tdi':
-                expl = self.tdi(X_eval, y_eval, [],
-                                nr_runs=nr_runs, **kwargs)
-            elif imp_type == 'tai':
-                expl = self.tai(X_eval, y_eval, [],
-                                nr_runs=nr_runs, **kwargs)
+            if imp_type == 'direct':
+                expl = self.dis_from_baselinefunc(D, X_eval, y_eval, baseline='remainder', fsoi=fsoi,
+                                                  nr_runs=nr_runs, **kwargs)
+            elif imp_type == 'associative':
+                expl = self.ais_via_contextfunc(D, X_eval, y_eval, context='empty', fsoi=fsoi,
+                                                nr_runs=nr_runs, **kwargs)
             elif imp_type == 'sage':
                 tupl = self.sage(X_eval, y_eval, partial_ordering,
                                  nr_orderings=nr_orderings_sage,
                                  nr_runs=nr_runs, target=target,
-                                 G=X_eval.columns, orderings=sage_orderings,
+                                 G=D, orderings=sage_orderings,
                                  **kwargs)
                 expl, sage_orderings = tupl
             fi_vals = expl.fi_vals().to_numpy()
@@ -1065,25 +934,26 @@ class Explainer:
             previous = fi_vals
             current = None
 
-            for jj in np.arange(1, len(ordering) + 1):
+            G = list(ordering)
+
+            while len(G) > 0:
                 # get current new variable and respective set
-                current_ix = ordering[jj - 1]
-                G = ordering[:jj]
+
+                current_ix = G.pop(0)
 
                 # compute and store feature importance
                 expl = None
-                if imp_type == 'tdi':
-                    expl = self.tdi(X_eval, y_eval, G,
-                                    nr_runs=nr_runs, **kwargs)
-                elif imp_type == 'tai':
-                    expl = self.tai(X_eval, y_eval, G,
-                                    nr_runs=nr_runs, **kwargs)
+                if imp_type == 'direct':
+                    expl = self.dis_from_baselinefunc(G, X_eval, y_eval, baseline='remainder', fsoi=fsoi,
+                                                      nr_runs=nr_runs, **kwargs)
+                elif imp_type == 'associative':
+                    expl = self.ais_via_contextfunc(G, X_eval, y_eval, context='empty', fsoi=fsoi,
+                                                    nr_runs=nr_runs, **kwargs)
                 elif imp_type == 'sage':
-                    G_ = list(set(X_eval.columns) - set(G))
                     tupl = self.sage(X_eval, y_eval, partial_ordering,
                                      nr_orderings=nr_orderings_sage,
                                      nr_runs=nr_runs, target=target,
-                                     G=G_, orderings=sage_orderings,
+                                     G=G, orderings=sage_orderings,
                                      **kwargs)
                     expl, sage_orderings = tupl
 
@@ -1382,3 +1252,141 @@ class Explainer:
     #         logger.debug('Return explanation object only')
     #         return result
 
+    # def viafrom(self, imp_type, fsoi, X_eval, y_eval, target='Y', nr_runs=10,
+    #             show_pbar=True, components=None, **kwargs):
+    #     """
+    #     Computes a simple fast decomposition of DI(X_j|X_{-j}), AI(X_j|X_\emptyset) or (conditional) SAGE.
+    #
+    #     For DI(X_j|X_{-j}), each DI_from(X_j|X_{-j} <- X_k) is computed (for k \in components)
+    #         and compared to empty "from set"
+    #     For AI(X_j|X_\emptyset) each AI_via(X_j|X_\emptyset -> X_k|X_{-k}) is computed and compared with
+    #         full "via" set
+    #     For conditional SAGE, SAGE is computed where every AI_via statement is replaced as described above
+    #
+    #     Arguments:
+    #         imp_type: either 'ai_via', 'di_from' or 'sage'. for sage the default method is used,
+    #             but can be passed via the respective keyword arguments
+    #         fsoi: features of interest
+    #         X_eval: X_eval dataset
+    #         y_eval: y_eval data
+    #         target: whether one wants to evaluate against 'Y' or 'Y_hat'
+    #         nr_runs: over how many runs the result shall be averaged
+    #         show_pbar: whether progress bar shall be presented
+    #         components: for which components the result shall be computed.
+    #             if components==None, then X_eval.columns is assigned
+    #         **kwargs: keyword arguments are passed to ai_via, di_from or sage
+    #     """
+    #     if imp_type not in ['ai_via', 'di_from', 'sage']:
+    #         raise ValueError('Only ai_via, sage and di_from'
+    #                          'implemented for imp_type.')
+    #
+    #     if target not in ['Y', 'Y_hat']:
+    #         raise ValueError('Only Y and Y_hat implemented as target.')
+    #
+    #     # values (nr_perm, nr_runs, nr_components, nr_fsoi)
+    #     # components are: (elements of ordering,..., remainder)
+    #     # elements of ordering are sorted in increasing order
+    #
+    #     if components is None:
+    #         components = X_eval.columns
+    #     components = list(components)
+    #     components.append('total')
+    #     nr_components = len(components)
+    #
+    #     # create dataframe for computation results
+    #     # orderings is just for compatibility with other decompositions
+    #     index = utils.create_multiindex(['component', 'ordering', 'sample'],
+    #                                     [components,
+    #                                      np.arange(1),
+    #                                      np.arange(nr_runs)])
+    #     arr = np.zeros((nr_components * nr_runs * 1, len(fsoi)))
+    #     decomposition = pd.DataFrame(arr, index=index, columns=fsoi)
+    #
+    #     if show_pbar:
+    #         mgr = enlighten.get_manager()
+    #         pbar = mgr.counter(total=nr_components * len(fsoi),
+    #                            desc='naive_decomposition',
+    #                            unit='{} runs'.format(imp_type))
+    #
+    #     # helper funciton to compute the remainder for a specific feature
+    #     def get_rmd(fs, f):
+    #         """fs: all features, f: feature"""
+    #         rmd = list(set(fs).difference([f]))
+    #         return rmd
+    #
+    #     if imp_type == 'sage':
+    #         # TODO implement direct version as well
+    #         #  then (G is not remainder but only one item, baseline is empty G)
+    #
+    #         # make sure that associative method is used
+    #         if 'method' in kwargs:
+    #             if kwargs['method'] != 'associative':
+    #                 raise NotImplementedError('for sage only the method associative is implemented for viafrom')
+    #         else:
+    #             kwargs['method'] = 'associative'
+    #
+    #         # compute SAGE with G=full feature set
+    #         expl, ordering = self.sage(X_eval, y_eval, [tuple(fsoi)],
+    #                                    **kwargs)
+    #         fi_vals_total = expl.fi_vals()[fsoi].to_numpy()
+    #         decomposition.loc[idx['total', 0, :], fsoi] = fi_vals_total
+    #
+    #         # compute SAGE without each of the components and compute difference
+    #         for component in get_rmd(components, 'total'):
+    #             rmd = get_rmd(X_eval.columns, component)
+    #             expl, ordering = self.sage(X_eval, y_eval, [tuple(fsoi)],
+    #                                        G=rmd, **kwargs)
+    #             fi_vals = expl.fi_vals()[fsoi].to_numpy()
+    #             diff = fi_vals_total - fi_vals
+    #             decomposition.loc[idx[component, 0, :], fsoi] = diff
+    #
+    #         # store decomposition result
+    #         ex = decomposition_ex.DecompositionExplanation(self.fsoi,
+    #                                                        decomposition,
+    #                                                        ex_name=None)
+    #         return ex
+    #
+    #     # iterate over features
+    #     for foi in fsoi:
+    #
+    #         # compute baseline
+    #         fi_vals_total = None
+    #         if imp_type == 'ar_via':  # compute ar of foi over emptyset
+    #             expl = self.ai_via([foi], [], X_eval.columns,
+    #                                X_eval, y_eval, nr_runs=nr_runs,
+    #                                target=target, **kwargs)
+    #             fi_vals_total = expl.fi_vals().to_numpy()
+    #         elif imp_type == 'dr_from':  # compute total PFI (over rmd)
+    #             rmd = get_rmd(X_eval.columns, foi)
+    #             expl = self.di_from([foi], rmd, X_eval.columns,
+    #                                 X_eval, y_eval, nr_runs=nr_runs,
+    #                                 target=target, **kwargs)
+    #             fi_vals_total = expl.fi_vals().to_numpy()
+    #         decomposition.loc[idx['total', 0, :], foi] = fi_vals_total
+    #
+    #         # iterate over components
+    #         for component in get_rmd(components, 'total'):
+    #             if show_pbar:
+    #                 pbar.update()
+    #
+    #             fi_vals = None
+    #             if imp_type == 'ar_via':
+    #                 rmd = get_rmd(X_eval.columns, component)
+    #                 expl = self.ai_via([foi], [], rmd,
+    #                                    X_eval, y_eval, nr_runs=nr_runs,
+    #                                    target=target, **kwargs)
+    #                 fi_vals = expl.fi_vals().to_numpy()
+    #                 diff = fi_vals_total - fi_vals
+    #                 decomposition.loc[idx[component, 0, :], foi] = diff
+    #             elif imp_type == 'dr_from':
+    #                 rmd = get_rmd(X_eval.columns, foi)
+    #                 expl = self.di_from([foi], rmd, [component],
+    #                                     X_eval, y_eval, nr_runs=nr_runs,
+    #                                     target=target, **kwargs)
+    #                 fi_vals = expl.fi_vals().to_numpy()
+    #                 decomposition.loc[idx[component, 0, :], foi] = fi_vals
+    #
+    #     ex = decomposition_ex.DecompositionExplanation(self.fsoi,
+    #                                                    decomposition,
+    #                                                    ex_name=None)
+    #     return ex
