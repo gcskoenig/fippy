@@ -737,29 +737,21 @@ class Explainer:
 
             logging.info('Ordering : {}'.format(ordering))
 
-            for jj in np.arange(1, len(ordering), 1):
-                # TODO: check if jj in features for which the score shall
-                # TODO: be computed
-                # compute change in performance
-                # by entering the respective feature
-                # store the result in the right place
-                # validate training of sampler
-                J, C = [ordering[jj - 1]], ordering[:jj - 1]
-                ex = None
+            # compute scores for the ordering
+            ex = None
+            if method == 'associative':
+                ex = self.ais_via_ordering(ordering, G, X_eval, y_eval,
+                                           target=target, marginalize=marginalize,
+                                           nr_runs=nr_runs, nr_resample_marginalize=nr_resample_marginalize,
+                                           **kwargs)
+            elif method == 'direct':
+                ex = self.dis_from_baselinefunc(ordering, G, X_eval, y_eval,
+                                                target=target, marginalize=marginalize,
+                                                nr_runs=nr_runs, nr_resample_marginalize=nr_resample_marginalize,
+                                                **kwargs)
 
-                # we have already asserted that method is either associative or direct
-                if method == 'associative':
-                    ex = self.ai_via(J, C, G, X_test, y_test,
-                                     target=target, marginalize=marginalize,
-                                     nr_runs=nr_runs,
-                                     nr_resample_marginalize=nr_resample_marginalize,
-                                     **kwargs)
-                elif method == 'direct':
-                    ex = self.di_from(J, C, G, X_test, y_test, nr_runs=nr_runs, target=target, marginalize=marginalize,
-                                      nr_resample_marginalize=nr_resample_marginalize, **kwargs)
-
-                scores_arr = ex.scores.to_numpy()
-                scores.loc[(ii, slice(None), slice(None)), ordering[jj - 1]] = scores_arr
+            scores_arr = ex.scores.to_numpy()
+            scores.loc[(ii, slice(None), slice(None)), ordering[jj - 1]] = scores_arr
 
         result = explanation.Explanation(self.fsoi, scores, ex_name='SAGE')
 
