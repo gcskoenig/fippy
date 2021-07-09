@@ -1,9 +1,6 @@
 from rfi.explanation.explanation import Explanation
 import pandas as pd
-import numpy as np
-import itertools
-from rfi.plots._barplot import fi_sns_gbarplot, fi_sns_hbarplot, fi_sns_wbarplots
-import rfi.utils as utils
+from rfi.plots._barplot import fi_sns_gbarplot, fi_sns_wbarplots
 
 
 class DecompositionExplanation(Explanation):
@@ -12,20 +9,18 @@ class DecompositionExplanation(Explanation):
 
     Attributes:
         fsoi: Features of interest.
-        lss: losses on perturbed
+        scores: losses on perturbed
             (nr_fsoi, nr_components, nr_permutations, nr_runs)
         ex_name: Explanation description
-        fsoi_names: feature of interest names
-        component_names: names of the decompotion components
     """
     def __init__(self, fsoi, scores, ex_name=None):
         Explanation.__init__(self, fsoi, scores, ex_name=ex_name)
 
     @staticmethod
-    def from_csv(path, filename):
-        scores = pd.read_csv(path + filename)
+    def from_csv(path, ex_name=None):
+        scores = pd.read_csv(path)
         scores = scores.set_index(['component', 'ordering', 'sample'])
-        ex = DecompositionExplanation(scores.columns, scores, ex_name=filename)
+        ex = DecompositionExplanation(scores.columns, scores, ex_name=ex_name)
         return ex
 
     # def _check_shape(self):

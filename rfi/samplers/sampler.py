@@ -53,18 +53,19 @@ class Sampler:
     @staticmethod
     def _pd_to_np(df):
         np_arr = df[sorted(df.columns)].to_numpy()
-        return np.arr
+        return np_arr
 
     def is_trained(self, J, G):
         """Indicates whether the Sampler has been trained
         on a specific RFI set G for features J.
 
         Args:
+            J: set of features to be sampled
             G: RFI set G to be checked
 
         Returns:
             Whether the sampler was trained with respect to
-            a set G.
+            a set J|G.
 
         """
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)  # transform into hashable form

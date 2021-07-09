@@ -32,10 +32,10 @@ class Explanation:
             self.ex_name = 'Unknown'
 
     @staticmethod
-    def from_csv(path):
+    def from_csv(path, ex_name=None):
         scores = pd.read_csv(path)
         scores = scores.set_index(['sample', 'id'])
-        ex = Explanation(scores.columns, scores)
+        ex = Explanation(scores.columns, scores, ex_name=ex_name)
         return ex
 
     def _check_shape(self):
