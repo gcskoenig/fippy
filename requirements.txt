@@ -9,7 +9,6 @@ numpy==1.21.0
 omegaconf==2.1.0
 pandas==1.2.5
 pingouin==0.3.12
-pyro-ppl==3.16
 ray==1.4.0
 scikit_learn==0.24.2
 scipy==1.7.0
