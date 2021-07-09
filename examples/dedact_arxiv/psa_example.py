@@ -62,7 +62,7 @@ for simulation_id in range(len(simulations)):
                     decorrelator=decorrelator)
 
     ex_d_ar_via = wrk.viafrom('ar_via', X_test.columns, X_test, y_test,
-                               target='Y', nr_runs=20, show_pbar=True)
+                              target='Y', nr_runs=20, show_pbar=True)
     ex_d_ar_via.to_csv(savepath=savepath, filename=ex_name + 'viafrom_ar.csv')
     ex_d_ar_via.decomp_wbarplots(col_wrap=None, fs=['total', 'PSA'])
     plt.savefig(savepath + ex_name + 'viafrom_ar_marg.pdf')
