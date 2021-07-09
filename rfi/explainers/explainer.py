@@ -437,7 +437,27 @@ class Explainer:
             y_eval: test label
             **kwargs: keyword arguments that are passed di_from
         """
-        # TODO
+
+        # compute di_from for the first element
+        K = [ordering[0]]
+        B = []
+        ex_first = self.di_from(K, B, J, X_eval, y_eval, **kwargs)
+
+        # use scores to initialize dis scores
+        index = ex_first.scores.index
+        scores = pd.DataFrame([], index=index)
+
+        scores.loc[(slice(None), slice(None)), K[0]] = ex_first.scores.to_numpy()
+
+        for jj in np.arange(1, len(ordering)):
+            K, B = [ordering[jj]], ordering[:jj]
+
+            ex = self.di_from(K, B, J, X_eval, y_eval, **kwargs)
+            scores_arr = ex.scores.to_numpy()
+            scores.loc[(slice(None), slice(None)), K[0]] = scores_arr
+
+        result = explanation.Explanation(self.fsoi, scores, ex_name='dis_from_ordering')
+        return result
 
     def ais_via_ordering(self, ordering, K, X_eval, y_eval, **kwargs):
         """Computes AI via X_K for every variable and the respective context coalition
@@ -451,9 +471,28 @@ class Explainer:
             y_eval: evaluation label
             **kwargs: keyword arguments that are passed to ai_via
         """
-        # TODO
+        # compute ai_from for the first element
+        J = [ordering[0]]
+        C = []
+        ex_first = self.ai_via(J, C, K, X_eval, y_eval, **kwargs)
 
-    def dis_from_fixed(self, J, X_eval, y_eval, baseline='empty', baselinefunc=None, **kwargs):
+        # use scores to initialize dis scores
+        index = ex_first.scores.index
+        scores = pd.DataFrame([], index=index)
+
+        scores.loc[(slice(None), slice(None)), J[0]] = ex_first.scores.to_numpy()
+
+        for jj in np.arange(1, len(ordering)):
+            J, C = [ordering[jj]], ordering[:jj]
+
+            ex = self.ai_via(J, C, K, X_eval, y_eval, **kwargs)
+            scores_arr = ex.scores.to_numpy()
+            scores.loc[(slice(None), slice(None)), J[0]] = scores_arr
+
+        result = explanation.Explanation(self.fsoi, scores, ex_name='ais_via_ordering')
+        return result
+
+    def dis_from_baselinefunc(self, J, X_eval, y_eval, fsoi=None, D=None, baseline='empty', baselinefunc=None, **kwargs):
         """Computes DI from X_J for every feature given a feature-dependent baseline. For example,
         the baseline can be specified to be empty or the respective remainder B:=D\K. The baseline
         can be specified in a flexible manner by providing a baselinefunc.
@@ -462,13 +501,61 @@ class Explainer:
             J: indices specifying the "from" set X_J
             X_eval: evaluation data
             y_eval: evalaution labels
-            baseline: either 'empty' (B = emptyset) or 'remainder' (B = D\k)
-            baselinefunc: function that takes k and D as arguments and returns the respective
-                baseline set B. Overrides baseline
+            fsoi: features of interest, overrides self.fsoi if not None
+            baseline: either 'empty' (B = emptyset) or 'remainder' (B = D\K)
+            baselinefunc: function that takes lists K and D as arguments and returns the respective
+                baseline set B (list). Overrides baseline
         """
-        # TODO
 
-    def ais_via_fixed(self, K, X_eval, y_eval, context='empty', contextfunc=None, **kwargs):
+        # set features of interest
+        if fsoi is None:
+            if self.fsoi is None:
+                fsoi = self.X_train.columns
+            else:
+                fsoi = self.fsoi
+
+        # set set of all features
+        if D is None:
+            D = self.X_train.columns
+
+        # find baseline function
+        if baselinefunc is None:
+            if baseline == 'empty':
+                def helper(K, D):
+                    return []
+                baselinefunc = helper
+            elif baseline == 'remainder':
+                def helper(K, D):
+                    res = set(D) - set(K)
+                    return list(res)
+                baselinefunc = helper
+            else:
+                raise ValueError('No baselinefunc specified and baseline neither empty nor remainder.')
+
+
+        # compute di_from for the first element
+        K = [fsoi[0]]
+        B = baselinefunc(K, D)
+        ex_first = self.di_from(K, B, J, X_eval, y_eval, **kwargs)
+
+        # use scores to initialize dis scores
+        index = ex_first.scores.index
+        scores = pd.DataFrame([], index=index)
+
+        scores.loc[(slice(None), slice(None)), K[0]] = ex_first.scores.to_numpy()
+
+        # iterate over the remaining features
+        for jj in np.arange(1, len(fsoi)):
+            K = [fsoi[jj]]
+            B = baselinefunc(K, D)
+            ex = self.di_from(K, B, J, X_eval, y_eval, **kwargs)
+            scores_arr = ex.scores.to_numpy()
+            scores.loc[(slice(None), slice(None)), K[0]] = scores_arr
+
+        result = explanation.Explanation(self.fsoi, scores, ex_name='dis_from_fixed')
+        return result
+
+    def ais_via_contextfunc(self, K, X_eval, y_eval, fsoi=None, D=None, context='empty', contextfunc=None, **kwargs):
         """Computes AI via X_K for every variable given a variable-dependent context. For example,
         the context can be specified to be a function of the variable j and the set of all variables,
         e.g. C=D\j.
@@ -481,7 +568,52 @@ class Explainer:
             contextfunc: function that takes j and D as arguments and returns the respective baseline
                 set C=f(j,D). Overrides baseline argument.
         """
-        # TODO
+        # set features of interest
+        if fsoi is None:
+            if self.fsoi is None:
+                fsoi = self.X_train.columns
+            else:
+                fsoi = self.fsoi
+
+        # set set of all features
+        if D is None:
+            D = self.X_train.columns
+
+        # find baseline function
+        if contextfunc is None:
+            if context == 'empty':
+                def helper(J, D):
+                    return []
+                contextfunc = helper
+            elif context == 'remainder':
+                def helper(J, D):
+                    res = set(D) - set(J)
+                    return list(res)
+                contextfunc = helper
+            else:
+                raise ValueError('No contextfunc specified and context neither empty nor remainder.')
+
+        # compute ai_via for the first element
+        J = [fsoi[0]]
+        C = contextfunc(J, D)
+        ex_first = self.ai_via(J, C, K, X_eval, y_eval, **kwargs)
+
+        # use scores to initialize ais scores
+        index = ex_first.scores.index
+        scores = pd.DataFrame([], index=index)
+
+        scores.loc[(slice(None), slice(None)), J[0]] = ex_first.scores.to_numpy()
+
+        # iterate over the remaining variables
+        for jj in np.arange(1, len(fsoi)):
+            J = [fsoi[jj]]
+            C = contextfunc(J, D)
+            ex = self.ai_via(J, C, K, X_eval, y_eval, **kwargs)
+            scores_arr = ex.scores.to_numpy()
+            scores.loc[(slice(None), slice(None)), J[0]] = scores_arr
+
+        result = explanation.Explanation(self.fsoi, scores, ex_name='ais_via_fixed')
+        return result
 
     # Advanced Feature Importance
 
