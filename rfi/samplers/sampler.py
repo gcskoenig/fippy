@@ -9,7 +9,7 @@ import pandas as pd
 import rfi.utils as utils
 from rfi.samplers._utils import sample_id  # , sample_perm
 import logging
-from typing import Union, List
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -53,18 +53,19 @@ class Sampler:
     @staticmethod
     def _pd_to_np(df):
         np_arr = df[sorted(df.columns)].to_numpy()
-        return np.arr
+        return np_arr
 
     def is_trained(self, J, G):
         """Indicates whether the Sampler has been trained
         on a specific RFI set G for features J.
 
         Args:
+            J: set of features to be sampled
             G: RFI set G to be checked
 
         Returns:
             Whether the sampler was trained with respect to
-            a set G.
+            a set J|G.
 
         """
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)  # transform into hashable form
@@ -148,18 +149,22 @@ class Sampler:
         # sample
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
 
+        # pd index for result
+        snrs = np.arange(num_samples)
+        obs = np.arange(X_test.shape[0])
+        vss = [snrs, obs]
+        ns = ['sample', 'i']
+        index = utils.create_multiindex(ns, vss)
+
         if not self.is_trained(J, G):
             raise RuntimeError("Sampler not trained on {} | {}".format(J, G))
+        elif len(J) == 0:
+            df = pd.DataFrame([], index=index)
+            return df
         else:
             sample_func = self._trained_sampling_funcs[(J_key, G_key)]
             smpl = sample_func(X_test[Sampler._order_fset(G)].to_numpy(),
                                num_samples=num_samples)
-            snrs = np.arange(num_samples)
-            obs = np.arange(X_test.shape[0])
-            vss = [snrs, obs]
-            ns = ['sample', 'i']
-            index = utils.create_multiindex(ns, vss)
-
             smpl = np.swapaxes(smpl, 0, 1)
             smpl = smpl.reshape((-1, smpl.shape[2]))
 

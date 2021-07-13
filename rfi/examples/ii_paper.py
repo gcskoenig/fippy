@@ -9,7 +9,6 @@ sigma_medium = .5
 sigma_high = 1
 sigma_veryhigh = 1.5
 
-
 """
 EXAMPLE 3: Figure 1 from II paper
 
@@ -72,7 +71,6 @@ ii_inference_large = SyntheticExample(
     )
 )
 
-
 """
 EXAMPLE 4: Figure 2 from II paper
 
@@ -94,7 +92,6 @@ ii_rhombus = SyntheticExample(
                         'x3': sigma_high, 'y': sigma_medium}
     )
 )
-
 
 """
 EXAMPLE 5: Chaos
@@ -163,7 +160,6 @@ ii_cause_effect = SyntheticExample(
     )
 )
 
-
 """
 EXAMPLE 7: relevance_types
 
@@ -186,7 +182,6 @@ ii_relevance_types = SyntheticExample(
                         'y': sigma_high}
     )
 )
-
 
 """
 EXAMPLE 7: relevance_types
@@ -211,7 +206,6 @@ ii_psa = SyntheticExample(
     )
 )
 
-
 """
 EXAMPLE 8: large
 """
@@ -220,27 +214,27 @@ ii_large = SyntheticExample(
     name='ii-large',
     sem=LinearGaussianNoiseSEM(
         dag=DirectedAcyclicGraph(
-            adjacency_matrix=np.array([[0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                                       [0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0],
-                                       [0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0],
-                                       [0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0],
-                                       [0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                                       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                                       [0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0]]),
-            var_names=['x1', 'x2', 'x3','x4','x5','x6','x7','x8','x9','x10',
-                       'x11','x12','x13','x14','x15','x16','x17','x18', 'y']
+            adjacency_matrix=np.array([[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0]]),
+            var_names=['x1', 'x2', 'x3', 'x4', 'x5', 'x6', 'x7', 'x8', 'x9', 'x10',
+                       'x11', 'x12', 'x13', 'x14', 'x15', 'x16', 'x17', 'x18', 'y']
         ),
         coeff_dict={'x6': {'x1': 1.0, 'x2': 1.0},
                     'x7': {'x2': 1.0, 'x3': 1.0},
@@ -266,5 +260,84 @@ ii_large = SyntheticExample(
                         'x15': sigma_medium, 'x16': sigma_medium,
                         'x17': sigma_medium, 'x18': sigma_medium,
                         'y': sigma_high}
+    )
+)
+
+ii_adult = SyntheticExample(
+    name='ii-adult',
+    sem=LinearGaussianNoiseSEM(
+        dag=DirectedAcyclicGraph(
+            adjacency_matrix=np.array([[0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0],
+                                       [0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1],
+                                       [0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]),
+            var_names=['age', 'race', 'sex', 'capital gain', 'relationship', 'occupation',
+                       'marital status', 'education num', 'workclass', 'hours per week',
+                       'predicted income']
+        ),
+        coeff_dict={'capital gain': {'age': 0.5, 'race': 0.5},
+                    'relationship': {'age': 0.5},
+                    'occupation': {'age': 0.5, 'race': 0.5, 'sex': 0.5},
+                    'marital status': {'age': 0.5, 'race': 0.5},
+                    'education num': {'age': 0.2, 'race': 0.7, 'sex': 0.4},
+                    'workclass': {'age': 0.5, 'race': 0.5, 'sex': 0.5},
+                    'hours per week': {'age': 0.5, 'sex': 0.5},
+                    'predicted income': {'race': 0.5, 'sex': 0.5, 'capital gain': 0.2,
+                                         'relationship': 0.2, 'occupation': 1.0,
+                                         'marital status': 0.2, 'education num': 1.0,
+                                         'workclass': 1.0, 'hours per week': 1.0}},
+        noise_std_dict={'age': sigma_medium, 'race': sigma_medium,
+                        'sex': sigma_medium, 'capital gain': sigma_medium,
+                        'relationship': sigma_medium, 'occupation': sigma_medium,
+                        'marital status': sigma_medium, 'education num': sigma_medium,
+                        'workclass': sigma_medium, 'hours per week': sigma_medium,
+                        'predicted income': sigma_medium}
+    )
+)
+
+ii_adult_sparse = SyntheticExample(
+    name='ii-adult-sparse',
+    sem=LinearGaussianNoiseSEM(
+        dag=DirectedAcyclicGraph(
+            adjacency_matrix=np.array([[0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0],
+                                       [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]),
+            var_names=['age', 'race', 'sex', 'capital gain', 'education num',
+                       'hours per week', 'marital status', 'occupation',
+                       'relationship', 'workclass',
+                       'predicted income']
+        ),
+        coeff_dict={'capital gain': {'age': 0.5},
+                    'relationship': {'sex': 0.5},
+                    'occupation': {'race': 0.5, 'sex': 0.5},
+                    'marital status': {'race': 0.5},
+                    'education num': {'age': 0.5},
+                    'workclass': {'sex': 0.5},
+                    'hours per week': {'age': 0.5, 'race': 0.5},
+                    'predicted income': {'race': 0.5, 'sex': 0.5, 'capital gain': 0.5,
+                                         'relationship': 0.5, 'occupation': 0.5,
+                                         'marital status': 0.5, 'education num': 0.5,
+                                         'workclass': 0.5, 'hours per week': 0.5}},
+        noise_std_dict={'age': sigma_veryhigh, 'race': sigma_veryhigh,
+                        'sex': sigma_veryhigh, 'capital gain': sigma_high,
+                        'relationship': sigma_high, 'occupation': sigma_high,
+                        'marital status': sigma_high, 'education num': sigma_high,
+                        'workclass': sigma_high, 'hours per week': sigma_high,
+                        'predicted income': sigma_veryhigh}
     )
 )

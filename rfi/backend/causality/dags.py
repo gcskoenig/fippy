@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List
-from networkx import nx
+import networkx as nx
 import matplotlib.pyplot as plt
 
 

@@ -8,8 +8,8 @@ import logging
 
 import torch
 
-from rfi.backend.causality import DirectedAcyclicGraph, PostNonLinearLaplaceSEM, PostNonLinearMultiplicativeHalfNormalSEM, \
-    LinearGaussianNoiseSEM, RandomGPGaussianNoiseSEM
+from rfi.backend.causality import DirectedAcyclicGraph, PostNonLinearLaplaceSEM, \
+    PostNonLinearMultiplicativeHalfNormalSEM, LinearGaussianNoiseSEM, RandomGPGaussianNoiseSEM
 from rfi.examples import SyntheticExample
 
 
@@ -50,8 +50,8 @@ class TestSEMs:
         var = synt_ex.var_names[var_ind]
         sample = synt_ex.sem.sample(SAMPLE_SIZE, seed=SEED)
         global_context = {node: sample[:, node_ind] for (node_ind, node) in enumerate(synt_ex.var_names) if node != var}
-        mc_prob = synt_ex.sem.mb_conditional_log_prob(var, global_context=global_context, method=method, quad_epsabs=EPSABS,
-                                                      mc_size=MC_SIZE)
+        mc_prob = synt_ex.sem.mb_conditional_log_prob(var, global_context=global_context, method=method,
+                                                      quad_epsabs=EPSABS, mc_size=MC_SIZE)
 
         # Checking integration to zero
         integrand = lambda val: mc_prob(torch.tensor(val).repeat(1, len(sample))).exp().numpy()

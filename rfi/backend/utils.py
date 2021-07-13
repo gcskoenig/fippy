@@ -66,11 +66,11 @@ def nearestPD(A):
     # `spacing` will, for Gaussian random matrixes of small dimension, be on
     # othe order of 1e-16. In practice, both ways converge, as the unit test
     # below suggests.
-    I = np.eye(A.shape[0])
+    Imat = np.eye(A.shape[0])
     k = 1
     while not isPD(A3):
         mineig = np.min(np.real(la.eigvals(A3)))
-        A3 += I * (-mineig * k**2 + spacing)
+        A3 += Imat * (-mineig * k**2 + spacing)
         k += 1
 
     return A3

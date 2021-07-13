@@ -74,6 +74,24 @@ def fi_sns_gbarplot(dex, ax=None, figsize=None):
     return ax
 
 
+def fi_sns_wbarplots(dex, fs=None, ax=None, figsize=None, col_wrap=5):
+    if ax is None:
+        f, ax = plt.subplots(figsize=figsize)
+    df = dex.fi_decomp().reset_index()
+    df.feature = df.feature.cat.set_categories(new_categories=df.component.cat.categories)
+    for ix in ['total', 'remainder']:
+        index = (df['component'] == ix)
+        vals = df.loc[index, ['feature', 'component']].values
+        df.loc[index, ['component', 'feature']] = vals
+
+    if fs is not None:
+        df = df[df['feature'].isin(fs)].copy()
+        df.feature = df.feature.cat.remove_unused_categories().copy()
+    g = sns.FacetGrid(df, col='feature', col_wrap=col_wrap)
+    g.map(sns.barplot, 'importance', 'component',
+          order=sorted(df.component.unique()))
+
+
 # def container_hbarplot(exs, textformat='{:5.2f}'):
 #     """Function that plots the results of multiple FI
 #     computations (on the same features of interest).

@@ -3,11 +3,8 @@ conditional on a set C.
 
 More details can be found in the class description
 """
-
-import rfi.utils as utils
 import numpy as np
 import logging
-from typing import Union, Callable
 from rfi.samplers.sampler import Sampler
 
 logger = logging.getLogger(__name__)
@@ -56,7 +53,9 @@ class Decorrelator:
         on a specific RFI set C for features J.
 
         Args:
-            C: RFI set C to be checked
+            K: set of features
+            J: set of variables to be independent of
+            C: conditioning set
 
         Returns:
             Whether the sampler was trained with respect to
@@ -93,9 +92,7 @@ class Decorrelator:
 
     #     return degenerate
 
-    def _store_decorrelationfunc(self, K, J, C,
-                                 samplefunc,
-                                 verbose=True):
+    def _store_decorrelationfunc(self, K, J, C, samplefunc):
         """Storing a trained sample function
 
         Args:
@@ -103,14 +100,13 @@ class Decorrelator:
             K: features of interest
             J: set of features to be removed
             C: relative feature set
-            verbose: printing or not
         """
         K_key, C_key, J_key = Decorrelator._to_key(
             K), Decorrelator._to_key(C), Decorrelator._to_key(J)
         self._trained_decorrelation_funcs[(K_key, J_key, C_key)] = samplefunc
         logger.info('Training ended. Decorrelator saved.')
 
-    def train(self, K, J, C, verbose=True):
+    def train(self, K, J, C):
         """Trains decorrelator such that X_K idp X_J | X_C
 
         Args:
@@ -123,7 +119,8 @@ class Decorrelator:
             to resample on seen or unseen data.
         """
         logger.info('Training Decorrelator for: {} ⟂ {} | {}'.format(K, J, C))
-        if (np.intersect1d(J, C).shape[0] > 0):
+        JnC = np.intersect1d(J, C)
+        if JnC.shape[0] > 0:
             raise RuntimeError(
                 'J and C share indices, but should be dinjoint.')
 

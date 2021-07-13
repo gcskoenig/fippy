@@ -1,6 +1,6 @@
 import numpy as np
 import hashlib
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 from copy import deepcopy
 from collections.abc import Iterable
 import random
@@ -9,6 +9,8 @@ import itertools
 import pandas as pd
 import logging
 import math
+import warnings
+import functools
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +32,12 @@ def id_to_ix(id, ids):
     return ix
 
 
-def fnames_to_key(fnames):
-    fnames = sorted(set(deepcopy(fnames)))
+def fnames_to_key(fnames, to_set=True):
+    fnames_set = deepcopy(fnames)
+    if to_set:
+        fnames = sorted(set(fnames_set))
+    else:
+        fnames = list(fnames_set)
     onestr = '|'.join(fname for fname in fnames)
     return hashlib.md5(str(onestr).encode()).hexdigest()
 
@@ -113,26 +119,40 @@ def nr_unique_perm(partial_ordering):
     return nr
 
 
-def sample_partial(partial_ordering):
+def sample_partial(partial_ordering, history=None, max_tries=500):
     """ sample ordering from partial ordering
 
-    Args:
+    Args:sq
         partial_ordering: [1, (2, 4), 3]
 
     Returns:
         ordering, np.array
     """
-    ordering = []
-    for elem in partial_ordering:
-        if type(elem) is int:
-            ordering.append(elem)
-        elif type(elem) is tuple:
-            perm = list(elem)
-            random.shuffle(perm)
-            ordering = ordering + perm
-        else:
-            raise RuntimeError('Element neither int nor tuple')
-    return np.array(ordering)
+    if history is None:
+        history = {}
+    found_new_ordering = False
+    ordering = None
+    n_tries = 0
+    while not found_new_ordering:
+        ordering = []
+        for elem in partial_ordering:
+            if type(elem) is int:
+                ordering.append(elem)
+            elif type(elem) is tuple:
+                perm = list(elem)
+                random.shuffle(perm)
+                ordering = ordering + perm
+            else:
+                raise RuntimeError('Element neither int nor tuple')
+        key = fnames_to_key(ordering, to_set=False)
+        if key not in history:
+            history[key] = None
+            found_new_ordering = True
+        elif n_tries == max_tries:
+            found_new_ordering = True
+            print('Did not find new ordering in {} runs'.format(max_tries))
+        n_tries = n_tries + 1
+    return np.array(ordering), history
 
 
 def check_existing_hash(args: DictConfig, exp_name: str) -> bool:
@@ -146,3 +166,18 @@ def check_existing_hash(args: DictConfig, exp_name: str) -> bool:
             experiment_ids=ids
         )
         return len(existing_runs) > 0
+
+
+def deprecated(func):
+    """This is a decorator which can be used to mark functions
+    as deprecated. It will result in a warning being emitted
+    when the function is used."""
+    @functools.wraps(func)
+    def new_func(*args, **kwargs):
+        warnings.simplefilter('always', DeprecationWarning)  # turn off filter
+        warnings.warn("Call to deprecated function {}.".format(func.__name__),
+                      category=DeprecationWarning,
+                      stacklevel=2)
+        warnings.simplefilter('default', DeprecationWarning)  # reset filter
+        return func(*args, **kwargs)
+    return new_func
