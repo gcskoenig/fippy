@@ -41,4 +41,4 @@ class CGExplainer(Explainer):
         #  if so, evaluate to zero?
         #  if not the case, call superclass method
         raise NotImplementedError('CSL of ai_via version no implemented yet.')
-        super(CGExplainer, self).ai_via(J, C, K, X_eval, y_eval, **kwargs)
+        super(CGExplainer, self).ai_via(J, C, K, X_eval, y_eval, D=D, **kwargs)
