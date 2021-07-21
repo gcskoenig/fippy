@@ -751,6 +751,7 @@ class Explainer:
                                            nr_runs=nr_runs, nr_resample_marginalize=nr_resample_marginalize,
                                            **kwargs)
             elif method == 'direct':
+                # TODO check whether this should be dis_from_baselinefunc
                 ex = self.dis_from_baselinefunc(ordering, G, X_eval, y_eval,
                                                 target=target, marginalize=marginalize,
                                                 nr_runs=nr_runs, nr_resample_marginalize=nr_resample_marginalize,
