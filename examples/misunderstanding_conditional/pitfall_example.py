@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 from sklearn import linear_model
@@ -8,21 +9,19 @@ import rfi.examples.chains as chains
 from rfi.explainers.explainer import Explainer
 from rfi.samplers.gaussian import GaussianSampler
 from rfi.decorrelators.gaussian import NaiveGaussianDecorrelator
-from rfi.explanation.decomposition import DecompositionExplanation
 
 import logging
 
 logging.basicConfig(level=logging.INFO)
 
 reg_lin = linear_model.LinearRegression()
-#savepath = 'paper_results/'
-#ex_identifier = '_0401_sage_decomp_'
+savepath = '~/university/phd/2021/research/paper_2021_pitfalls_lnai/code/'
 
 # datasets to use
 n_train, n_test = 10 ** 6 * 4, 10 ** 3
 
 
-simulations = [chains.chain_short]
+simulations = [chains.chain3]
 
 simulation_id = 0
 
@@ -40,6 +39,8 @@ X_test, y_test = df_test[xcolumns], df_test[ycolumn]
 # fit models
 
 reg_lin.fit(X_train, y_train)
+reg_lin.coef_[0, 1] = reg_lin.coef_[0, 1] + 0.05
+reg_lin.coef_[0, 2] = reg_lin.coef_[0, 2] - 0.05
 
 scoring = [mean_squared_error, r2_score]
 names = ['MSE', 'r2_score']
@@ -64,28 +65,27 @@ wrk = Explainer(reg_lin.predict, fsoi, X_train,
                 loss=mean_squared_error, sampler=sampler,
                 decorrelator=decorrelator)
 
-# actually do a decomposition
+ex_sage = wrk.ais_via_contextfunc(fsoi, X_test, y_test, context='empty', marginalize=True)
+ex_sage.hbarplot()
+plt.show()
 
-tupl = wrk.decomposition('sage', fsoi, ordering, X_test, y_test,
-                         sage_partial_ordering=ordering,
-                         nr_orderings_sage=10,
-                         nr_orderings=10)
+df_sage = ex_sage.fi_means_quantiles()
+df_sage['type'] = 'conditional sage'
 
-expl_sage, orderings = tupl
-expl_sage.to_csv(savepath=savepath, filename=ex_name + 'sage_decmp.csv')
-expl_sage.decomp_wbarplots(col_wrap=4)
-plt.savefig(savepath + ex_name + 'sage_decomp.pdf')
+ex_cfi = wrk.ais_via_contextfunc(fsoi, X_test, y_test, context='remainder', marginalize=False)
+ex_cfi.hbarplot()
+plt.show()
 
-expl_sage = DecompositionExplanation.from_csv(path=savepath, filename=ex_name + 'sage_decmp.csv')
-expl_sage.decomp_wbarplots(col_wrap=4, fs=['total', 'age', 'race', 'sex'])
+df_cfi = ex_cfi.fi_means_quantiles()
+df_cfi['type'] = 'cfi'
 
-tupl = wrk.decomposition('tdi', fsoi, ordering, X_test, y_test,
-                         nr_orderings=10)
-expl_tdi_decomp, orderings = tupl
-expl_tdi_decomp.to_csv(savepath=savepath, filename=ex_name + 'tdi_decmp.csv')
-expl_tdi_decomp.decomp_wbarplots(col_wrap=4)
-plt.savefig(savepath + ex_name + 'tdi_decmp.pdf')
+ex_pfi = wrk.dis_from_baselinefunc(fsoi, X_test, y_test, baseline='empty', marginalize=False)
+ex_pfi.hbarplot()
+plt.show()
 
-expl_tdi_decomp.decomp_wbarplots(col_wrap=4,
-                                 fs=['total', 'education num', 'workclass',
-                                     'occupation'])
+df_pfi = ex_pfi.fi_means_quantiles()
+df_pfi['type'] = 'pfi'
+
+df_res = pd.concat([df_pfi, df_cfi, df_sage]).reset_index()
+df_res.to_csv(savepath+'df_res.csv')
+
