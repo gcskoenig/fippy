@@ -119,7 +119,7 @@ def nr_unique_perm(partial_ordering):
     return nr
 
 
-def sample_partial(partial_ordering, history=None, max_tries=500):
+def sample_partial(partial_ordering, history=None, max_tries=10):
     """ sample ordering from partial ordering
 
     Args:sq
@@ -137,6 +137,8 @@ def sample_partial(partial_ordering, history=None, max_tries=500):
         ordering = []
         for elem in partial_ordering:
             if type(elem) is int:
+                ordering.append(elem)
+            elif type(elem) is str:
                 ordering.append(elem)
             elif type(elem) is tuple:
                 perm = list(elem)
