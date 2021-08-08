@@ -40,7 +40,7 @@ class Simple(Sampler):
             x = self.X_train
             # initiate df
             df = pd.DataFrame([], index=index, columns=J)
-            # For every (i in range(snrs)) and every (j in range(obs)) sample vector for features in J
+            # For every i in snrs and every j in obs sample vector of features in J
             for i in snrs:
                 for j in obs:
                     x_ = x.copy()
