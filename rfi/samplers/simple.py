@@ -8,7 +8,7 @@ from rfi.samplers.sampler import Sampler
 from rfi.utils import create_multiindex
 
 
-class Simple(Sampler):
+class SimpleSampler(Sampler):
     """
     Simple sampling from observed data
     Attributes:
