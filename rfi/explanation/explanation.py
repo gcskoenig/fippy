@@ -86,21 +86,29 @@ class Explanation:
             return df2
 
     def fi_means_stds(self):
-        """Computes Mean RFI over all runs
+        """Computes mean score over all runs, as well es the respective standard
+        deviations.
 
         Returns:
-            A pd.DataFrame with the relative feature importance value for
-            features of interest.
+            A pd.DataFrame with the mean score and std for
+            all features.
         """
-        # self._check_shape()
-        # means = np.mean(self.lss, axis=(2, 1))
-        # stds = np.std(np.mean(self.lss, axis=2), axis=(1))
-        # arr = np.array([means, stds]).T
-        # df = pd.DataFrame(arr,
-        #                   index=self.fsoi_names,
-        #                   columns=['mean', 'std'])
         df = pd.DataFrame(self.scores.mean(), columns=['mean'])
         df['std'] = self.scores.std()
+        df.index.set_names(['feature'], inplace=True)
+        return df
+
+    def fi_means_quantiles(self):
+        """Computes mean feature importance over all runs, as well as the
+        respective .05 and .95 quantiles.
+
+        Returns:
+            A pd.DataFrame with the respective characteristics for every feature.
+            features are rows, quantities are columns
+        """
+        df = pd.DataFrame(self.scores.mean(), columns=['mean'])
+        df['q.05'] = self.scores.quantile(0.05)
+        df['q.95'] = self.scores.quantile(0.95)
         df.index.set_names(['feature'], inplace=True)
         return df
 

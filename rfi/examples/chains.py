@@ -131,3 +131,24 @@ ii_inference_large = SyntheticExample(
         noise_std_dict={'x1': sigma_high, 'x2': sigma_high, 'x3': sigma_high, 'x4': sigma_high, 'y': sigma_low}
     )
 )
+
+"""
+Example for the pitfalls LNAI version
+
+Order: X_1, X_2, X_3, Y
+"""
+
+chain3 = SyntheticExample(
+    name='chain3',
+    sem=LinearGaussianNoiseSEM(
+        dag=DirectedAcyclicGraph(
+            adjacency_matrix=np.array([[0, 1, 0, 0],
+                                       [0, 0, 1, 0],
+                                       [0, 0, 0, 1],
+                                       [0, 0, 0, 0]]),
+            var_names=['x1', 'x2', 'x3', 'y']
+        ),
+        coeff_dict={'x2': {'x1': 1.0}, 'x3': {'x2': 1.0}, 'y': {'x2': 1.0, 'x3': 1.0}},
+        noise_std_dict={'x1': sigma_high, 'x2': sigma_high, 'x3': sigma_low, 'y': sigma_medium}
+    )
+)

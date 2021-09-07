@@ -54,7 +54,7 @@ for simulation_id in range(len(simulations)):
     sampler = GaussianSampler(X_train)
     decorrelator = NaiveGaussianDecorrelator(X_train)
     fsoi = X_train.columns
-    ordering = [tuple(fsoi)]
+    ordering = fsoi.tolist()
     nr_orderings = utils.nr_unique_perm(ordering)
 
     wrk = Explainer(mod_predict, fsoi, X_train,

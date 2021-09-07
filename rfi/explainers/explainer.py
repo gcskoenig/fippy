@@ -225,12 +225,12 @@ class Explainer:
                 y_hat_baseline = self.model(X_tilde_baseline)
                 y_hat_foreground = self.model(X_tilde_foreground)
 
-                df_yh.loc[(ll, slice(None)), 'y_hat_baseline'] = y_hat_baseline
-                df_yh.loc[(ll, slice(None)), 'y_hat_foreground'] = y_hat_foreground
+                df_yh.loc[(ll, slice(None)), 'y_hat_baseline'] = np.array(y_hat_baseline)
+                df_yh.loc[(ll, slice(None)), 'y_hat_foreground'] = np.array(y_hat_foreground)
 
             # covert types of prediction dataframe
-            df_yh = df_yh.astype({'y_hat_baseline': 'float',
-                                  'y_hat_foreground': 'float'})
+            df_yh = df_yh.astype({'y_hat_baseline': 'float64',
+                                  'y_hat_foreground': 'float64'})
             # marginalize predictions
             df_yh = df_yh.mean(level='i')
 
@@ -398,8 +398,8 @@ class Explainer:
                 y_hat_baseline = self.model(X_tilde_baseline)
                 y_hat_foreground = self.model(X_tilde_foreground_partial)
 
-                df_yh.loc[(ll, slice(None)), 'y_hat_baseline'] = y_hat_baseline
-                df_yh.loc[(ll, slice(None)), 'y_hat_foreground'] = y_hat_foreground
+                df_yh.loc[(ll, slice(None)), 'y_hat_baseline'] = np.array(y_hat_baseline)
+                df_yh.loc[(ll, slice(None)), 'y_hat_foreground'] = np.array(y_hat_foreground)
 
             # convert and aggregate predictions
             df_yh = df_yh.astype({'y_hat_baseline': 'float',
