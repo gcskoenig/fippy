@@ -42,8 +42,11 @@ class SimpleSampler(Sampler):
                 for snr in range(num_samples):
                     if len(G) > 0:
                         X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(G))
-                        sample = pd.merge(X_eval[G].reset_index().reset_index(), self.X_train[JuG], on=list(G), how='left').groupby(['level_0']).sample(1)
-                        sample = sample.set_index('index')[Sampler._order_fset(J)]
+                        X_eval = X_eval.reset_index().reset_index().set_index(list(G))
+                        X_train = self.X_train[JuG].set_index(list(G))
+                        sample = X_eval.join(X_train, on=list(G), how='left').groupby(['level_0']).sample(1)
+                        sample = sample.reset_index().set_index('index')[Sampler._order_fset(J)]
+                        # sample = pd.merge(X_eval.reset_index().reset_index(), self.X_train[JuG], on=list(G), how='left').groupby(['level_0']).sample(1)
                         arrs.append(sample.to_numpy().reshape(1, -1, len(J)))
                     else:
                         sample = self.X_train[Sampler._order_fset(J)].sample(eval_context.shape[0])
