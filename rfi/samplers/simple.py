@@ -2,11 +2,8 @@
 Only recommended for categorical data with very few states and
 all states being observed
 """
-import numpy as np
 import pandas as pd
 from rfi.samplers.sampler import Sampler
-from rfi.utils import create_multiindex
-
 
 class SimpleSampler(Sampler):
     """
@@ -19,37 +16,29 @@ class SimpleSampler(Sampler):
         """Initialize Sampler with X_train and mask."""
         super().__init__(X_train, **kwargs)
 
-    def sample(self, X_test, J, G, num_samples=1):
-        """Simple sampling approach given the values for set G in X_test
-        sampling from the distribution implied by X_train"""
+    def train(self, J, G, verbose=True):
+        """
+        Trains sampler using dataset to resample variable jj relative to G.
+        Args:
+            J: features of interest
+            G: arbitrary set of variables
+            verbose: printing
+        """
 
-        X_test = X_test.reset_index(drop=True)
+        J = Sampler._to_array(list(J))
+        G = Sampler._to_array(list(G))
+        super().train(J, G, verbose=verbose)
 
-        snrs = np.arange(num_samples)
-        obs = np.arange(X_test.shape[0])
-        vss = [snrs, obs]
-        ns = ['sample', 'i']
-        index = create_multiindex(ns, vss)
+        if not self._train_J_degenerate(J, G, verbose=verbose):
+            # TODO assert that variables are categorical
+            # TODO raise error if that is not the case
 
-        if len(J) == 0:
-            df = pd.DataFrame([], index=index)
-            return df
-        else:
-            x = self.X_train
-            # initiate df
-            df = pd.DataFrame([], index=index, columns=J)
-            # For every i in snrs and every j in obs sample vector of features in J
-            for i in snrs:
-                for j in obs:
-                    x_ = x.copy()
-                    # drop every row that is not compatible with the condition (G=X_test[G][j])
-                    for k in G:
-                        feature_value = X_test.loc[j, k]
-                        x_ = x_[x_[k] == feature_value]
-                    # reduce dataframe to features of interest
-                    x_ = x_[J]
-                    # sample features J for observation j (simultaneously to avoid off-manifold data)
-                    J_j = x_.sample()
-                    ind = (i, j)
-                    df.loc[ind, ] = J_j.values
-            return df
+            def samplefunc(eval_context, **kwargs):
+                X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(G))
+                sample = pd.merge(X_eval[G].reset_index().reset_index(), X_train, on=G, how='left').groupby(['level_0']).sample(1)
+                sample = sample.set_index('index')[Sampler._order_fset(J)]
+                return sample.to_numpy()
+
+            # TODO add alternative sampling function based on
+
+            self._store_samplefunc(J, G, samplefunc, verbose=verbose)
