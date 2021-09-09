@@ -12,7 +12,7 @@ class NaiveGaussianDecorrelator(Decorrelator):
     Naive implementation that just independently resamples
     the variables to be dropped.
     """
-    def __init(self, X_train, X_val=None, **kwargs):
+    def __init__(self, X_train, X_val=None, **kwargs):
         super().__init__(X_train, X_val=True)
 
     def train(self, K, J, C):
