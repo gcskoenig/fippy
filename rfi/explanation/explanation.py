@@ -110,9 +110,10 @@ class Explanation:
             A pd.DataFrame with the respective characteristics for every feature.
             features are rows, quantities are columns
         """
-        df = pd.DataFrame(self.scores.mean(), columns=['mean'])
-        df['q.05'] = self.scores.quantile(0.05)
-        df['q.95'] = self.scores.quantile(0.95)
+        scores_agg = self.scores.mean(level='sample')
+        df = pd.DataFrame(scores_agg.mean(), columns=['mean'])
+        df['q.05'] = scores_agg.quantile(0.05)
+        df['q.95'] = scores_agg.quantile(0.95)
         df.index.set_names(['feature'], inplace=True)
         return df
 

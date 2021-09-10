@@ -97,21 +97,6 @@ class DecompositionExplanation(Explanation):
             df = df.sort_index()
             return df
 
-    def fi_means_quantiles(self):
-        """Computes mean feature importance over all runs, as well as the
-        respective .05 and .95 quantiles.
-
-        Returns:
-            A pd.DataFrame with the respective characteristics for every feature.
-            features are rows, quantities are columns
-        """
-        scores_agg = self.scores.mean(level='sample')
-        df = pd.DataFrame(scores_agg.mean(), columns=['mean'])
-        df['q.05'] = scores_agg.quantile(0.05)
-        df['q.95'] = scores_agg.quantile(0.95)
-        df.index.set_names(['feature'], inplace=True)
-        return df
-
     def decomp_hbarplot(self, figsize=None, ax=None):
         """
         Advanced hbarplot for multiple RFI computations
@@ -129,3 +114,9 @@ class DecompositionExplanation(Explanation):
         are part of the decomposition
         """
         return fi_sns_wbarplots(self, figsize=figsize, ax=ax, fs=fs, col_wrap=col_wrap)
+
+    def fi_means_quantiles(self):
+        """
+        not implemented yet
+        """
+        raise NotImplementedError('fi_means_quantiles is not implemented for DecompositionExplanations yet.')
