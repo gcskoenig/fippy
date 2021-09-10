@@ -35,7 +35,7 @@ class Explanation:
 
     @staticmethod
     def from_csv(path, ex_name=None):
-        index_candidates = np.array(['ordering', 'sample', 'id'])
+        index_candidates = np.array(['ordering', 'sample', 'i'])
         scores = pd.read_csv(path)
         index_names = list(index_candidates[np.isin(index_candidates, scores.columns)])
         scores = scores.set_index(index_names)
