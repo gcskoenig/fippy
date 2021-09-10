@@ -1,6 +1,7 @@
 from rfi.explanation.explanation import Explanation
 import pandas as pd
 from rfi.plots._barplot import fi_sns_gbarplot, fi_sns_wbarplots
+import numpy as np
 
 
 class DecompositionExplanation(Explanation):
@@ -18,8 +19,10 @@ class DecompositionExplanation(Explanation):
 
     @staticmethod
     def from_csv(path, ex_name=None):
+        index_candidates = ['component', 'ordering', 'sample', 'i']
         scores = pd.read_csv(path)
-        scores = scores.set_index(['component', 'ordering', 'sample'])
+        index_names = list(index_candidates[np.isin(index_candidates, scores.columns)])
+        scores = scores.set_index(index_names['component', 'ordering', 'sample'])
         ex = DecompositionExplanation(scores.columns, scores, ex_name=ex_name)
         return ex
 
@@ -93,6 +96,21 @@ class DecompositionExplanation(Explanation):
                                             df.index.levels[2]])
             df = df.sort_index()
             return df
+
+    def fi_means_quantiles(self):
+        """Computes mean feature importance over all runs, as well as the
+        respective .05 and .95 quantiles.
+
+        Returns:
+            A pd.DataFrame with the respective characteristics for every feature.
+            features are rows, quantities are columns
+        """
+        scores_agg = self.scores.mean(level='sample')
+        df = pd.DataFrame(scores_agg.mean(), columns=['mean'])
+        df['q.05'] = scores_agg.quantile(0.05)
+        df['q.95'] = scores_agg.quantile(0.95)
+        df.index.set_names(['feature'], inplace=True)
+        return df
 
     def decomp_hbarplot(self, figsize=None, ax=None):
         """
