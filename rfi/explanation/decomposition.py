@@ -1,6 +1,7 @@
 from rfi.explanation.explanation import Explanation
 import pandas as pd
 from rfi.plots._barplot import fi_sns_gbarplot, fi_sns_wbarplots
+import numpy as np
 
 
 class DecompositionExplanation(Explanation):
@@ -18,8 +19,10 @@ class DecompositionExplanation(Explanation):
 
     @staticmethod
     def from_csv(path, ex_name=None):
+        index_candidates = ['component', 'ordering', 'sample', 'i']
         scores = pd.read_csv(path)
-        scores = scores.set_index(['component', 'ordering', 'sample'])
+        index_names = list(index_candidates[np.isin(index_candidates, scores.columns)])
+        scores = scores.set_index(index_names['component', 'ordering', 'sample'])
         ex = DecompositionExplanation(scores.columns, scores, ex_name=ex_name)
         return ex
 

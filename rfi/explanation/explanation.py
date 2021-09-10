@@ -4,6 +4,8 @@ Aggregated or observation-wise wise results can be
 accessed. Plotting functionality is available.
 """
 # import numpy as np
+import numpy as np
+
 import rfi.plots._barplot as _barplot
 import pandas as pd
 # import itertools
@@ -33,8 +35,10 @@ class Explanation:
 
     @staticmethod
     def from_csv(path, ex_name=None):
+        index_candidates = np.array(['ordering', 'sample', 'i'])
         scores = pd.read_csv(path)
-        scores = scores.set_index(['sample', 'id'])
+        index_names = list(index_candidates[np.isin(index_candidates, scores.columns)])
+        scores = scores.set_index(index_names)
         ex = Explanation(scores.columns, scores, ex_name=ex_name)
         return ex
 
