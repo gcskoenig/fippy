@@ -162,6 +162,8 @@ class Sampler:
             df = pd.DataFrame([], index=index)
             return df
         else:
+            # expects a sample_func that returns a numpy array of shape
+            # (nr_obs, nr_samples, nr_cols)
             sample_func = self._trained_sampling_funcs[(J_key, G_key)]
             smpl = sample_func(X_test[Sampler._order_fset(G)].to_numpy(),
                                num_samples=num_samples)
