@@ -32,7 +32,7 @@ class Explainer:
     """
     # TODO make sampler (and decorrelator?) normal arugments (no keyword arguments)
     def __init__(self, model, fsoi, X_train, sampler=None, decorrelator=None,
-                 loss=None):
+                 loss=None, ydim=None):
         """Inits Explainer with sem, mask and potentially sampler and loss"""
         self.model = model
         self.fsoi = fsoi  # now column names, not indexes
@@ -40,8 +40,11 @@ class Explainer:
         self.sampler = sampler
         self.decorrelator = decorrelator
         self.loss = loss
+        self.ydim = ydim
         # check whether feature set is valid
         self._valid_fset(self.fsoi)
+        # detect ydim if not specified
+        self._detect_ydim()
 
     def _valid_fset(self, fset):
         """Checks whether fset is subset of features in data"""
@@ -70,6 +73,14 @@ class Explainer:
         """Checks whether a loss was specified"""
         if self.loss is None:
             raise ValueError("Loss has not been specified.")
+        else:
+            return True
+
+    def _detect_ydim(self):
+        """Detects dimension of model prediction if not provided"""
+        if self.ydim is None:
+            features = np.array(self.X_train.iloc[0]).reshape(1, -1)
+            self.ydim = len(self.model(features)[0])
         else:
             return True
 
@@ -364,10 +375,15 @@ class Explainer:
             # sample perturbed versions
             X_R_CuJ = sampler.sample(X_eval, R_, CuJ, num_samples=nr_resample_marginalize)
             index = X_R_CuJ.index
+            # TODO (cl) other index?
+            index_yh = utils.create_multiindex(['sample', 'i', 'target'],
+                                               [np.arange(nr_resample_marginalize),
+                                                np.arange(X_eval.shape[0]),
+                                                np.arange(self.ydim)])
 
-            df_yh = pd.DataFrame(index=index,
+            df_yh = pd.DataFrame(index=index_yh,
                                  columns=['y_hat_baseline',
-                                          'y_hat_foreground'])
+                                          'y_hat_foreground'])  # TODO (cl) dtype=object for lists?
 
             # create foreground and background samples and make predictions
             for ll in np.arange(0, nr_resample_marginalize, 1):
@@ -394,8 +410,12 @@ class Explainer:
                 X_tilde_baseline = X_tilde_baseline[D]
                 X_tilde_foreground_partial = X_tilde_foreground_partial[D]
 
-                # create and store prediction
+                # create and store prediction   # TODO (c)l try dtype=object for ydim > 1?
                 y_hat_baseline = self.model(X_tilde_baseline)
+                # print("baseline pred dtype  is", y_hat_baseline.dtype)
+                # print("baseline pred 0 is type", type(y_hat_baseline[0]))
+                # print("baseline pred 0 is", y_hat_baseline[0])
+
                 y_hat_foreground = self.model(X_tilde_foreground_partial)
 
                 df_yh.loc[(ll, slice(None)), 'y_hat_baseline'] = np.array(y_hat_baseline)
