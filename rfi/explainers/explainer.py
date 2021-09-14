@@ -625,7 +625,7 @@ class Explainer:
 
     def sage(self, X_eval, y_eval, partial_ordering,
              target='Y', method='associative', G=None, marginalize=True,
-             nr_orderings=None, approx=math.sqrt, convergence=False,
+             nr_orderings=None, approx=math.sqrt, detect_convergence=False, thresh=0.0025,
              nr_runs=10, nr_resample_marginalize=10,
              sampler=None, loss=None, fsoi=None, orderings=None,
              save_orderings=True, **kwargs):
@@ -645,6 +645,8 @@ class Explainer:
             marginalize: whether the marginalized or the non-marginalized
                 prediction function shall be used
             nr_orderings: number of orderings that shall be evaluated
+            detect_convergence: bool, toggle convergence detection
+            thresh: threshold for convergence detection
             nr_runs: how often each value function shall be computed
             nr_resample_marginalize: How many samples shall be used for the
                 marginalization
@@ -681,8 +683,9 @@ class Explainer:
         if method not in ['associative', 'direct']:
             raise ValueError('only methods associative or direct implemented')
 
-        if convergence:
-            raise NotImplementedError('Convergence detection has not been implemented yet.')
+        if detect_convergence:  # TODO any sanity check necessary other than asserting 0 < thresh < 1?
+            assert 0 < thresh < 1
+            tracker = utils.ImportanceTracker()
 
         if sampler is None:
             if self._sampler_specified():
@@ -731,8 +734,6 @@ class Explainer:
         # ord hist helps to avoid duplicate histories
         ord_hist = None
         for ii in range(nr_orderings):
-            # TODO(gcsk,cph): convergence detection like in SAGE paper
-            #  see https://github.com/iancovert/sage/blob/master/sage/permutation_estimator.py
             ordering = None
             if orderings is None:
                 ordering, ord_hist = utils.sample_partial(partial_ordering,
@@ -758,6 +759,21 @@ class Explainer:
 
             scores_arr = ex.scores[fsoi].to_numpy()
             scores.loc[(ii, slice(None), slice(None)), fsoi] = scores_arr
+
+            if detect_convergence:
+
+                # update tracker for convergence detection
+                tracker.update(scores_arr)
+
+                # Calculate progress.
+                std = np.max(tracker.std)
+                gap = max(tracker.values.max() - tracker.values.min(), 1e-12)
+                ratio = std / gap
+
+                # Check for convergence.
+                if ratio < thresh:
+                    print('Detected convergence')
+                    break
 
         result = explanation.Explanation(fsoi, scores, ex_name='SAGE')
 
