@@ -232,7 +232,7 @@ class Explainer:
             df_yh = df_yh.astype({'y_hat_baseline': 'float64',
                                   'y_hat_foreground': 'float64'})
             # marginalize predictions
-            df_yh = df_yh.mean(level='i')
+            df_yh = df_yh.groupby(level='i').mean()
 
             # compute difference in observationwise loss
             if target == 'Y':
@@ -404,7 +404,7 @@ class Explainer:
             # convert and aggregate predictions
             df_yh = df_yh.astype({'y_hat_baseline': 'float',
                                   'y_hat_foreground': 'float'})
-            df_yh = df_yh.mean(level='i')
+            df_yh = df_yh.groupby(level='i').mean()
 
             # compute difference in observation-wise loss
             if target == 'Y':
