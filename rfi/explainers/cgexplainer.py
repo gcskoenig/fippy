@@ -36,8 +36,8 @@ class CGExplainer(Explainer):
         self._check_valid_graph(self.adj_mat)
         self.g = nx.DiGraph(adj_mat)    # TODO(cl) what would be better style for sanity check + graph building?
 
-
-    def _check_valid_graph(self, df):   # TODO(cl) better way to check? More flexible data type like in nx package?
+    @staticmethod
+    def _check_valid_graph(self, df):   # TODO(cl) better way to check? More flexible data type possible?
         if isinstance(df, pd.DataFrame):
             if df.index.to_list() == df.columns.to_list():
                 return True
@@ -46,10 +46,10 @@ class CGExplainer(Explainer):
                 df.set_axis(var_names, axis=0)
                 return True
         else:
-            raise NotImplementedError('Check not implemented yet.')
+            raise ValueError('Adjacency matrix must be pandas.DataFrame.')
 
     # TODO(cl) Why is nr_runs (and other kwargs) not passed to ai_via below via **kwargs? cf explainer l. 749 & l. 483
-    def ai_via(self, J, C, K, X_eval, y_eval, nr_runs=10, **kwargs):
+    def ai_via(self, J, C, K, X_eval, y_eval, nr_runs=10, nr_resample_marginalize=10, **kwargs):
         d_sep = nx.d_separated(self.g, set(J), {y_eval.name}, set(C))
         # d_sep = False
         print(d_sep)  # TODO(cl) delete print statements when done
