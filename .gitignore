@@ -9,4 +9,3 @@ __pycache__/
 /examples/real_pseudoreal_dags/data/
 experiments_cg/data/
 experiments_cg/models/
-rfi/samplers/
