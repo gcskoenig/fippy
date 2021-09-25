@@ -12,6 +12,7 @@ import logging
 import rfi.explanation.decomposition as decomposition_ex
 import enlighten  # TODO add to requirements
 import math
+from rfi.explainers.utils import ConvergenceDetection
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
@@ -685,7 +686,6 @@ class Explainer:
 
         if detect_convergence:  # TODO any sanity check necessary other than asserting 0 < thresh < 1?
             assert 0 < thresh < 1
-            tracker = utils.ImportanceTracker()
 
         if sampler is None:
             if self._sampler_specified():
@@ -761,18 +761,10 @@ class Explainer:
             scores.loc[(ii, slice(None), slice(None)), fsoi] = scores_arr
 
             if detect_convergence:
-
-                # update tracker for convergence detection
-                tracker.update(scores_arr)
-
-                # Calculate progress.
-                std = np.max(tracker.std)
-                gap = max(tracker.values.max() - tracker.values.min(), 1e-12)
-                ratio = std / gap
-
-                # Check for convergence.
-                if ratio < thresh:
-                    print('Detected convergence')
+                convergence = ConvergenceDetection(scores, ii, thresh)
+                if convergence.detect():
+                    scores = scores.loc[(slice(0, ii), slice(None), slice(None))]
+                    print('Detected convergence after ordering no.', ii)
                     break
 
         result = explanation.Explanation(fsoi, scores, ex_name='SAGE')
