@@ -138,8 +138,6 @@ def sample_partial(partial_ordering, history=None, max_tries=500):
         for elem in partial_ordering:
             if type(elem) is int:
                 ordering.append(elem)
-            elif type(elem) is str:
-                ordering.append(elem)
             elif type(elem) is tuple:
                 perm = list(elem)
                 random.shuffle(perm)
