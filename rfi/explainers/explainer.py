@@ -12,7 +12,7 @@ import logging
 import rfi.explanation.decomposition as decomposition_ex
 import enlighten  # TODO add to requirements
 import math
-from rfi.explainers.utils import ConvergenceDetection
+from rfi.explainers.utils import detect_conv
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
@@ -761,8 +761,7 @@ class Explainer:
             scores.loc[(ii, slice(None), slice(None)), fsoi] = scores_arr
 
             if detect_convergence:
-                convergence = ConvergenceDetection(scores, ii, thresh)
-                if convergence.detect():
+                if detect_conv(scores, ii, thresh):
                     scores = scores.loc[(slice(0, ii), slice(None), slice(None))]
                     print('Detected convergence after ordering no.', ii)
                     break
