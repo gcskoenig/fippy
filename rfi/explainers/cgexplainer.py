@@ -3,7 +3,6 @@
 Different sampling algorithms and loss functions can be used.
 More details in the docstring for the class Explainer.
 """
-# TODO(cl) Check how e.g. permutations are sampled -> seed for reproducibility
 from rfi.explainers.explainer import Explainer
 import numpy as np
 import pandas as pd
@@ -34,10 +33,11 @@ class CGExplainer(Explainer):
         Explainer.__init__(self, model, fsoi, X_train, **kwargs)
         self.adj_mat = adj_mat
         self._check_valid_graph(self.adj_mat)
-        self.g = nx.DiGraph(adj_mat)    # TODO(cl) what would be better style for sanity check + graph building?
+        self.g = nx.DiGraph(adj_mat)
 
     @staticmethod
-    def _check_valid_graph(self, df):   # TODO(cl) better way to check? More flexible data type possible?
+    def _check_valid_graph(df):   # TODO(cl) better way to check? More flexible data type possible?
+        # TODO check if column names of adjacency matrix == column names of df
         if isinstance(df, pd.DataFrame):
             if df.index.to_list() == df.columns.to_list():
                 return True
@@ -48,11 +48,8 @@ class CGExplainer(Explainer):
         else:
             raise ValueError('Adjacency matrix must be pandas.DataFrame.')
 
-    # TODO(cl) Why is nr_runs (and other kwargs) not passed to ai_via below via **kwargs? cf explainer l. 749 & l. 483
-    def ai_via(self, J, C, K, X_eval, y_eval, nr_runs=10, nr_resample_marginalize=10, **kwargs):
-        d_sep = nx.d_separated(self.g, set(J), {y_eval.name}, set(C))
-        # d_sep = False
-        print(d_sep)  # TODO(cl) delete print statements when done
+    def ai_via(self, J, C, K, X_eval, y_eval, nr_runs=10, **kwargs):
+        d_sep = nx.d_separated(self.g, set(J), set(y_eval.name), set(C))
         if d_sep:
             desc = 'AR({} | {} -> {})'.format(J, C, K)
             nr_obs = X_eval.shape[0]
@@ -67,13 +64,6 @@ class CGExplainer(Explainer):
                 self.fsoi, scores,
                 ex_name=ex_name)
             return result
-            # TODO(cl) uncomment below if kwargs issue fixed
-            # if return_perturbed:
-            #     raise NotImplementedError('return_perturbed=True not implemented.')
-            # else:
-            #     return result
-        # raise NotImplementedError('CSL of ai_via version no implemented yet.')
-        # TODO why does **kwargs work here?
         else:
-            result = super(CGExplainer, self).ai_via(J, C, K, X_eval, y_eval, **kwargs)
+            result = super(CGExplainer, self).ai_via(J, C, K, X_eval, y_eval, nr_runs=nr_runs, **kwargs)
             return result
