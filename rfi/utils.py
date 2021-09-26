@@ -119,7 +119,7 @@ def nr_unique_perm(partial_ordering):
     return nr
 
 
-def sample_partial(partial_ordering, history=None, max_tries=10):
+def sample_partial(partial_ordering, history=None, max_tries=500):
     """ sample ordering from partial ordering
 
     Args:sq
