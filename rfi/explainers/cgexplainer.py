@@ -37,7 +37,7 @@ class CGExplainer(Explainer):
 
     @staticmethod
     def _check_valid_graph(df):   # TODO(cl) better way to check? More flexible data type possible?
-        # TODO check if column names of adjacency matrix == column names of df
+        # TODO check if column names of adjacency matrix == column names of data (X.columns + y.name)
         if isinstance(df, pd.DataFrame):
             if df.index.to_list() == df.columns.to_list():
                 return True
@@ -46,7 +46,7 @@ class CGExplainer(Explainer):
                 df.set_axis(var_names, axis=0)
                 return True
         else:
-            raise ValueError('Adjacency matrix must be pandas.DataFrame.')
+            raise TypeError('Adjacency matrix must be pandas.DataFrame.')
 
     def ai_via(self, J, C, K, X_eval, y_eval, nr_runs=10, **kwargs):
         d_sep = nx.d_separated(self.g, set(J), set(y_eval.name), set(C))
