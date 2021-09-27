@@ -626,7 +626,7 @@ class Explainer:
 
     def sage(self, X_eval, y_eval, partial_ordering,
              target='Y', method='associative', G=None, marginalize=True,
-             nr_orderings=None, approx=math.sqrt, detect_convergence=False, thresh=0.0025,
+             nr_orderings=None, approx=math.sqrt, detect_convergence=False, thresh=0.01,
              nr_runs=10, nr_resample_marginalize=10,
              sampler=None, loss=None, fsoi=None, orderings=None,
              save_orderings=True, **kwargs):
