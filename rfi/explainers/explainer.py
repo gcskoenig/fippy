@@ -772,7 +772,10 @@ class Explainer:
             orderings = orderings_sampled
 
         if save_orderings:
-            return result, orderings
+            if detect_convergence:
+                return result, orderings[0:(ii+1)]
+            else:
+                return result, orderings
         else:
             return result
 
