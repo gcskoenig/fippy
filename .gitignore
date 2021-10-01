@@ -7,6 +7,8 @@ rfi_gcsk.egg-info/
 __pycache__/
 /examples/chains/data/
 /examples/real_pseudoreal_dags/data/
+venv/
+examples_cg/
 /experiments_cg/data/
 /experiments_cg/models/
 /experiments_cg/results/
