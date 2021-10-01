@@ -1,4 +1,4 @@
-# A Python Library for Relative Feature Importance (RFI)
+# A Python Library for Feature Importance
 
 ![Python package](https://github.com/gcskoenig/rfi/workflows/Python%20package/badge.svg?branch=master)
 

@@ -78,7 +78,7 @@ class Explanation:
         #     arr = arr.reshape(-1)
         #     df = pd.DataFrame(arr, index=index, columns=['importance'])
         # return df
-        df = self.scores.mean(level='sample')
+        df = self.scores.groupby(level='sample').mean()
         if fnames_as_columns:
             return df
         else:
@@ -110,7 +110,7 @@ class Explanation:
             A pd.DataFrame with the respective characteristics for every feature.
             features are rows, quantities are columns
         """
-        scores_agg = self.scores.mean(level='sample')
+        scores_agg = self.scores.groupby(level='sample').mean()
         df = pd.DataFrame(scores_agg.mean(), columns=['mean'])
         df['q.05'] = scores_agg.quantile(0.05)
         df['q.95'] = scores_agg.quantile(0.95)

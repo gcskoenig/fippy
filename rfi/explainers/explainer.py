@@ -233,7 +233,7 @@ class Explainer:
             df_yh = df_yh.astype({'y_hat_baseline': 'float64',
                                   'y_hat_foreground': 'float64'})
             # marginalize predictions
-            df_yh = df_yh.mean(level='i')
+            df_yh = df_yh.groupby(level='i').mean()
 
             # compute difference in observationwise loss
             if target == 'Y':
@@ -405,7 +405,7 @@ class Explainer:
             # convert and aggregate predictions
             df_yh = df_yh.astype({'y_hat_baseline': 'float',
                                   'y_hat_foreground': 'float'})
-            df_yh = df_yh.mean(level='i')
+            df_yh = df_yh.groupby(level='i').mean()
 
             # compute difference in observation-wise loss
             if target == 'Y':
@@ -752,6 +752,7 @@ class Explainer:
                                            nr_runs=nr_runs, nr_resample_marginalize=nr_resample_marginalize,
                                            **kwargs)
             elif method == 'direct':
+                # TODO check whether this should be dis_from_baselinefunc
                 ex = self.dis_from_baselinefunc(ordering, G, X_eval, y_eval,
                                                 target=target, marginalize=marginalize,
                                                 nr_runs=nr_runs, nr_resample_marginalize=nr_resample_marginalize,
