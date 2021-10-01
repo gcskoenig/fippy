@@ -55,6 +55,9 @@ class StructuralEquationModel:
 
     @property
     def support_bounds(self):
+        '''
+        Returns support bounds for the SCM. If not specified, returns [-np.inf, np.inf]
+        '''
         support_bounds = [-np.inf, np.inf]
         if hasattr(self.parents_conditional_support, 'lower_bound'):
             support_bounds[0] = self.parents_conditional_support.lower_bound
@@ -64,12 +67,18 @@ class StructuralEquationModel:
 
     def parents_conditional_sample(self, node: str, parents_context: Dict[str, Tensor] = None, sample_shape: tuple = (1, )) \
             -> Tensor:
+        ''' Allows to sample from the distribution of a node given it's parents.
+
+        node: name of the node
+        parents_context=None: dictionary of node names and tensors with observations
+        sample_shape: default (1,)
+        '''
         cond_dist = self.parents_conditional_distribution(node, parents_context)
         return cond_dist.sample(sample_shape=sample_shape)
 
     def sample(self, size: int, seed: int = None) -> Tensor:
         """
-        Returns a sample from SEM, columns are ordered as var input_var_names in DAG
+        Returns a sample from SEM, columns are ordered as var self.dag.var_names in DAG
         Args:
             seed: Random mc_seed
             size: Sample size
@@ -91,6 +100,10 @@ class StructuralEquationModel:
 
     @staticmethod
     def _support_check_wrapper(dist: Distribution):
+        """ Adds wrapper around distribution log_prob method
+        If dist.log_prob returns nan, -inf is returned instead
+        if dist.log_prob returns out of support value, inf is returned instead
+        """
 
         old_log_prob = dist.log_prob
 
@@ -105,13 +118,15 @@ class StructuralEquationModel:
 
         dist.log_prob = new_log_prob_method
 
-    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None) -> Distribution:
+    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None,
+                                         noise: Distribution = None) -> Distribution:
         """
         Conditional probability distribution of node, conditioning only on parent nodes
         Args:
             node: Node
             parents_context: Conditioning global_context, as dict of all the other variables,
                     each value should be torch.Tensor of shape (n, )
+            noise: distribution of noise term in case specific error distribution should be used (e.g. counterfactuals)
 
         Returns: torch.distribution.Distribution with batch_shape == n
         """
@@ -258,14 +273,18 @@ class LinearGaussianNoiseSEM(StructuralEquationModel):
             context_sorted = np.stack(context_sorted).T if len(context_sorted) > 0 else None
             return cond_dist.conditional_distribution(context_sorted)
 
-    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None) -> Distribution:
+    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None,
+                                         noise: Distribution = None) -> Distribution:
         # Only conditioning on parent nodes is possible for now
         assert set(self.model[node]['parents']) == set(parents_context.keys())
         linear_comb = 0.0
         if len(self.model[node]['parents']) > 0:
             for par in parents_context.keys():
                 linear_comb += parents_context[par] * torch.tensor(self.model[node]['coeff'][par])
-        return Normal(linear_comb, self.model[node]['noise_std'])
+        if noise is None:
+            return Normal(linear_comb, self.model[node]['noise_std'])
+        else:
+            raise NotImplementedError('Non-default error terms not supported yet.')
 
     @property
     def joint_cov(self) -> Tensor:
@@ -379,13 +398,17 @@ class RandomGPGaussianNoiseSEM(StructuralEquationModel):
                 self.model[node]['stacked_parent_values'] = torch.cat([old_parent_values, parent_values], dim=0)
                 return node_values
 
-    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None) -> Distribution:
+    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None,
+                                         noise: Distribution = None) -> Distribution:
         # Only conditioning on parent nodes is possible for now
         assert set(self.model[node]['parents']) == set(parents_context.keys())
         random_effect = self._random_function(node, parents_context)
-        cond_dist = torch.distributions.Normal(random_effect, self.model[node]['noise_std'])
-        self._support_check_wrapper(cond_dist)
-        return cond_dist
+        if noise is None:
+            cond_dist = torch.distributions.Normal(random_effect, self.model[node]['noise_std'])
+            self._support_check_wrapper(cond_dist)
+            return cond_dist
+        else:
+            raise NotImplementedError('non-default noise not implemented yet.')
 
 
 class PostNonLinearLaplaceSEM(RandomGPGaussianNoiseSEM):
@@ -416,7 +439,8 @@ class PostNonLinearLaplaceSEM(RandomGPGaussianNoiseSEM):
         if self.invertable_nonlinearity == 'sigmoid':
             self.parents_conditional_support = constraints.unit_interval
 
-    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None) -> Distribution:
+    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None,
+                                         noise: Distribution = None) -> Distribution:
         # Only conditioning on parent nodes is possible for now
         assert set(self.model[node]['parents']) == set(parents_context.keys())
 
@@ -428,10 +452,13 @@ class PostNonLinearLaplaceSEM(RandomGPGaussianNoiseSEM):
 
         random_effect = self._random_function(node, parents_context)
 
-        noise = RandomVariable(torch.distributions.Laplace(0, self.model[node]['noise_std']))
-        cond_dist = getattr(random_effect + noise, self.invertable_nonlinearity)().dist
-        self._support_check_wrapper(cond_dist)
-        return cond_dist
+        if noise is None:
+            noise = RandomVariable(torch.distributions.Laplace(0, self.model[node]['noise_std']))
+            cond_dist = getattr(random_effect + noise, self.invertable_nonlinearity)().dist
+            self._support_check_wrapper(cond_dist)
+            return cond_dist
+        else:
+            raise NotImplementedError('non default error terms/noise not supported yet')
 
 
 class PostNonLinearMultiplicativeHalfNormalSEM(StructuralEquationModel):
@@ -457,7 +484,8 @@ class PostNonLinearMultiplicativeHalfNormalSEM(StructuralEquationModel):
 
         self.parents_conditional_support = constraints.greater_than(0.0)
 
-    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None) -> Distribution:
+    def parents_conditional_distribution(self, node: str, parents_context: Dict[str, Tensor] = None,
+                                         noise: Distribution = None) -> Distribution:
         # Only conditioning on parent nodes is possible for now
         assert set(self.model[node]['parents']) == set(parents_context.keys())
 
@@ -470,7 +498,10 @@ class PostNonLinearMultiplicativeHalfNormalSEM(StructuralEquationModel):
 
         log_sums = torch.log(parent_values.sum(dim=1))
 
-        noise = RandomVariable(torch.distributions.HalfNormal(self.model[node]['noise_std']))
-        cond_dist = (log_sums + noise).exp().dist
-        self._support_check_wrapper(cond_dist)
-        return cond_dist
+        if noise is None:
+            noise = RandomVariable(torch.distributions.HalfNormal(self.model[node]['noise_std']))
+            cond_dist = (log_sums + noise).exp().dist
+            self._support_check_wrapper(cond_dist)
+            return cond_dist
+        else:
+            raise NotImplementedError('non-standard noise terms are not supported yet.')
