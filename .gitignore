@@ -8,7 +8,6 @@ __pycache__/
 /examples/chains/data/
 /examples/real_pseudoreal_dags/data/
 venv/
-examples_cg/
-/experiments_cg/data/
-/experiments_cg/models/
-/experiments_cg/results/
+/examples/experiments_cg/data/
+/examples/experiments_cg/models/
+/examples/experiments_cg/results/
