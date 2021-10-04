@@ -5,6 +5,11 @@ Command line args:
     --data CSV file in folder ~/data/ (string without suffix)
     --amat indicator for true or estimated adjacency matrix ('true' or 'est')
     --model choice between linear model ('lm') and random forest regression ('rf')
+    --samplesize slice dataset to df[0:samplesize] (int)
+    --runs nr_runs in explainer.sage()
+    --orderings nr_orderings in explainer.sage()
+    --thresh threshold for convergence detection
+
 """
 
 import pandas as pd
@@ -47,6 +52,38 @@ parser.add_argument(
     help="linear model ('lm') or random forest regression ('rf')?",
 )
 
+parser.add_argument(
+    "-n",
+    "--samplesize",
+    type=int,
+    default=None,
+    help="Custom sample size to slice df",
+)
+
+parser.add_argument(
+    "-r",
+    "--runs",
+    type=int,
+    default=5,
+    help="Number of runs",
+)
+
+parser.add_argument(
+    "-o",
+    "--orderings",
+    type=int,
+    default=20,
+    help="Number of orderings",
+)
+
+parser.add_argument(
+    "-t",
+    "--thresh",
+    type=float,
+    default=0.025,
+    help="Threshold for convergence detection",
+)
+
 arguments = parser.parse_args()
 
 # seed
@@ -68,7 +105,8 @@ def main(args):
 
     # import and prepare data
     df = pd.read_csv(f"examples/experiments_cg/data/{args.data}.csv")
-    df = df[0:100]
+    if args.samplesize is not None:
+        df = df[0:args.samplesize]
     col_names = df.columns.tolist()
     col_names.remove("1")
     X = df[col_names]
@@ -140,8 +178,8 @@ def main(args):
 
     # track time with time module
     start_time = time.time()
-    ex_d_sage, orderings_sage = wrk.sage(X_test, y_test, partial_order, nr_orderings=20, nr_runs=5,
-                                         detect_convergence=True, thresh=0.4)
+    ex_d_sage, orderings_sage = wrk.sage(X_test, y_test, partial_order, nr_orderings=args.orderings,
+                                         nr_runs=args.runs, detect_convergence=True, thresh=args.thresh)
     time_sage = time.time() - start_time
 
     # CGExplainer
@@ -151,13 +189,14 @@ def main(args):
     # CG Sage run with same orderings as SAGE run
     start_time_cg = time.time()
     ex_d_cg, ordering_cg = wrk_cg.sage(X_test, y_test, partial_order, nr_orderings=orderings_sage.shape[0],
-                                       nr_runs=5, orderings=orderings_sage)
+                                       nr_runs=args.runs, orderings=orderings_sage)
     time_cg = time.time() - start_time_cg
 
     # Separate CG SAGE run with convergence detection
     start_time_cg_cd = time.time()
-    ex_d_cg_cd, orderings_cg_cd = wrk_cg.sage(X_test, y_test, partial_order, nr_runs=5, nr_orderings=20,
-                                              detect_convergence=True, thresh=0.4)
+    ex_d_cg_cd, orderings_cg_cd = wrk_cg.sage(X_test, y_test, partial_order, nr_runs=args.runs,
+                                              nr_orderings=args.orderings, detect_convergence=True,
+                                              thresh=args.thresh)
     time_cg_cd = time.time() - start_time_cg_cd
 
     # save  orderings
