@@ -77,6 +77,14 @@ parser.add_argument(
     help="Threshold for convergence detection",
 )
 
+parser.add_argument(
+    "-s",
+    "--split",
+    type=float,
+    default=0.2,
+    help="Train test split",
+)
+
 arguments = parser.parse_args()
 
 # seed
@@ -104,7 +112,7 @@ def main(args):
 
     # split data for train and test purpose
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+        X, y, test_size=args.split, random_state=42
     )
 
     try:
