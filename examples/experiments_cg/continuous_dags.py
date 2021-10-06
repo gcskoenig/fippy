@@ -3,9 +3,8 @@ Experiment file for CGExplainer with continuous DAGs
 
 Command line args:
     --data CSV file in folder ~/data/ (string without suffix)
-    --amat indicator for true or estimated adjacency matrix ('true' or 'est')
     --model choice between linear model ('lm') and random forest regression ('rf')
-    --samplesize slice dataset to df[0:samplesize] (int)
+    --size slice dataset to df[0:size] (int)
     --runs nr_runs in explainer.sage()
     --orderings nr_orderings in explainer.sage()
     --thresh threshold for convergence detection
@@ -37,12 +36,6 @@ parser.add_argument(
     default="dag_s",
     help="What data to use?")
 
-parser.add_argument(
-    "-a",
-    "--amat",
-    type=str,
-    default="true",
-    help="Adjacency matrix true or est?")
 
 parser.add_argument(
     "-m",
@@ -54,7 +47,7 @@ parser.add_argument(
 
 parser.add_argument(
     "-n",
-    "--samplesize",
+    "--size",
     type=int,
     default=None,
     help="Custom sample size to slice df",
@@ -92,21 +85,18 @@ np.random.seed(1902)
 
 def main(args):
 
-    if args.amat == "true":
-        savepath = f"examples/experiments_cg/results/continuous/true_amat/{args.data}"
-    elif args.amat == "est":
-        savepath = f"examples/experiments_cg/results/continuous/est_amat/{args.data}"
-    else:
-        raise NameError("Adjacency matrix can be either true ('true') or estimated ('est')")
+    savepath_true = f"examples/experiments_cg/results/continuous/true_amat/{args.data}"
+    savepath_est = f"examples/experiments_cg/results/continuous/est_amat/{args.data}"
 
     # df to store some metadata
-    col_names = ["data", "model", "adjacency matrix", "runtime sage", "runtime cg", "runtime cg cd"]
+    col_names = ["data", "model", "runtime sage", "runtime cg",
+                 "runtime cg cd", "runtime cg est", "runtime cg est"]
     metadata = pd.DataFrame(columns=col_names)
 
     # import and prepare data
     df = pd.read_csv(f"examples/experiments_cg/data/{args.data}.csv")
-    if args.samplesize is not None:
-        df = df[0:args.samplesize]
+    if args.size is not None:
+        df = df[0:args.size]
     col_names = df.columns.tolist()
     col_names.remove("1")
     X = df[col_names]
@@ -136,7 +126,7 @@ def main(args):
         # fill df with info about model
         model_details.loc[len(model_details)] = [args.data, "lin reg", "1", mse, r2]
         model_details.to_csv(
-            "examples/experiments_cg/models/model_details.csv", index=False
+            "examples/experiments_cg/models/model_details_cont.csv", index=False
         )
     else:
         # fit model
@@ -149,14 +139,12 @@ def main(args):
         # fill df with info about model
         model_details.loc[len(model_details)] = [args.data, "rf reg", "1", mse, r2]
         model_details.to_csv(
-            "examples/experiments_cg/models/model_details.csv", index=False
+            "examples/experiments_cg/models/model_details_cont.csv", index=False
         )
 
-    # load corresponding adjacency matrix for CGExplainer
-    if args.amat == "true":
-        amat = pickle.load(open(f"examples/experiments_cg/data/{args.data}.p", "rb"))
-    else:
-        amat = pickle.load(open(f"examples/experiments_cg/data/{args.data}_est.p", "rb"))
+    # load adjacency matrices for CGExplainer
+    amat_true = pickle.load(open(f"examples/experiments_cg/data/{args.data}.p", "rb"))
+    amat_est = pickle.load(open(f"examples/experiments_cg/data/{args.data}_est.p", "rb"))
 
     # model prediction linear model
     def model_predict(x):
@@ -183,48 +171,76 @@ def main(args):
     time_sage = time.time() - start_time
 
     # CGExplainer
-    wrk_cg = CGExplainer(model_predict, fsoi, X_train, amat, loss=mean_squared_error, sampler=sampler,
-                         decorrelator=decorrelator)
+    wrk_cg_true = CGExplainer(model_predict, fsoi, X_train, amat_true, loss=mean_squared_error,
+                              sampler=sampler, decorrelator=decorrelator)
 
     # CG Sage run with same orderings as SAGE run
     start_time_cg = time.time()
-    ex_d_cg, ordering_cg = wrk_cg.sage(X_test, y_test, partial_order, nr_orderings=orderings_sage.shape[0],
-                                       nr_runs=args.runs, orderings=orderings_sage)
+    ex_d_cg, ordering_cg = wrk_cg_true.sage(X_test, y_test, partial_order,
+                                            nr_orderings=orderings_sage.shape[0],
+                                            nr_runs=args.runs, orderings=orderings_sage)
     time_cg = time.time() - start_time_cg
 
     # Separate CG SAGE run with convergence detection
     start_time_cg_cd = time.time()
-    ex_d_cg_cd, orderings_cg_cd = wrk_cg.sage(X_test, y_test, partial_order, nr_runs=args.runs,
-                                              nr_orderings=args.orderings, detect_convergence=True,
-                                              thresh=args.thresh)
+    ex_d_cg_cd, orderings_cg_cd = wrk_cg_true.sage(X_test, y_test, partial_order, nr_runs=args.runs,
+                                                   nr_orderings=args.orderings, detect_convergence=True,
+                                                   thresh=args.thresh)
     time_cg_cd = time.time() - start_time_cg_cd
 
+    # CGExplainer (with estimated amat)
+    wrk_cg_est = CGExplainer(model_predict, fsoi, X_train, amat_est, loss=mean_squared_error,
+                              sampler=sampler, decorrelator=decorrelator)
+
+    # CG Sage run with same orderings as SAGE run
+    start_time_cg_est = time.time()
+    ex_d_cg_est, ordering_cg_est = wrk_cg_est.sage(X_test, y_test, partial_order,
+                                            nr_orderings=orderings_sage.shape[0],
+                                            nr_runs=args.runs, orderings=orderings_sage)
+    time_cg_est = time.time() - start_time_cg_est
+
+    # Separate CG SAGE run with convergence detection
+    start_time_cg_cd_est = time.time()
+    ex_d_cg_cd_est, orderings_cg_cd_est = wrk_cg_est.sage(X_test, y_test, partial_order, nr_runs=args.runs,
+                                                          nr_orderings=args.orderings, detect_convergence=True,
+                                                          thresh=args.thresh)
+    time_cg_cd_est = time.time() - start_time_cg_cd_est
+
     # save  orderings
-    orderings_sage.to_csv(f'{savepath}/order_sage_{args.data}_{args.model}.csv')
-    orderings_cg_cd.to_csv(f'{savepath}/order_cg_cd_{args.data}_{args.model}.csv')
+    orderings_sage.to_csv(f'{savepath_true}/order_sage_{args.data}_{args.model}.csv')
+    orderings_cg_cd.to_csv(f'{savepath_true}/order_cg_cd_{args.data}_{args.model}.csv')
+    orderings_cg_cd_est.to_csv(f'{savepath_est}/order_cg_cd_{args.data}_{args.model}.csv')
 
     # save the SAGE/cg values for every ordering (Note: not split by runs anymore)
     sage_values_ordering = ex_d_sage.scores.mean(level=0)
-    sage_values_ordering.to_csv(f"{savepath}/sage_o_{args.data}_{args.model}.csv")
+    sage_values_ordering.to_csv(f"{savepath_true}/sage_o_{args.data}_{args.model}.csv")
     cg_values = ex_d_cg.scores.mean(level=0)
-    cg_values.to_csv(f"{savepath}/cg_o_{args.data}_{args.model}.csv")
+    cg_values.to_csv(f"{savepath_true}/cg_o_{args.data}_{args.model}.csv")
     cg_cd_values = ex_d_cg_cd.scores.mean(level=0)
-    cg_cd_values.to_csv(f"{savepath}/cg_cd_o_{args.data}_{args.model}.csv")
+    cg_cd_values.to_csv(f"{savepath_true}/cg_cd_o_{args.data}_{args.model}.csv")
+    cg_values_est = ex_d_cg_est.scores.mean(level=0)
+    cg_values_est.to_csv(f"{savepath_est}/cg_o_{args.data}_{args.model}.csv")
+    cg_cd_values_est = ex_d_cg_cd_est.scores.mean(level=0)
+    cg_cd_values_est.to_csv(f"{savepath_est}/cg_cd_o_{args.data}_{args.model}.csv")
 
     # fi_values for the runs
-    ex_d_sage.fi_vals().to_csv(f"{savepath}/sage_r_{args.data}_{args.model}.csv")
-    ex_d_cg.fi_vals().to_csv(f"{savepath}/cg_r_{args.data}_{args.model}.csv")
-    ex_d_cg_cd.fi_vals().to_csv(f"{savepath}/cg_cd_r_{args.data}_{args.model}.csv")
+    ex_d_sage.fi_vals().to_csv(f"{savepath_true}/sage_r_{args.data}_{args.model}.csv")
+    ex_d_cg.fi_vals().to_csv(f"{savepath_true}/cg_r_{args.data}_{args.model}.csv")
+    ex_d_cg_cd.fi_vals().to_csv(f"{savepath_true}/cg_cd_r_{args.data}_{args.model}.csv")
+    ex_d_cg_est.fi_vals().to_csv(f"{savepath_est}/cg_r_{args.data}_{args.model}.csv")
+    ex_d_cg_cd_est.fi_vals().to_csv(f"{savepath_est}/cg_cd_r_{args.data}_{args.model}.csv")
 
     # fi_mean values across runs + stds
-    ex_d_sage.fi_means_stds().to_csv(f"{savepath}/sage_{args.data}_{args.model}.csv")
-    ex_d_cg.fi_means_stds().to_csv(f"{savepath}/cg_{args.data}_{args.model}.csv")
-    ex_d_cg_cd.fi_means_stds().to_csv(f"{savepath}/cg_cd_{args.data}_{args.model}.csv")
+    ex_d_sage.fi_means_stds().to_csv(f"{savepath_true}/sage_{args.data}_{args.model}.csv")
+    ex_d_cg.fi_means_stds().to_csv(f"{savepath_true}/cg_{args.data}_{args.model}.csv")
+    ex_d_cg_cd.fi_means_stds().to_csv(f"{savepath_true}/cg_cd_{args.data}_{args.model}.csv")
+    ex_d_cg_est.fi_means_stds().to_csv(f"{savepath_est}/cg_{args.data}_{args.model}.csv")
+    ex_d_cg_cd_est.fi_means_stds().to_csv(f"{savepath_est}/cg_cd_{args.data}_{args.model}.csv")
 
-    content = [args.data, args.model, args.amat, time_sage, time_cg, time_cg_cd]
+    content = [args.data, args.model, time_sage, time_cg, time_cg_cd, time_cg_est, time_cg_cd_est]
     # fill evaluation table with current run
     metadata.loc[len(metadata)] = content
-    metadata.to_csv(f"{savepath}/metadata_{args.data}_{args.model}.csv", index=False)
+    metadata.to_csv(f"{savepath_true}/metadata_{args.data}_{args.model}.csv", index=False)
 
 
 if __name__ == "__main__":
