@@ -163,29 +163,12 @@ def main(args):
     # features of interest
     fsoi = X_train.columns
 
-    # SAGE explainer
-    wrk = Explainer(model_predict, fsoi, X_train, loss=mean_squared_error, sampler=sampler,
-                    decorrelator=decorrelator)
-
     # NO partial order
     partial_order = [tuple(X_train.columns)]
-
-    # track time with time module
-    start_time = time.time()
-    ex_d_sage, orderings_sage = wrk.sage(X_test, y_test, partial_order, nr_orderings=args.orderings,
-                                         nr_runs=args.runs, detect_convergence=True, thresh=args.thresh)
-    time_sage = time.time() - start_time
 
     # CGExplainer
     wrk_cg_true = CGExplainer(model_predict, fsoi, X_train, amat_true, loss=mean_squared_error,
                               sampler=sampler, decorrelator=decorrelator)
-
-    # CG Sage run with same orderings as SAGE run
-    start_time_cg = time.time()
-    ex_d_cg, ordering_cg = wrk_cg_true.sage(X_test, y_test, partial_order,
-                                            nr_orderings=orderings_sage.shape[0],
-                                            nr_runs=args.runs, orderings=orderings_sage)
-    time_cg = time.time() - start_time_cg
 
     # Separate CG SAGE run with convergence detection
     start_time_cg_cd = time.time()
@@ -198,13 +181,6 @@ def main(args):
     wrk_cg_est = CGExplainer(model_predict, fsoi, X_train, amat_est, loss=mean_squared_error,
                               sampler=sampler, decorrelator=decorrelator)
 
-    # CG Sage run with same orderings as SAGE run
-    start_time_cg_est = time.time()
-    ex_d_cg_est, ordering_cg_est = wrk_cg_est.sage(X_test, y_test, partial_order,
-                                            nr_orderings=orderings_sage.shape[0],
-                                            nr_runs=args.runs, orderings=orderings_sage)
-    time_cg_est = time.time() - start_time_cg_est
-
     # Separate CG SAGE run with convergence detection
     start_time_cg_cd_est = time.time()
     ex_d_cg_cd_est, orderings_cg_cd_est = wrk_cg_est.sage(X_test, y_test, partial_order, nr_runs=args.runs,
@@ -213,41 +189,31 @@ def main(args):
     time_cg_cd_est = time.time() - start_time_cg_cd_est
 
     # save  orderings
-    orderings_sage.to_csv(f'{savepath_true}/order_sage_{args.data}_{args.model}.csv')
     orderings_cg_cd.to_csv(f'{savepath_true}/order_cg_cd_{args.data}_{args.model}.csv')
     orderings_cg_cd_est.to_csv(f'{savepath_est}/order_cg_cd_{args.data}_{args.model}.csv')
 
     # save the SAGE/cg values for every ordering (Note: not split by runs anymore)
-    sage_values_ordering = ex_d_sage.scores.mean(level=0)
-    sage_values_ordering.to_csv(f"{savepath_true}/sage_o_{args.data}_{args.model}.csv")
-    cg_values = ex_d_cg.scores.mean(level=0)
-    cg_values.to_csv(f"{savepath_true}/cg_o_{args.data}_{args.model}.csv")
+
     cg_cd_values = ex_d_cg_cd.scores.mean(level=0)
     cg_cd_values.to_csv(f"{savepath_true}/cg_cd_o_{args.data}_{args.model}.csv")
-    cg_values_est = ex_d_cg_est.scores.mean(level=0)
-    cg_values_est.to_csv(f"{savepath_est}/cg_o_{args.data}_{args.model}.csv")
     cg_cd_values_est = ex_d_cg_cd_est.scores.mean(level=0)
     cg_cd_values_est.to_csv(f"{savepath_est}/cg_cd_o_{args.data}_{args.model}.csv")
 
     # fi_values for the runs
-    ex_d_sage.fi_vals().to_csv(f"{savepath_true}/sage_r_{args.data}_{args.model}.csv")
-    ex_d_cg.fi_vals().to_csv(f"{savepath_true}/cg_r_{args.data}_{args.model}.csv")
     ex_d_cg_cd.fi_vals().to_csv(f"{savepath_true}/cg_cd_r_{args.data}_{args.model}.csv")
-    ex_d_cg_est.fi_vals().to_csv(f"{savepath_est}/cg_r_{args.data}_{args.model}.csv")
     ex_d_cg_cd_est.fi_vals().to_csv(f"{savepath_est}/cg_cd_r_{args.data}_{args.model}.csv")
 
     # fi_mean values across runs + stds
-    ex_d_sage.fi_means_stds().to_csv(f"{savepath_true}/sage_{args.data}_{args.model}.csv")
-    ex_d_cg.fi_means_stds().to_csv(f"{savepath_true}/cg_{args.data}_{args.model}.csv")
     ex_d_cg_cd.fi_means_stds().to_csv(f"{savepath_true}/cg_cd_{args.data}_{args.model}.csv")
-    ex_d_cg_est.fi_means_stds().to_csv(f"{savepath_est}/cg_{args.data}_{args.model}.csv")
     ex_d_cg_cd_est.fi_means_stds().to_csv(f"{savepath_est}/cg_cd_{args.data}_{args.model}.csv")
 
+    time_sage = "n/a"
+    time_cg = "n/a"
+    time_cg_est = "n/a"
     content = [args.data, args.model, time_sage, time_cg, time_cg_cd, time_cg_est, time_cg_cd_est]
     # fill evaluation table with current run
     metadata.loc[len(metadata)] = content
     metadata.to_csv(f"{savepath_true}/metadata_{args.data}_{args.model}.csv", index=False)
-
 
 if __name__ == "__main__":
     main(arguments)
