@@ -213,7 +213,7 @@ def main(args):
     content = [args.data, args.model, time_sage, time_cg, time_cg_cd, time_cg_est, time_cg_cd_est]
     # fill evaluation table with current run
     metadata.loc[len(metadata)] = content
-    metadata.to_csv(f"{savepath_true}/metadata_{args.data}_{args.model}.csv", index=False)
+    metadata.to_csv(f"{savepath_true}/metadata2_{args.data}_{args.model}.csv", index=False)
 
 if __name__ == "__main__":
     main(arguments)
