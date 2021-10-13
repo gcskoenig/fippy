@@ -49,7 +49,7 @@ class CGExplainer(Explainer):
             raise TypeError('Adjacency matrix must be pandas.DataFrame.')
 
     def ai_via(self, J, C, K, X_eval, y_eval, nr_runs=10, **kwargs):
-        d_sep = nx.d_separated(self.g, set(J), set(y_eval.name), set(C))
+        d_sep = nx.d_separated(self.g, set(J), {y_eval.name}, set(C))
         if d_sep:
             desc = 'AR({} | {} -> {})'.format(J, C, K)
             nr_obs = X_eval.shape[0]
