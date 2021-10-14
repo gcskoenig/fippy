@@ -175,7 +175,8 @@ def main(args):
     ex_d_sage, orderings_sage = wrk.sage(X_test, y_test, partial_order, nr_orderings=args.orderings,
                                          nr_runs=args.runs, detect_convergence=True, thresh=args.thresh)
     time_sage = time.time() - start_time
-
+    orderings_sage[0:2].to_csv(f'{savepath_true}/{time_sage}_{args.data}_{args.model}.csv')
+    print("SAGE done, approx half run")
     # CGExplainer
     wrk_cg_true = CGExplainer(model_predict, fsoi, X_train, amat_true, loss=mean_squared_error,
                               sampler=sampler, decorrelator=decorrelator)
