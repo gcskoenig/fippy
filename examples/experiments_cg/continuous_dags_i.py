@@ -136,7 +136,7 @@ def main(args):
         )
     else:
         # fit model
-        model = RandomForestRegressor(n_estimators=100)
+        model = RandomForestRegressor(n_estimators=50)
         model.fit(X_train, y_train)
         # model evaluation
         y_pred = model.predict(X_test)
