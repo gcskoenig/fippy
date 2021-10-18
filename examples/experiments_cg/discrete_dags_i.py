@@ -19,8 +19,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import log_loss, accuracy_score
 from rfi.explainers.cgexplainer import CGExplainer
 from rfi.explainers.explainer import Explainer
-from rfi.samplers.gaussian import GaussianSampler
-from rfi.decorrelators.gaussian import NaiveGaussianDecorrelator
+from rfi.samplers.simple import SimpleSampler
+from rfi.decorrelators.naive import NaiveDecorrelator
 import pickle
 import time
 import argparse
@@ -164,8 +164,8 @@ def main(args):
         return log_loss(y_true, predi)
 
     # set up sampler and decorrelator (same for Explainer and CGExplainer)
-    sampler = GaussianSampler(X_train)
-    decorrelator = NaiveGaussianDecorrelator(X_train, sampler=sampler)
+    sampler = SimpleSampler(X_train)
+    decorrelator = NaiveDecorrelator(X_train, sampler=sampler)
     # features of interest
     fsoi = X_train.columns
     # SAGE explainer
