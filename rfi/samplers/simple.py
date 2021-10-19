@@ -52,7 +52,6 @@ class SimpleSampler(Sampler):
                             sample = sample.fillna(method='ffill')
                         except:
                             sample = sample.fillna(method='bfill')
-                        print(sample)
                         # sample = pd.merge(X_eval.reset_index().reset_index(), self.X_train[JuG], on=list(G), how='left').groupby(['level_0']).sample(1)
                         arrs.append(sample.to_numpy().reshape(1, -1, len(J)))
                     else:
