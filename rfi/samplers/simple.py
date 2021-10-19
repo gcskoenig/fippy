@@ -44,8 +44,15 @@ class SimpleSampler(Sampler):
                         X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(G))
                         X_eval = X_eval.reset_index().reset_index().set_index(list(G))
                         X_train = self.X_train[JuG].set_index(list(G))
+                        X_eval = X_eval.sort_index()
+                        X_train = X_train.sort_index()
                         sample = X_eval.join(X_train, on=list(G), how='left').groupby(['level_0']).sample(1)
                         sample = sample.reset_index().set_index('index')[Sampler._order_fset(J)]
+                        try:
+                            sample = sample.fillna(method='ffill')
+                        except:
+                            sample = sample.fillna(method='bfill')
+                        print(sample)
                         # sample = pd.merge(X_eval.reset_index().reset_index(), self.X_train[JuG], on=list(G), how='left').groupby(['level_0']).sample(1)
                         arrs.append(sample.to_numpy().reshape(1, -1, len(J)))
                     else:
