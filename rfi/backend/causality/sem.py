@@ -65,20 +65,20 @@ class StructuralEquationModel:
             support_bounds[1] = self.parents_conditional_support.upper_bound
         return support_bounds
 
-    def parents_conditional_sample(self, node: str, parents_context: Dict[str, Tensor] = None, sample_shape: tuple = (1, )) \
-            -> Tensor:
+    def parents_conditional_sample(self, node: str, parents_context: Dict[str, Tensor] = None,
+                                   sample_shape: tuple = (1, ), noise: Distribution = None) -> Tensor:
         ''' Allows to sample from the distribution of a node given it's parents.
 
         node: name of the node
         parents_context=None: dictionary of node names and tensors with observations
         sample_shape: default (1,)
         '''
-        cond_dist = self.parents_conditional_distribution(node, parents_context)
+        cond_dist = self.parents_conditional_distribution(node, parents_context, noise=noise)
         return cond_dist.sample(sample_shape=sample_shape)
 
-    def sample(self, size: int, seed: int = None) -> Tensor:
+    def sample(self, size: int, seed: int = None, noise: Distribution = None) -> Tensor:
         """
-        Returns a sample from SEM, columns are ordered as var self.dag.var_names in DAG
+        Returns a sample from SEM (observentional distribution), columns are ordered as var self.dag.var_names in DAG
         Args:
             seed: Random mc_seed
             size: Sample size
@@ -94,7 +94,8 @@ class StructuralEquationModel:
                 sample_shape = (1, )
             else:
                 sample_shape = (1, size)
-            self.model[node]['value'] = self.parents_conditional_sample(node, parent_values, sample_shape).reshape(-1)
+            self.model[node]['value'] = self.parents_conditional_sample(node, parent_values, sample_shape,
+                                                                        noise=noise).reshape(-1)
             assert (~self.model[node]['value'].isnan()).all()
         return torch.stack([self.model[node]['value'] for node in self.dag.var_names], dim=1)
 

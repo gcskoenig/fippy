@@ -46,6 +46,13 @@ class DirectedAcyclicGraph:
         spouses = tuple([par for child in children for par in tuple(self.DAG.predecessors(child)) if par != node_ind])
         return set([self.var_names[node] for node in spouses])
 
+    def get_nondescendants(self, node: str) -> set:
+        node_ind = search_  nonsorted(self.var_names, [node])[0]
+        descendants_ind = tuple(self.DAG.descendants(node_ind))
+        descendants = set([self.var_names[node] for node in descendants_ind])
+        nondescendants = [node for node in self.var_names if node not in descendants]
+        return nondescendants
+
     def plot_dag(self, ax=None):
         """
         Plots DAG with networkx tools
