@@ -47,9 +47,10 @@ class DirectedAcyclicGraph:
 
     def get_nondescendants(self, node: str) -> set:
         node_ind = search_nonsorted(self.var_names, [node])[0]
-        descendants_ind = tuple(self.DAG.descendants(node_ind))
-        descendants = set([self.var_names[node] for node in descendants_ind])
-        nondescendants = [node for node in self.var_names if node not in descendants]
+        descendants_ind = tuple(nx.descendants(self.DAG, node_ind))
+        descendants = set([self.var_names[ndi] for ndi in descendants_ind])
+        descendants.add(node)
+        nondescendants = set([nd for nd in self.var_names if nd not in descendants])
         return nondescendants
 
     def plot_dag(self, ax=None):
