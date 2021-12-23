@@ -1,8 +1,7 @@
 import numpy as np
 from typing import List
-import networkx as nx
 import matplotlib.pyplot as plt
-
+import networkx as nx
 
 from rfi.utils import search_nonsorted
 
@@ -47,7 +46,7 @@ class DirectedAcyclicGraph:
         return set([self.var_names[node] for node in spouses])
 
     def get_nondescendants(self, node: str) -> set:
-        node_ind = search_  nonsorted(self.var_names, [node])[0]
+        node_ind = search_nonsorted(self.var_names, [node])[0]
         descendants_ind = tuple(self.DAG.descendants(node_ind))
         descendants = set([self.var_names[node] for node in descendants_ind])
         nondescendants = [node for node in self.var_names if node not in descendants]
