@@ -184,7 +184,7 @@ class GaussianConditionalEstimator(ConditionalDistributionEstimator):
         mu_part2 = self.RegrCoeff @ context.T
         mu = (self.mu_part + mu_part2).flatten()
         return Normal(torch.tensor(mu).T,
-                      torch.tensor(self.Sigma.flatten()))
+                      torch.sqrt(torch.tensor(self.Sigma.flatten())))
 
     def conditional_distribution(self,
                                  context: np.array = None) -> Distribution:
