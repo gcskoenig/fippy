@@ -50,7 +50,7 @@ class StructuralCausalModel:
                 'children': tuple(children),  # children variable names
                 'values': None,  # values for the variable
                 'noise_values': None,  # values for the noise
-                'noise_distribution': None  # distribution for noise, may be torch.tensor if point-mass probability
+                'noise_distribution': None  # distribution for the noise, may be torch.tensor if point-mass probability
                 # 'noise_abducted': None  # deprecated functionality
             }
             self.topological_order.append(node)
@@ -119,6 +119,21 @@ class StructuralCausalModel:
             else:
                 raise NotImplementedError('The noise is neither a torch.distributions.Distribution nor torch.Tensor')
         return self.get_noise_values()
+
+    def do(self, intervention_dict):
+        """Intervention
+
+        :param intervention_dict: dictionary of interventions of the form 'variable-name' : value
+        :return: copy of the structural causal model with the performend interventions
+        """
+        scm_itv = self.copy()
+        logging.info('Intervening on nodes: {}'.format(intervention_dict.keys()))
+        for node in intervention_dict.keys():
+            scm_itv.model[node]['parents'] = tuple([])
+            scm_itv.model[node]['noise'] = torch.tensor(intervention_dict[node])
+            scm_itv.model[node]['noise_values'] = None
+            scm_itv.model[node]['values'] = None
+        return scm_itv
 
     def abduct_node(self, node, obs, scm_partially_abducted=None, **kwargs):
         """Abduction
