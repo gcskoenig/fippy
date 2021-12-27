@@ -55,6 +55,21 @@ class StructuralCausalModel:
             }
             self.topological_order.append(node)
 
+    def clear_values(self):
+        # remove all sampled values
+        for node in self.dag.var_names:
+            self.model[node]['noise_values'] = None
+            self.model[node]['values'] = None
+
+    def remove_parents(self, node):
+        """removes endogenous parents for node"""
+        # remove child from parents
+        for parent in self.model[node]['parents']:
+            children = set(self.model[parent]['children'])
+            self.model[parent]['children'] = children.difference_update({node})
+        # remove parents from node
+        self.model[node]['parents'] = ([])
+
     def copy(self):
         """
         Creates a deepcopy of the SCM.
@@ -128,11 +143,11 @@ class StructuralCausalModel:
         """
         scm_itv = self.copy()
         logging.info('Intervening on nodes: {}'.format(intervention_dict.keys()))
+        # update structural equations
         for node in intervention_dict.keys():
-            scm_itv.model[node]['parents'] = tuple([])
-            scm_itv.model[node]['noise'] = torch.tensor(intervention_dict[node])
-            scm_itv.model[node]['noise_values'] = None
-            scm_itv.model[node]['values'] = None
+            scm_itv.remove_parents(node)
+            scm_itv.model[node]['noise_distribution'] = torch.tensor(intervention_dict[node])
+        scm_itv.clear_values()
         return scm_itv
 
     def abduct_node(self, node, obs, scm_partially_abducted=None, **kwargs):
