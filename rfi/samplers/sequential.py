@@ -78,7 +78,7 @@ class SequentialSampler(Sampler):
 
                     # eval_context should now be a pandas dataframe?
 
-                    df_row = self.sample(X_eval_sub, jj, G_jj, num_samples=num_samples_it)
+                    df_row = self.sample(X_eval_sub, [jj], G_jj, num_samples=num_samples_it)
 
                     # append to existing columns
 
