@@ -20,7 +20,8 @@ class SequentialSampler(Sampler):
         """Initialize Sampler with X_train (and mask)."""
         super().__init__(X_train, **kwargs)
         self.adj_mat = adj_mat
-        self.g = nx.DiGraph(adj_mat)
+        assert type(adj_mat) == pd.core.frame.DataFrame
+        self.g = nx.from_pandas_adjacency(adj_mat, using=nx.DiGraph)
         self.categorical_fs = categorical_fs
 
     def train(self, J, G, verbose=True):

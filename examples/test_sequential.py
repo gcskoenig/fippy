@@ -17,8 +17,13 @@ y = df[['cat1']]
 # model.fit(X, y)
 
 adj_matrix = np.zeros((5, 5))
+adj_matrix = pd.DataFrame(adj_matrix, columns=X.columns, index=X.columns)
 
 sampler = SequentialSampler(X, adj_matrix, ['cat2', 'cat3'])
 
 sampler.train(['cat2', 'cont2'], ['cont3', 'cat3'])
 sampler.sample(X, ['cat2', 'cont2'], ['cont3', 'cat3'])
+
+import networkx as nx
+
+g = nx.from_pandas_adjacency(adj_matrix, create_using=nx.DiGraph)
