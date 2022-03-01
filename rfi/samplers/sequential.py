@@ -65,11 +65,12 @@ class SequentialSampler(Sampler):
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 X_eval_sub = pd.DataFrame(eval_context, columns=Sampler._order_fset(G))
 
-                for ii in range(len(J_ord)):
+                # TODO go the other way around
+                for ii in range(len(J_ord) - 1, -1, -1):
                     # only for the first variable that is sampled apply num_samples
                     # for all others only one sample per row
                     num_samples_it = 1
-                    if ii == 0:
+                    if ii == len(J_ord) - 1:
                         num_samples_it = num_samples
 
                     jj = J_ord[ii]
