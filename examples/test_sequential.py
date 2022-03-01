@@ -13,9 +13,12 @@ df = pd.DataFrame(data, columns=['cat1', 'cat2', 'cat3', 'cont1', 'cont2', 'cont
 X = df[['cat2', 'cat3', 'cont1', 'cont2', 'cont3']]
 y = df[['cat1']]
 
-model = RandomForestClassifier()
-model.fit(X, y)
+# model = RandomForestClassifier()
+# model.fit(X, y)
 
 adj_matrix = np.zeros((5, 5))
 
 sampler = SequentialSampler(X, adj_matrix, ['cat2', 'cat3'])
+
+sampler.train(['cat2', 'cont2'], ['cont3', 'cat3'])
+sampler.sample(X, ['cat2', 'cont2'], ['cont3', 'cat3'])
