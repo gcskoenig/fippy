@@ -64,6 +64,7 @@ class SequentialSampler(Sampler):
 
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 X_eval_sub = pd.DataFrame(eval_context, columns=Sampler._order_fset(G))
+                X_eval_sub.index = X_eval_sub.index.rename('i')
 
                 # TODO go the other way around
                 for ii in range(len(J_ord) - 1, -1, -1):
@@ -82,6 +83,7 @@ class SequentialSampler(Sampler):
                     df_row = self.sample(X_eval_sub, [jj], G_jj, num_samples=num_samples_it)
 
                     # append to existing columns
+                    # TODO
 
 
                 # sort the columns accordingly
