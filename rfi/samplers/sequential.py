@@ -55,12 +55,12 @@ class SequentialSampler(Sampler):
 
                 # TODO: check whether this solution is too hacky? can we use the samplefunc in any other class?
                 if jj in self.categorical_fs:
-                    cat_sampler.train(jj, G_jj, verbose=verbose)
-                    self._store_samplefunc(jj, G_jj, cat_sampler._get_samplefunc(jj, G_jj))
+                    cat_sampler.train([jj], G_jj, verbose=verbose)
+                    self._store_samplefunc([jj], G_jj, cat_sampler._get_samplefunc([jj], G_jj))
                 else:
                     # TODO fit other sampler
-                    cont_sampler.train(jj, G_jj, verbose=verbose)
-                    self._store_samplefunc(jj, G_jj, cont_sampler._get_samplefunc(jj, G_jj))
+                    cont_sampler.train([jj], G_jj, verbose=verbose)
+                    self._store_samplefunc([jj], G_jj, cont_sampler._get_samplefunc([jj], G_jj))
 
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 X_eval_sub = pd.DataFrame(eval_context, columns=Sampler._order_fset(G))
@@ -90,6 +90,7 @@ class SequentialSampler(Sampler):
                 # return
 
             self._store_samplefunc(J, G, samplefunc, verbose=verbose)
+            return samplefunc
 
             # def samplefunc(eval_context, num_samples=1, **kwargs):
             #     arrs = []
