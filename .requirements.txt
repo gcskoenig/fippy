@@ -1,5 +1,4 @@
 enlighten==1.10.1
-hydra==2.5
 lightgbm==3.2.1
 matplotlib==3.4.2
 mlflow==1.18.0
