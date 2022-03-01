@@ -10,6 +10,12 @@ cont_data = np.random.randn(3*N).reshape(N, 3)
 data = np.concatenate((cat_data, cont_data), axis=1)
 
 df = pd.DataFrame(data, columns=['cat1', 'cat2', 'cat3', 'cont1', 'cont2', 'cont3'])
+X = df[['cat2', 'cat3', 'cont1', 'cont2', 'cont3']]
+y = df[['cat1']]
 
+model = RandomForestClassifier()
+model.fit(X, y)
 
+adj_matrix = np.zeros((5, 5))
 
+sampler = SequentialSampler(X, adj_matrix, ['cat2', 'cat3'])

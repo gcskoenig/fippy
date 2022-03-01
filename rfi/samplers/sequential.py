@@ -20,7 +20,6 @@ class SequentialSampler(Sampler):
         """Initialize Sampler with X_train (and mask)."""
         super().__init__(X_train, **kwargs)
         self.adj_mat = adj_mat
-        self._check_valid_graph(self.adj_mat)
         self.g = nx.DiGraph(adj_mat)
         self.categorical_fs = categorical_fs
 
