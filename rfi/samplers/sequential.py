@@ -21,7 +21,7 @@ class SequentialSampler(Sampler):
         super().__init__(X_train, **kwargs)
         self.adj_mat = adj_mat
         assert type(adj_mat) == pd.core.frame.DataFrame
-        self.g = nx.from_pandas_adjacency(adj_mat, using=nx.DiGraph)
+        self.g = nx.from_pandas_adjacency(adj_mat, create_using=nx.DiGraph)
         self.categorical_fs = categorical_fs
 
     def train(self, J, G, verbose=True):
