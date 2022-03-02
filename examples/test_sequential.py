@@ -17,7 +17,7 @@ y = df[['cat1']]
 # model.fit(X, y)
 
 # adj_matrix = np.zeros((5, 5))
-adj_matrix = np.diag(np.ones((5)), 1)
+adj_matrix = np.diag(np.ones((4)), 1)
 adj_matrix = pd.DataFrame(adj_matrix, columns=X.columns, index=X.columns)
 
 sampler = SequentialSampler(X, adj_matrix, ['cat2', 'cat3'])
