@@ -68,15 +68,15 @@ class SequentialSampler(Sampler):
                 X_eval_sub = pd.DataFrame(eval_context, columns=Sampler._order_fset(G))
                 X_eval_sub.index = X_eval_sub.index.rename('i')
 
-                ixss = pd.MultiIndex.from_product([X_eval_sub.index, list(range(num_samples))], names=['i', 'sample'])
-                X_eval_sub_ixd = pd.DataFrame([], columns=X_eval_sub.columns, index=ixss)
+                X_res_dfs = []
 
                 for ii in range(num_samples):
                     X_eval_sub_ii = X_eval_sub.reset_index()
                     X_eval_sub_ii['sample'] = ii
                     X_eval_sub_ii = X_eval_sub_ii.set_index(['i', 'sample'])
-                    X_eval_sub_ixd.loc[idx[ii, :], idx[:]] = X_eval_sub_ii
+                    X_res_dfs.append(X_eval_sub_ii)
 
+                X_res = pd.concat(X_res_dfs)
                 # TODO go the other way around
                 for ii in range(len(J_ord) - 1, -1, -1):
                     # only for the first variable that is sampled apply num_samples
