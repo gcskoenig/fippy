@@ -9,6 +9,8 @@ from rfi.samplers.simple import SimpleSampler
 from rfi.samplers.gaussian import GaussianSampler
 import networkx as nx
 
+idx = pd.IndexSlice
+
 class SequentialSampler(Sampler):
     """
     Simple sampling from observed data
@@ -70,8 +72,11 @@ class SequentialSampler(Sampler):
                 X_eval_sub_ixd = pd.DataFrame([], columns=X_eval_sub.columns, index=ixss)
 
                 for ii in range(num_samples):
-                    X_eval_sub.loc[tuple(ii, None), :] = X_eval_sub
-
+                    X_eval_sub_ii = X_eval_sub.reset_index()
+                    X_eval_sub_ii['sample'] = ii
+                    X_eval_sub_ii = X_eval_sub_ii.set_index(['i', 'sample'])
+                    X_eval_sub.loc[idx[ii, :], idx[:]] = X_eval_sub_ii
+d
                 # TODO go the other way around
                 for ii in range(len(J_ord) - 1, -1, -1):
                     # only for the first variable that is sampled apply num_samples
