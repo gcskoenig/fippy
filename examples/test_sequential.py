@@ -22,7 +22,7 @@ adj_matrix = pd.DataFrame(adj_matrix, columns=X.columns, index=X.columns)
 sampler = SequentialSampler(X, adj_matrix, ['cat2', 'cat3'])
 
 sampler.train(['cat2', 'cont2'], ['cont3', 'cat3'])
-sampler.sample(X, ['cat2', 'cont2'], ['cont3', 'cat3'])
+sampler.sample(X, ['cat2', 'cont2'], ['cont3', 'cat3'], num_samples=5)
 
 import networkx as nx
 
