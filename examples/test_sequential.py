@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
-N = 10**5
+N = 10**3
 
 cat_data = np.random.randint(0, 5, 3*N).reshape(N, 3)
 cont_data = np.random.randn(3*N).reshape(N, 3)
@@ -22,7 +22,7 @@ adj_matrix = pd.DataFrame(adj_matrix, columns=X.columns, index=X.columns)
 sampler = SequentialSampler(X, adj_matrix, ['cat2', 'cat3'])
 
 sampler.train(['cat2', 'cont2'], ['cont3', 'cat3'])
-sampler.sample(X, ['cat2', 'cont2'], ['cont3', 'cat3'], num_samples=5)
+sample = sampler.sample(X, ['cat2', 'cont2'], ['cont3', 'cat3'], num_samples=5)
 
 import networkx as nx
 
