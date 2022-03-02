@@ -24,7 +24,3 @@ sampler = SequentialSampler(X, adj_matrix, ['cat2', 'cat3'])
 
 sampler.train(['cat2', 'cont2'], ['cont3', 'cat3'])
 sample = sampler.sample(X, ['cat2', 'cont2'], ['cont3', 'cat3'], num_samples=5)
-
-import networkx as nx
-
-g = nx.from_pandas_adjacency(adj_matrix, create_using=nx.DiGraph)

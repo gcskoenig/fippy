@@ -18,13 +18,20 @@ class SequentialSampler(Sampler):
         see rfi.samplers.Sampler
     """
 
-    def __init__(self, X_train, adj_mat, categorical_fs, **kwargs):
+    def __init__(self, X_train, adj_mat, categorical_fs, cat_sampler=None, cont_sampler=None, **kwargs):
         """Initialize Sampler with X_train (and mask)."""
         super().__init__(X_train, **kwargs)
         self.adj_mat = adj_mat
         assert type(adj_mat) == pd.core.frame.DataFrame
         self.g = nx.from_pandas_adjacency(adj_mat, create_using=nx.DiGraph)
         self.categorical_fs = categorical_fs
+        self.cat_sampler = cat_sampler
+        self.cont_sampler = cont_sampler
+        if cat_sampler is None:
+            self.cat_sampler = SimpleSampler(X_train)
+        if cont_sampler is None:
+            self.cont_sampler = GaussianSampler(X_train)
+
 
     def train(self, J, G, verbose=True):
         """
@@ -34,9 +41,6 @@ class SequentialSampler(Sampler):
             G: arbitrary set of variables (conditioning set)
             verbose: printing
         """
-
-        cat_sampler = SimpleSampler(self.X_train)
-        cont_sampler = GaussianSampler(self.X_train)
 
         J = Sampler._to_array(list(J))
         G = Sampler._to_array(list(G))
@@ -57,12 +61,12 @@ class SequentialSampler(Sampler):
 
                 # TODO: check whether this solution is too hacky? can we use the samplefunc in any other class?
                 if jj in self.categorical_fs:
-                    cat_sampler.train([jj], G_jj, verbose=verbose)
-                    self._store_samplefunc([jj], G_jj, cat_sampler._get_samplefunc([jj], G_jj))
+                    self.cat_sampler.train([jj], G_jj, verbose=verbose)
+                    self._store_samplefunc([jj], G_jj, self.cat_sampler._get_samplefunc([jj], G_jj))
                 else:
                     # TODO fit other sampler
-                    cont_sampler.train([jj], G_jj, verbose=verbose)
-                    self._store_samplefunc([jj], G_jj, cont_sampler._get_samplefunc([jj], G_jj))
+                    self.cont_sampler.train([jj], G_jj, verbose=verbose)
+                    self._store_samplefunc([jj], G_jj, self.cont_sampler._get_samplefunc([jj], G_jj))
 
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 X_eval_sub = pd.DataFrame(eval_context, columns=Sampler._order_fset(G))
