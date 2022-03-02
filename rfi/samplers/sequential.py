@@ -79,30 +79,20 @@ class SequentialSampler(Sampler):
                 X_res = pd.concat(X_res_dfs)
                 # TODO go the other way around
                 for ii in range(len(J_ord) - 1, -1, -1):
-                    # only for the first variable that is sampled apply num_samples
-                    # for all others only one sample per row
-                    num_samples_it = 1
-                    if ii == len(J_ord) - 1:
-                        num_samples_it = num_samples
-
                     jj = J_ord[ii]
                     G_cond_jj = J_ord[ii + 1:]
                     G_jj = list(set(G_cond_jj).union(G))
 
-                    # eval_context should now be a pandas dataframe?
-
-                    df_row = self.sample(X_eval_sub, [jj], G_jj, num_samples=num_samples_it)
-                    X_eval_sub_ixd = X_eval_sub.merge(df_row, left_index=True, right_index=True)
-
-                    # append to existing columns
-                    # TODO
+                    # num_samples was already incorporated earlier
+                    df_row = self.sample(X_res, [jj], G_jj, num_samples=1)
+                    X_res = X_res.merge(df_row, left_index=True, right_index=True)
 
 
-                # sort the columns accordingly
-
-                # convert the whole thing to a numpy array
+                # sort the columns accordingly and convert to numpy
+                X_res_J = X_res[Sampler._order_fset(J)]
+                X_res_np = X_res_J.to_numpy()
 
                 # return
+                return X_res_np
 
             self._store_samplefunc(J, G, samplefunc, verbose=verbose)
-            return samplefunc
