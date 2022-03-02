@@ -85,12 +85,12 @@ class SequentialSampler(Sampler):
 
                     # num_samples was already incorporated earlier
                     df_row = self.sample(X_res, [jj], G_jj, num_samples=1)
-                    X_res = X_res.merge(df_row, left_index=True, right_index=True)
+                    X_res[df_row.columns] = np.array(df_row)
 
 
                 # sort the columns accordingly and convert to numpy
-                X_res_J = X_res[Sampler._order_fset(J)]
-                X_res_np = X_res_J.to_numpy()
+                X_res = X_res[Sampler._order_fset(J)]
+                X_res_np = X_res.to_numpy()
 
                 # return
                 return X_res_np
