@@ -75,8 +75,8 @@ class SequentialSampler(Sampler):
                     X_eval_sub_ii = X_eval_sub.reset_index()
                     X_eval_sub_ii['sample'] = ii
                     X_eval_sub_ii = X_eval_sub_ii.set_index(['i', 'sample'])
-                    X_eval_sub.loc[idx[ii, :], idx[:]] = X_eval_sub_ii
-d
+                    X_eval_sub_ixd.loc[idx[ii, :], idx[:]] = X_eval_sub_ii
+
                 # TODO go the other way around
                 for ii in range(len(J_ord) - 1, -1, -1):
                     # only for the first variable that is sampled apply num_samples
@@ -106,24 +106,3 @@ d
 
             self._store_samplefunc(J, G, samplefunc, verbose=verbose)
             return samplefunc
-
-            # def samplefunc(eval_context, num_samples=1, **kwargs):
-            #     arrs = []
-            #     for snr in range(num_samples):
-            #         if len(G) > 0:
-            #             X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(G))
-            #             X_eval = X_eval.reset_index().reset_index().set_index(list(G))
-            #             X_train = self.X_train[JuG].set_index(list(G))
-            #             sample = X_eval.join(X_train, on=list(G), how='left').groupby(['level_0']).sample(1)
-            #             sample = sample.reset_index().set_index('index')[Sampler._order_fset(J)]
-            #             # sample = pd.merge(X_eval.reset_index().reset_index(), self.X_train[JuG], on=list(G), how='left').groupby(['level_0']).sample(1)
-            #             arrs.append(sample.to_numpy().reshape(1, -1, len(J)))
-            #         else:
-            #             sample = self.X_train[Sampler._order_fset(J)].sample(eval_context.shape[0])
-            #             arrs.append(sample.to_numpy().reshape(1, -1, len(J)))
-            #     res = np.concatenate(arrs, axis=0)
-            #     res = np.swapaxes(res, 0, 1)
-            #     return res
-
-            # TODO add alternative sampling function based on
-
