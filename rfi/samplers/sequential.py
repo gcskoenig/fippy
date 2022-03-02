@@ -91,8 +91,9 @@ class SequentialSampler(Sampler):
                 # sort the columns accordingly and convert to numpy
                 X_res = X_res[Sampler._order_fset(J)]
                 X_res_np = X_res.to_numpy()
-
+                X_res_np_rs = X_res_np.reshape(-1).reshape(num_samples, eval_context.shape[0], eval_context.shape[1])
+                X_res_np_rs = X_res_np_rs.swapaxes(0, 1)
                 # return
-                return X_res_np
+                return X_res_np_rs
 
             self._store_samplefunc(J, G, samplefunc, verbose=verbose)
