@@ -39,7 +39,7 @@ class UnivRFSampler(Sampler):
 
             # TODO train model to predict j from G
             model = RandomForestClassifier() # TODO set loss to be cross-entropy
-            model.fit(self.X_train[J], self.X_train[Sampler._order_fset(G)])
+            model.fit(self.X_train[Sampler._order_fset(G)], self.X_train[J])
 
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 arrs = []
