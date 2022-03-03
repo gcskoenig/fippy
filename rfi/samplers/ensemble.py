@@ -50,12 +50,10 @@ class UnivRFSampler(Sampler):
                     # TODO: use the model to sample the target variable
                     pred_proba = torch.tensor(model.predict_proba(eval_context))
                     sample = torch.multinomial(pred_proba, 1).numpy().flatten()
-
+                    sample = model.classes_[sample]
                     arrs.append(sample.reshape(1, -1, len(J)))
                 res = np.concatenate(arrs, axis=0)
                 res = np.swapaxes(res, 0, 1)
                 return res
-
-            # TODO add alternative sampling function based on
 
             self._store_samplefunc(J, G, samplefunc, verbose=verbose)
