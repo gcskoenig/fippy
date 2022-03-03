@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from rfi.samplers.sampler import Sampler
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import RandomizedSearchCV
 import torch
 
 class UnivRFSampler(Sampler):
@@ -38,9 +39,22 @@ class UnivRFSampler(Sampler):
             # TODO assert that variables are categorical
             # TODO raise error if that is not the case
 
-            # TODO train model to predict j from G
-            model = RandomForestClassifier() # TODO set loss to be cross-entropy
-            model.fit(self.X_train[Sampler._order_fset(G)], self.X_train[J])
+            param_grid = {
+                'bootstrap': [True],
+                'criterion': ['entropy'],
+                'max_depth': [80, 90, 100, 110],
+                'max_features': [2, 3, 5],
+                'min_samples_leaf': [5, 10, 50, 100],
+                'min_samples_split': [5, 10, 50, 100],
+                'n_estimators': [100, 200, 300, 1000]
+            }
+
+            rf = RandomForestClassifier()  # Instantiate the grid search model
+            rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
+                                           n_iter=100, verbose=0,
+                                           n_jobs=-1, scoring='neg_log_loss')  # Fit the random search model
+            rf_random.fit(self.X_train[Sampler._order_fset(G)], self.X_train[J])
+            model = rf_random.best_estimator_
 
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 arrs = []
