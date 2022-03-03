@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from rfi.samplers.sampler import Sampler
 from sklearn.ensemble import RandomForestClassifier
+import torch
 
 class UnivRFSampler(Sampler):
     """
@@ -47,9 +48,8 @@ class UnivRFSampler(Sampler):
                     X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(G))
 
                     # TODO: use the model to sample the target variable
-                    pred_proba = model.predit_proba(eval_context)
-
-                    # TODO: sample from predict_proba
+                    pred_proba = torch.tensor(model.predict_proba(eval_context))
+                    sample = torch.multinomial(pred_proba, 1).numpy().flatten()
 
                     arrs.append(sample.to_numpy().reshape(1, -1, len(J)))
                 res = np.concatenate(arrs, axis=0)
