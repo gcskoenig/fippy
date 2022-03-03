@@ -1,7 +1,8 @@
-from rfi.samplers.sequential import SequentialSampler
+from rfi.samplers import SequentialSampler, GaussianSampler, UnivRFSampler
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+
 
 N = 10**3
 
@@ -20,7 +21,10 @@ y = df[['cat1']]
 adj_matrix = np.diag(np.ones((4)), 1)
 adj_matrix = pd.DataFrame(adj_matrix, columns=X.columns, index=X.columns)
 
-sampler = SequentialSampler(X, adj_matrix, ['cat2', 'cat3'])
+cont_sampler = GaussianSampler(X)
+cat_sampler = UnivRFSampler(X)
+
+sampler = SequentialSampler(X, adj_matrix, ['cat2', 'cat3'], cont_sampler=cont_sampler, cat_sampler=cat_sampler)
 
 sampler.train(['cat2', 'cont2'], ['cont3', 'cat3'])
 sample = sampler.sample(X, ['cat2', 'cont2'], ['cont3', 'cat3'], num_samples=5)
