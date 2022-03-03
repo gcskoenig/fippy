@@ -53,7 +53,7 @@ class UnivRFSampler(Sampler):
             rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
                                            n_iter=100, verbose=0,
                                            n_jobs=-1, scoring='neg_log_loss')  # Fit the random search model
-            rf_random.fit(self.X_train[Sampler._order_fset(G)], self.X_train[J])
+            rf_random.fit(self.X_train[Sampler._order_fset(G)], self.X_train[J[0]])
             model = rf_random.best_estimator_
 
             def samplefunc(eval_context, num_samples=1, **kwargs):

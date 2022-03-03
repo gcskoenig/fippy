@@ -30,5 +30,3 @@ sampler.train(['cat2', 'cont2'], ['cont3', 'cat3'])
 sample = sampler.sample(X, ['cat2', 'cont2'], ['cont3', 'cat3'], num_samples=5)
 
 print(sample)
-
-from sklearn.ensemble import RandomForestClassifier
