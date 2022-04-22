@@ -25,11 +25,11 @@ def detect_conv(scores, ii, threshold, extra_orderings=0):  # TODO (cl) make cla
         # diffs2_sum = diffs2.sum()
         # diffs_sum = diffs.sum()
         # variance = (diffs2_sum - ((diffs_sum * diffs_sum) / ii)) / (ii - 1)
-        # ratio = ((variance ** 0.5) / np.sqrt(ii)) / (scores.max() - scores.min())   # TODO (cl) correct denominator?
+        # ratio = ((variance ** 0.5) / np.sqrt(ii)) / (scores.max() - scores.min())
         # max_ratio = ratio.max()
 
         variance = np.var(scores)*(ii/(ii-1))
-        ratio = ((variance ** 0.5) / np.sqrt(ii)) / (scores.max() - scores.min())   # TODO (cl) correct denominator?
+        ratio = ((variance ** 0.5) / np.sqrt(ii)) / (scores.max() - scores.min())
         max_ratio = ratio.max()
 
         if max_ratio < threshold:
