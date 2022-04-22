@@ -1,52 +1,45 @@
+import numpy as np
 
 
-def detect_conv(scores, ii, threshold):
-    """Detect convergence for SAGE values for each run separately (cf nr_runs argument)
-    when 'largest sd is sufficiently low proportion of range of estimated values' (Covert
-    et al., 2020; p.6)
-    Variance estimated using Welford's algorithm with K = current mean
-    (https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance).
-    Convergence has to be detected for each run and each feature for the algorithm to break
+def detect_conv(scores, ii, threshold, extra_orderings=0):  # TODO (cl) make class?
+    """Detect convergence for SAGE values up to the current ordering (avg over all runs)
+        when 'largest sd is sufficiently low proportion of range of estimated values' (Covert
+        et al., 2020; p.6)
 
     Args:
         scores: Dataframe of scores as in explainer l. 725
-        ii: current ordering in SAGE estimation    # TODO (cl) detect ii within function?!
+        ii: current ordering in SAGE estimation
         threshold: Threshold for convergence detection
+        extra_orderings: orderings after convergence has been detected, default: 0
         """
-    nr_runs = len(scores.groupby(level=1))
-    if ii == 0:
-        # the first ordering leads to a single SAGE value, which is not sufficient to detect convergence
+    if ii == 0 or ii == 1:
+        # the first two orderings are not sufficient to detect convergence
         return False
     else:
-        """Detect convergence up to the current ordering for each run"""
-        # initiate vector of booleans for convergence detection of each run
-        converged_runs = []
-        for i in range(nr_runs):
-            # retrieve scores for run i (averages for each ordering)
-            current_scores = scores.loc[(slice(0, ii), slice(i), slice(None))].mean(level=0)
-            # mean of all current scores of the current run across all orderings
-            # mean = current_scores.mean()
-            # difference between the current scores and their averages
-            diffs = current_scores - current_scores.mean()
-            # squared differences
-            diffs2 = diffs*diffs
-            # sum of squared diffs
-            diffs2_sum = diffs2.sum()
-            # sum of diffs
-            diffs_sum = diffs.sum()
-            # diffs_sum2 = (diffs_sum * diffs_sum)
-            # diffs_sum2_n = (diffs_sum2/ii)
-            variance = (diffs2_sum - ((diffs_sum * diffs_sum)/ii)) / (ii - 1)
-            # ratio
-            ratio = (variance ** 0.5) / (current_scores.max() - current_scores.min())
-            # max ratio (since convergence has to be detected for every feature)
-            max_ratio = ratio.max()
-            if max_ratio < threshold:
-                converged_runs.append(True)
+        # input scores are nr_runs runs per ordering, mean makes it one value per ordering
+        scores = scores.loc[(slice(0, ii), slice(None), slice(None))].groupby('ordering').mean()
+
+        # TODO (cl) Use Welford's algorithm when making class and continuously update
+        # diffs = scores - scores.mean()
+        # diffs2 = diffs * diffs
+        # diffs2_sum = diffs2.sum()
+        # diffs_sum = diffs.sum()
+        # variance = (diffs2_sum - ((diffs_sum * diffs_sum) / ii)) / (ii - 1)
+        # ratio = ((variance ** 0.5) / np.sqrt(ii)) / (scores.max() - scores.min())   # TODO (cl) correct denominator?
+        # max_ratio = ratio.max()
+
+        variance = np.var(scores)*(ii/(ii-1))
+        ratio = ((variance ** 0.5) / np.sqrt(ii)) / (scores.max() - scores.min())   # TODO (cl) correct denominator?
+        max_ratio = ratio.max()
+
+        if max_ratio < threshold:
+            if extra_orderings == 0:
+                # stop when convergence detected
+                return True
             else:
-                converged_runs.append(False)
-        if sum(converged_runs) == len(converged_runs):
-            # convergence across all runs has been detected
-            return True
+                # extra runs to verify flat curve after convergence has been detected
+                extra_orderings -= 1
+                return int(extra_orderings)
         else:
+            # convergence not yet detected
             return False
