@@ -3,13 +3,11 @@ torch==1.9.0
 tqdm==4.61.1
 pyro_ppl==1.6.0
 ray==1.4.0
-rfi_gcsk.egg==info
 pandas==1.2.5
 networkx==2.5.1
 dataclasses==0.8
 enlighten==1.10.1
 matplotlib==3.4.2
-mlflow==1.18.0
 nflows==0.14
 omegaconf==2.1.0
 pingouin==0.3.12
