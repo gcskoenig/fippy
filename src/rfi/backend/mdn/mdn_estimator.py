@@ -1,18 +1,19 @@
-from typing import Union
 import numpy as np
-import logging
-from torch import Tensor
+from typing import Union
+from copy import deepcopy
+from ray import tune
+from pyro.contrib.randomvariable import RandomVariable
+
 import torch
+from torch import Tensor
+from torch.distributions import Normal, OneHotCategorical, MixtureSameFamily, Independent
 import torch.nn as nn
 import torch.utils.data as data_utils
-from copy import deepcopy
-from torch.distributions import Normal, OneHotCategorical, MixtureSameFamily, Independent
-from ray import tune
 import torch.nn.init as init
-from pyro.contrib.randomvariable import RandomVariable
 
 from rfi.backend import ConditionalDistributionEstimator
 
+import logging
 logger = logging.getLogger(__name__)
 
 

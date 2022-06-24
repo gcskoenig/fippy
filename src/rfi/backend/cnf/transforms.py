@@ -1,13 +1,12 @@
 """
 Conditional re-implementation of basic flow transformations from nflows package (https://github.com/bayesiains/nflows)
 """
-
-from torch import nn
 import torch
 import torch.nn.init as init
 from typing import Optional, Tuple, List
 from torch import Tensor
-from nflows.transforms import Transform, CompositeTransform, PointwiseAffineTransform, InverseTransform
+
+from nflows.transforms import Transform, CompositeTransform, InverseTransform
 
 
 class ContextualInvertableRadialTransform(Transform):

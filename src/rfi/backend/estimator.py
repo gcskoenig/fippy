@@ -4,12 +4,12 @@ from torch import Tensor
 from torch import nn
 from typing import Union
 from sklearn.model_selection import KFold
-import logging
-from ray import tune
 import ray
+from ray import tune
 from sklearn.preprocessing import OneHotEncoder
 
 
+import logging
 logger = logging.getLogger(__name__)
 
 

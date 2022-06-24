@@ -1,19 +1,18 @@
 """
 Conditional density estimation with normalizing flows. Using affine and invertable radial transformations.
 """
+import torch
+from torch import Tensor
+import torch.utils.data as data_utils
+import numpy as np
+from copy import deepcopy
+from typing import Type, Union, Tuple
+from ray import tune
+from sklearn.preprocessing import OneHotEncoder
 
 from nflows.flows.base import Flow, Distribution
 from nflows.distributions import StandardNormal
-from torch import Tensor
-import numpy as np
 from nflows.transforms import CompositeTransform, PointwiseAffineTransform
-from typing import Type, Union, Tuple
-import torch
-import torch.utils.data as data_utils
-from copy import deepcopy
-from sklearn.preprocessing import OneHotEncoder
-import logging
-from ray import tune
 
 from rfi.backend import ConditionalDistributionEstimator
 from rfi.backend.cnf.context_embedding import ContextEmbedding
@@ -21,6 +20,7 @@ from rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, Cont
     ContextualCompositeTransform
 
 
+import logging
 logger = logging.getLogger(__name__)
 
 

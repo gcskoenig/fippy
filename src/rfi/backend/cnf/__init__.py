@@ -1,1 +1,1 @@
-
+from cnf_estimator import NormalisingFlowEstimator

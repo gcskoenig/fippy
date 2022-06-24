@@ -1,8 +1,7 @@
 import numpy as np
-from typing import List
 import networkx as nx
 import matplotlib.pyplot as plt
-
+from typing import List
 
 from rfi.utils import search_nonsorted
 

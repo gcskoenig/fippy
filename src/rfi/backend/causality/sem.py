@@ -1,22 +1,23 @@
-import networkx as nx
-from typing import Dict, Tuple, Union
-import collections
 import numpy as np
 import torch
+import collections
+import networkx as nx
+from tqdm import tqdm
+
+from torch import Tensor
 from torch.distributions import Distribution, Normal, constraints
+from typing import Dict, Tuple, Union
 from scipy.integrate import quad_vec
 from scipy.interpolate import LinearNDInterpolator, interp1d
-from torch import Tensor
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from pyro.contrib.randomvariable import RandomVariable
+
+from rfi.backend.causality.dags import DirectedAcyclicGraph
+from rfi.backend.gaussian import GaussianConditionalEstimator
+from rfi.utils import search_nonsorted
+
 import logging
-from tqdm import tqdm
-
-from src.rfi.backend.causality.dags import DirectedAcyclicGraph
-from src.rfi.backend.gaussian import GaussianConditionalEstimator
-from src.rfi.utils import search_nonsorted
-
 logger = logging.getLogger(__name__)
 
 

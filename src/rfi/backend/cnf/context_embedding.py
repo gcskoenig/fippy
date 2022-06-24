@@ -1,8 +1,9 @@
+import torch
 from torch.nn import Module
 import torch.nn as nn
-import torch
 from torch.nn.utils import weight_norm
 from torch import Tensor
+
 from rfi.backend.cnf.transforms import ContextualCompositeTransform
 
 

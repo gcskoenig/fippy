@@ -1,4 +1,4 @@
-
+#  Explainer utilities
 
 def detect_conv(scores, ii, threshold):
     """Detect convergence for SAGE values for each run separately (cf nr_runs argument)

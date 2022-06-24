@@ -1,15 +1,14 @@
-from torch import Tensor
 import numpy as np
+import torch
+from torch import Tensor
 
 from typing import Union
-import torch
-import logging
 from ray import tune
 
 from rfi.backend import ConditionalDistributionEstimator
 from rfi.backend.mdn.mdn_estimator import CategoricalNetwork
 
-
+import logging
 logger = logging.getLogger(__name__)
 
 

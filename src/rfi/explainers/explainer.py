@@ -389,8 +389,7 @@ class Explainer:
                 X_R_decorr = decorrelator.decorrelate(X_tilde_foreground, R, J, C)
                 arr_decorr = X_R_decorr[R].to_numpy()
 
-                # TODO make use of features K to selectively update
-                #  background to foreground (only features K ar updated)
+                # make use of features K to selectively update background to foreground (only features K ar updated)
                 X_tilde_baseline[R] = arr_decorr
                 X_tilde_foreground_partial = X_tilde_baseline.copy()
                 X_tilde_foreground_partial[K] = X_tilde_foreground[K].to_numpy()
