@@ -4,15 +4,14 @@ Using the data to practice conditional normalising flow sampler
 """
 
 import numpy as np
-from sklearn.svm import SVR
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 
-from rfi.examples.chains import confounding2, chain2
-from rfi.samplers.cnflow import CNFSampler
-from rfi.samplers.gaussian import GaussianSampler
-import rfi.explainers.explainer as explainer
+from src.rfi.examples.chains import chain2
+from src.rfi import CNFSampler
+from src.rfi.samplers.gaussian import GaussianSampler
+import src.rfi.explainers.explainer as explainer
 
 import logging
 logging.basicConfig(level=logging.DEBUG)

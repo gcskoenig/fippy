@@ -8,9 +8,9 @@ import logging
 
 import torch
 
-from rfi.backend.causality import DirectedAcyclicGraph, PostNonLinearLaplaceSEM, \
+from src.rfi.backend.causality import DirectedAcyclicGraph, PostNonLinearLaplaceSEM, \
     PostNonLinearMultiplicativeHalfNormalSEM, LinearGaussianNoiseSEM, RandomGPGaussianNoiseSEM
-from rfi.examples import SyntheticExample
+from src.rfi.examples import SyntheticExample
 
 
 logging.basicConfig(level=logging.INFO)

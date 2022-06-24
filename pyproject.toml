@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dedact_gcskoenig"
+version = "0.0.1"
+authors = [
+  { name="Gunnar König", email="hello@gunnarkoenig.com" },
+]
+description = "Package for marginal and conditional sampling based feature importance methods."
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/gcskoenig/rfi"
+"Bug Tracker" = "https://github.com/gcskoenig/rfi/issues"

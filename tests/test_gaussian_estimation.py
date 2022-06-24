@@ -1,5 +1,5 @@
 import numpy as np
-from rfi.backend.gaussian.gaussian_estimator import GaussianConditionalEstimator
+from src.rfi.backend import GaussianConditionalEstimator
 import math
 
 name = 'chain2'
