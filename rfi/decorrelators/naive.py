@@ -46,4 +46,3 @@ class NaiveDecorrelator(Decorrelator):
                                       decorrelationfunc)
 
         return None
-
