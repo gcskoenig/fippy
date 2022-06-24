@@ -36,7 +36,6 @@ class SimpleSampler(Sampler):
             # TODO assert that variables are categorical
             # TODO raise error if that is not the case
 
-
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 arrs = []
                 for snr in range(num_samples):

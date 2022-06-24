@@ -76,11 +76,12 @@ class Explainer:
 
     # Elementary Feature Importance Techniques
 
-    def di_from(self, K, B, J, X_eval, y_eval, D=None, sampler=None,
-                decorrelator=None, loss=None, nr_runs=10,
+    def di_from(self, K, B, J, X_eval, y_eval,
+                D=None, loss=None, nr_runs=10,
                 return_perturbed=False, train_allowed=True,
                 target='Y', marginalize=False,
-                nr_resample_marginalize=5):
+                nr_resample_marginalize=5,
+                sampler=None, decorrelator=None):
         """Computes the direct importance of features K given features B
         that can be explained by variables J, short DI(X_K|X_B <- X_J)
 
