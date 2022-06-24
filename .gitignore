@@ -6,7 +6,7 @@ rfi_gcsk.egg-info/
 .DS_Store
 __pycache__/
 /examples/chains/data/
-/examples/real_pseudoreal_dags/data/
+/examples/cnf_thesis/real_pseudoreal_dags/data/
 venv/
 examples_cg/
 /experiments_cg/data/
