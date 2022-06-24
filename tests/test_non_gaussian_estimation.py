@@ -9,9 +9,9 @@ import logging
 from scipy import integrate
 from sklearn.datasets import make_moons
 
-from src.rfi.backend import NormalisingFlowEstimator
-from src.rfi.backend.mdn import MixtureDensityNetworkEstimator
-from src.rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform
+from rfi.backend import NormalisingFlowEstimator
+from rfi.backend.mdn import MixtureDensityNetworkEstimator
+from rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform
 
 
 logging.basicConfig(level=logging.INFO)

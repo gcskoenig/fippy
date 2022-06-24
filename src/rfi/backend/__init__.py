@@ -1,1 +1,5 @@
 from estimator import ConditionalDistributionEstimator
+from gaussian import GaussianConditionalEstimator
+from mdn import MixtureDensityNetworkEstimator
+from cnf import NormalisingFlowEstimator
+from categorical import CategoricalEstimator
