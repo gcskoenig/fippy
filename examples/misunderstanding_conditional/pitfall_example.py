@@ -87,5 +87,4 @@ df_pfi = ex_pfi.fi_means_quantiles()
 df_pfi['type'] = 'pfi'
 
 df_res = pd.concat([df_pfi, df_cfi, df_sage]).reset_index()
-df_res.to_csv(savepath+'df_res.csv')
-
+df_res.to_csv(savepath + 'df_res.csv')

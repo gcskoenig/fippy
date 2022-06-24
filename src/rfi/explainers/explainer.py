@@ -777,7 +777,7 @@ class Explainer:
 
         if save_orderings:
             if detect_convergence:
-                return result, orderings[0:(ii+1)]
+                return result, orderings[0:(ii + 1)]
             else:
                 return result, orderings
         else:

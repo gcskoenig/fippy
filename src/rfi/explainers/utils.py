@@ -29,14 +29,14 @@ def detect_conv(scores, ii, threshold):
             # difference between the current scores and their averages
             diffs = current_scores - current_scores.mean()
             # squared differences
-            diffs2 = diffs*diffs
+            diffs2 = diffs * diffs
             # sum of squared diffs
             diffs2_sum = diffs2.sum()
             # sum of diffs
             diffs_sum = diffs.sum()
             # diffs_sum2 = (diffs_sum * diffs_sum)
             # diffs_sum2_n = (diffs_sum2/ii)
-            variance = (diffs2_sum - ((diffs_sum * diffs_sum)/ii)) / (ii - 1)
+            variance = (diffs2_sum - ((diffs_sum * diffs_sum) / ii)) / (ii - 1)
             # ratio
             ratio = (variance ** 0.5) / (current_scores.max() - current_scores.min())
             # max ratio (since convergence has to be detected for every feature)
