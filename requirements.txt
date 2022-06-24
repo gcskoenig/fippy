@@ -2,7 +2,7 @@ enlighten==1.10.1
 hydra==2.5
 lightgbm==3.2.1
 matplotlib==3.4.2
-mlflow==1.18.0
+mlflow==1.23.1
 networkx==2.5.1
 nflows==0.14
 numpy==1.22.0
