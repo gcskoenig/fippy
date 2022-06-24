@@ -1,1 +1,1 @@
-from mdn_estimator import MixtureDensityNetworkEstimator
+from rfi.backend.mdn.mdn_estimator import MixtureDensityNetworkEstimator
