@@ -4,7 +4,7 @@ all states being observed
 """
 import numpy as np
 import pandas as pd
-from src.rfi.samplers.sampler import Sampler
+from rfi.samplers.sampler import Sampler
 
 
 class SimpleSampler(Sampler):

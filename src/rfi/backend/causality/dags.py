@@ -4,7 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 
-from src.rfi.utils import search_nonsorted
+from rfi.utils import search_nonsorted
 
 
 class DirectedAcyclicGraph:

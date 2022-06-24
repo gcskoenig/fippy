@@ -5,7 +5,7 @@ More details can be found in the class description
 """
 import numpy as np
 import logging
-from src.rfi.samplers.sampler import Sampler
+from rfi.samplers.sampler import Sampler
 
 logger = logging.getLogger(__name__)
 

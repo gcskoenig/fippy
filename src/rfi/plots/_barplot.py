@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from src.rfi.plots._utils import hbar_text_position, coord_height_to_pixels
+from rfi.plots._utils import hbar_text_position, coord_height_to_pixels
 import seaborn as sns
 
 textformat = '{:5.2f}'  # TODO(gcsk): remove this line

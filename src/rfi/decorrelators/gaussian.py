@@ -1,6 +1,6 @@
-from src.rfi.decorrelators.decorrelator import Decorrelator
-from src.rfi.backend.gaussian import GaussianConditionalEstimator
-from src.rfi.samplers.gaussian import GaussianSampler
+from rfi.decorrelators.decorrelator import Decorrelator
+from rfi.backend.gaussian import GaussianConditionalEstimator
+from rfi.samplers.gaussian import GaussianSampler
 import numpy as np
 import logging
 

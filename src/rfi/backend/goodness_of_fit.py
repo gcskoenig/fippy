@@ -7,9 +7,9 @@ from typing import Union, Tuple
 from dataclasses import dataclass
 import logging
 
-from src.rfi.backend.causality import StructuralEquationModel, LinearGaussianNoiseSEM
-from src.rfi.backend import ConditionalDistributionEstimator
-from src.rfi.samplers.sampler import Sampler
+from rfi.backend.causality import StructuralEquationModel, LinearGaussianNoiseSEM
+from rfi.backend import ConditionalDistributionEstimator
+from rfi.samplers.sampler import Sampler
 
 logger = logging.getLogger(__name__)
 

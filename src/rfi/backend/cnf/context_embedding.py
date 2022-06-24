@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch
 from torch.nn.utils import weight_norm
 from torch import Tensor
-from src.rfi.backend.cnf.transforms import ContextualCompositeTransform
+from rfi.backend.cnf.transforms import ContextualCompositeTransform
 
 
 class ContextEmbedding(Module):

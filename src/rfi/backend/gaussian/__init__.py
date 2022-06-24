@@ -1,1 +1,1 @@
-from src.rfi.backend.gaussian.gaussian_estimator import GaussianConditionalEstimator
+from rfi.backend.gaussian.gaussian_estimator import GaussianConditionalEstimator

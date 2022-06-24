@@ -1,5 +1,5 @@
 import numpy as np
-from src.rfi.utils import deprecated
+from rfi.utils import deprecated
 
 
 def sample_id(J_ixs):

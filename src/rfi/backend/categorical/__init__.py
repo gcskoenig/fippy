@@ -1,1 +1,1 @@
-from src.rfi.backend.categorical.categorical_estimator import CategoricalEstimator
+from rfi.backend.categorical.categorical_estimator import CategoricalEstimator

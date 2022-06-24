@@ -1,6 +1,6 @@
-from src.rfi.explanation.explanation import Explanation
+from rfi.explanation.explanation import Explanation
 import pandas as pd
-from src.rfi.plots._barplot import fi_sns_gbarplot, fi_sns_wbarplots
+from rfi.plots._barplot import fi_sns_gbarplot, fi_sns_wbarplots
 import numpy as np
 
 

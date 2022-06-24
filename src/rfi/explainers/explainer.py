@@ -6,13 +6,13 @@ More details in the docstring for the class Explainer.
 
 import numpy as np
 import pandas as pd
-import src.rfi.utils as utils
+import rfi.utils as utils
 from src import rfi as explanation, rfi as decomposition_ex
-from src.rfi.decorrelators.naive import NaiveDecorrelator
+from rfi.decorrelators.naive import NaiveDecorrelator
 import logging
 import enlighten  # TODO add to requirements
 import math
-from src.rfi.explainers.utils import detect_conv
+from rfi.explainers.utils import detect_conv
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)

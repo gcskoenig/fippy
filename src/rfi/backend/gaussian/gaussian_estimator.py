@@ -4,8 +4,8 @@ import torch
 from torch.distributions import Normal, MultivariateNormal, Distribution
 import logging
 
-import src.rfi.backend.utils as utils
-from src.rfi.backend import ConditionalDistributionEstimator
+import rfi.backend.utils as utils
+from rfi.backend import ConditionalDistributionEstimator
 
 logger = logging.getLogger(__name__)
 

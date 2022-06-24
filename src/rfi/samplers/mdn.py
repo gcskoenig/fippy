@@ -3,10 +3,10 @@ Sampler based on conditional gaussian mixture networks
 """
 import logging
 
-from src.rfi.samplers.sampler import Sampler
-import src.rfi.utils as utils
-from src.rfi.backend.mdn import MixtureDensityNetworkEstimator
-from src.rfi.backend.categorical import CategoricalEstimator
+from rfi.samplers.sampler import Sampler
+import rfi.utils as utils
+from rfi.backend.mdn import MixtureDensityNetworkEstimator
+from rfi.backend.categorical import CategoricalEstimator
 
 logger = logging.getLogger(__name__)
 

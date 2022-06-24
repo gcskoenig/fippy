@@ -5,8 +5,8 @@ from typing import Tuple, Union
 import pandas as pd
 import logging
 
-from src.rfi.backend.causality.sem import StructuralEquationModel
-from src.rfi.utils import search_nonsorted
+from rfi.backend.causality.sem import StructuralEquationModel
+from rfi.utils import search_nonsorted
 
 logger = logging.getLogger(__name__)
 

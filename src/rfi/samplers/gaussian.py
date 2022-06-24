@@ -5,10 +5,10 @@ conditional distribution.
 """
 import numpy as np
 
-from src.rfi.samplers.sampler import Sampler
-from src.rfi.backend.gaussian import GaussianConditionalEstimator
-from src.rfi.samplers._utils import sample_id
-from src.rfi.utils import fset_to_ix
+from rfi.samplers.sampler import Sampler
+from rfi.backend.gaussian import GaussianConditionalEstimator
+from rfi.samplers._utils import sample_id
+from rfi.utils import fset_to_ix
 
 
 class GaussianSampler(Sampler):

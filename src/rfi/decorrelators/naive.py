@@ -1,4 +1,4 @@
-from src.rfi.decorrelators.decorrelator import Decorrelator
+from rfi.decorrelators.decorrelator import Decorrelator
 import logging
 
 logger = logging.getLogger(__name__)

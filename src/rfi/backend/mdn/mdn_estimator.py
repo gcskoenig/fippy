@@ -11,7 +11,7 @@ from ray import tune
 import torch.nn.init as init
 from pyro.contrib.randomvariable import RandomVariable
 
-from src.rfi.backend import ConditionalDistributionEstimator
+from rfi.backend import ConditionalDistributionEstimator
 
 logger = logging.getLogger(__name__)
 

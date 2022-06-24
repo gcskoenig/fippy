@@ -4,10 +4,10 @@ Using affine and invertable radial transformations.
 """
 import logging
 
-from src.rfi.samplers.sampler import Sampler
-from src.rfi.backend.cnf import NormalisingFlowEstimator
-from src.rfi.backend.categorical import CategoricalEstimator
-import src.rfi.utils as utils
+from rfi.samplers.sampler import Sampler
+from rfi.backend.cnf import NormalisingFlowEstimator
+from rfi.backend.categorical import CategoricalEstimator
+import rfi.utils as utils
 
 logger = logging.getLogger(__name__)
 

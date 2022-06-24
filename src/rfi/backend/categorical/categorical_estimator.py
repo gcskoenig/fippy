@@ -6,8 +6,8 @@ import torch
 import logging
 from ray import tune
 
-from src.rfi.backend import ConditionalDistributionEstimator
-from src.rfi.backend.mdn.mdn_estimator import CategoricalNetwork
+from rfi.backend import ConditionalDistributionEstimator
+from rfi.backend.mdn.mdn_estimator import CategoricalNetwork
 
 
 logger = logging.getLogger(__name__)

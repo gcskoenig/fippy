@@ -3,13 +3,13 @@
 Different sampling algorithms and loss functions can be used.
 More details in the docstring for the class Explainer.
 """
-from src.rfi.explainers.explainer import Explainer
+from rfi.explainers.explainer import Explainer
 import numpy as np
 import pandas as pd
 import logging
 import networkx as nx
-from src.rfi.explanation import explanation
-from src.rfi import utils
+from rfi.explanation import explanation
+from rfi import utils
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)

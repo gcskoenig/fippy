@@ -6,10 +6,10 @@ accessed. Plotting functionality is available.
 # import numpy as np
 import numpy as np
 
-import src.rfi.plots._barplot as _barplot
+import rfi.plots._barplot as _barplot
 import pandas as pd
 # import itertools
-import src.rfi.utils as utils
+import rfi.utils as utils
 
 
 class Explanation:

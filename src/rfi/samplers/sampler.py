@@ -6,8 +6,8 @@ More details can be found in the class description
 import numpy as np
 import pandas as pd
 
-import src.rfi.utils as utils
-from src.rfi.samplers._utils import sample_id  # , sample_perm
+import rfi.utils as utils
+from rfi.samplers._utils import sample_id  # , sample_perm
 import logging
 from typing import List
 

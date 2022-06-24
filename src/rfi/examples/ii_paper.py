@@ -1,8 +1,8 @@
 import numpy as np
 
-from src.rfi.backend.causality.dags import DirectedAcyclicGraph
-from src.rfi.backend.causality.sem import LinearGaussianNoiseSEM
-from src.rfi.examples import SyntheticExample
+from rfi.backend.causality.dags import DirectedAcyclicGraph
+from rfi.backend.causality.sem import LinearGaussianNoiseSEM
+from rfi.examples import SyntheticExample
 
 sigma_low = 0.3
 sigma_medium = .5

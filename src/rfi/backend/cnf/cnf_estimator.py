@@ -15,9 +15,9 @@ from sklearn.preprocessing import OneHotEncoder
 import logging
 from ray import tune
 
-from src.rfi.backend import ConditionalDistributionEstimator
-from src.rfi.backend.cnf.context_embedding import ContextEmbedding
-from src.rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform, \
+from rfi.backend import ConditionalDistributionEstimator
+from rfi.backend.cnf.context_embedding import ContextEmbedding
+from rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform, \
     ContextualCompositeTransform
 
 
