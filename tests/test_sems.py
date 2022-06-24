@@ -54,7 +54,9 @@ class TestSEMs:
                                                       quad_epsabs=EPSABS, mc_size=MC_SIZE)
 
         # Checking integration to zero
-        integrand = lambda val: mc_prob(torch.tensor(val).repeat(1, len(sample))).exp().numpy()
+        def integrand(val):
+            return mc_prob(torch.tensor(val).repeat(1, len(sample))).exp().numpy()
+
         int_res = quad_vec(integrand, *synt_ex.sem.support_bounds, epsabs=EPSABS)[0]
         logging.info(f'Mean integral of cond density: {int_res.mean()}')
         if method == 'quad':

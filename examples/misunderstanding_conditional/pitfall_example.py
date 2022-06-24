@@ -25,7 +25,7 @@ simulations = [chains.chain3]
 
 simulation_id = 0
 
-ex_name = simulations[simulation_id].name  #+ ex_identifier
+ex_name = simulations[simulation_id].name  # ex_identifier
 xcolumns = simulations[simulation_id].sem.dag.var_names[:-1]
 ycolumn = [simulations[simulation_id].sem.dag.var_names[-1]]
 data = simulations[simulation_id].get_train_test_data(xcolumns, ycolumn,

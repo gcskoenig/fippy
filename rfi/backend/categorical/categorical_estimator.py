@@ -42,7 +42,8 @@ class CategoricalEstimator(ConditionalDistributionEstimator):
                  device='cpu',
                  context_normalization=True,
                  **kwargs):
-        super().__init__(context_size=context_size, inputs_size=inputs_size, context_normalization=context_normalization,
+        super().__init__(context_size=context_size, inputs_size=inputs_size,
+                         context_normalization=context_normalization,
                          inputs_normalization=False, cat_context=cat_context)
         self.pi_network = CategoricalNetwork(context_size, 1, hidden_dim=hidden_dim)
         self.n_epochs = n_epochs
@@ -137,8 +138,10 @@ class CategoricalEstimator(ConditionalDistributionEstimator):
         return self
 
     def log_prob(self, inputs: Union[np.array, Tensor], context: Union[np.array, Tensor] = None,
-                 data_normalization=True, context_one_hot_encoding=True, inputs_one_hot_ecoding=True) -> Union[np.array, Tensor]:
-        inputs, context, return_numpy = self._preprocess_data(inputs, context, data_normalization, context_one_hot_encoding,
+                 data_normalization=True, context_one_hot_encoding=True,
+                 inputs_one_hot_ecoding=True) -> Union[np.array, Tensor]:
+        inputs, context, return_numpy = self._preprocess_data(inputs, context, data_normalization,
+                                                              context_one_hot_encoding,
                                                               inputs_one_hot_ecoding)
         result = self.pi_network(context).log_prob(inputs)
         result = self._postprocess_result(result, return_numpy)
@@ -147,13 +150,15 @@ class CategoricalEstimator(ConditionalDistributionEstimator):
     def conditional_distribution(self, context: Union[np.array, Tensor] = None, data_normalization=True,
                                  context_one_hot_encoding=True) -> torch.distributions.Distribution:
 
-        inputs, context, return_numpy = self._preprocess_data(None, context, data_normalization, context_one_hot_encoding, False)
+        inputs, context, return_numpy = self._preprocess_data(None, context, data_normalization,
+                                                              context_one_hot_encoding, False)
         return self.pi_network(context)
 
     def sample(self, context: Union[np.array, Tensor] = None, num_samples: int = 1, data_normalization=True,
                context_one_hot_encoding=True) -> Union[np.array, Tensor]:
 
-        inputs, context, return_numpy = self._preprocess_data(None, context, data_normalization, context_one_hot_encoding, False)
+        inputs, context, return_numpy = self._preprocess_data(None, context, data_normalization,
+                                                              context_one_hot_encoding, False)
         result = self.pi_network(context).sample((num_samples, ))
         result = np.squeeze(np.array([self._inverse_onehot_encode(res) for res in result]))
         return result
