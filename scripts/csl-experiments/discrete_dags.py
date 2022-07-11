@@ -18,8 +18,9 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import mean_squared_error, r2_score, accuracy_score
 from rfi.explainers.explainer import Explainer
 from rfi.samplers.gaussian import GaussianSampler
 from rfi.decorrelators.gaussian import NaiveGaussianDecorrelator
@@ -43,7 +44,7 @@ parser.add_argument(
     "-f",
     "--folder",
     type=str,
-    default=None,
+    default="dag_s",
     help="folder to stores results in; default 'dag_s'")
 
 parser.add_argument(
@@ -125,13 +126,8 @@ np.random.seed(arguments.randomseed)
 
 def main(args):
 
-    if args.folder is None:
-        create_folder(f"scripts/csl-experiments/results/{args.data}")
-        savepath = f"scripts/csl-experiments/results/{args.data}"
-
-    else:
-        create_folder(f"scripts/csl-experiments/results/{args.folder}")
-        savepath = f"scripts/csl-experiments/results/{args.folder}"
+    create_folder(f"scripts/csl-experiments/results/{args.data}")
+    savepath = f"scripts/csl-experiments/results/{args.data}"
 
     # df to store some metadata TODO (cl) do we need to store any other data?
     col_names_meta = ["data", "model", "runtime", "sample size"]
@@ -141,7 +137,7 @@ def main(args):
     df = pd.read_csv(f"scripts/csl-experiments/data/{args.data}.csv")
     if args.size is not None:
         df = df[0:args.size]
-    col_names = df.columns.to_list()
+    col_names = df.columns
     if args.target is None:
         target = np.random.choice(col_names)
     else:
@@ -156,7 +152,7 @@ def main(args):
     )
 
     # capture model performance
-    col_names_model = ["data", "model", "target", "mse", "r2"]
+    col_names_model = ["data", "model", "target", "mse/acc", "r2"]
     model_details = pd.DataFrame(columns=col_names_model)
 
     # fit model
@@ -187,6 +183,32 @@ def main(args):
         model_details.to_csv(
             f"{savepath}/model_details_{args.data}_rf.csv", index=False
         )
+
+    elif args.model == "mnb":
+        # fit model
+        model = MultinomialNB()
+        model.fit(X_train, y_train)
+        # model evaluation
+        y_pred = model.predict(X_test)
+        acc = accuracy_score(y_test, y_pred)
+        # fill df with info about model
+        model_details.loc[len(model_details)] = [args.data, "mnb", args.target, acc, "n/a"]
+        model_details.to_csv(
+            f"examples/experiments_cg/results/discrete/true_amat/{args.data}/model_details_cnb.csv", index=False
+        )
+    elif args.model == "rfc":
+        # fit model
+        model = RandomForestClassifier(n_estimators=100)
+        model.fit(X_train, y_train)
+        # model evaluation
+        y_pred = model.predict(X_test)
+        acc = accuracy_score(y_test, y_pred)
+        # fill df with info about model
+        model_details.loc[len(model_details)] = [args.data, "rf cf", args.target, acc, "n/a"]
+        model_details.to_csv(
+            f"examples/experiments_cg/results/discrete/true_amat/{args.data}/model_details_rf.csv", index=False
+        )
+
 
     # model prediction linear model
     def model_predict(x):

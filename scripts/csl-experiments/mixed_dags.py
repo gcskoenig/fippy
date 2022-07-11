@@ -1,6 +1,6 @@
 # TODO Is there a nicer way for the experiment file than the command line arguments
 """
-Experiment file for csl sage with continuous DAGs (only one SAGE evaluation)
+Experiment file for csl sage with mixed (cont/discrete) DAGs
 
 Compute SAGE and store
 
@@ -17,15 +17,13 @@ Command line args:
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
 from rfi.explainers.explainer import Explainer
-from rfi.samplers.gaussian import GaussianSampler
+from rfi.samplers import SequentialSampler, GaussianSampler, UnivRFSampler  # TODO (cl) review pr for sampler
 from rfi.decorrelators.gaussian import NaiveGaussianDecorrelator
 import time
 import argparse
-from utils import create_folder
 
 
 parser = argparse.ArgumentParser(
@@ -38,27 +36,19 @@ parser.add_argument(
     default="dag_s",
     help="Dataset from ~/data/ folder; string with suffix; default: 'dag_s.csv'")
 
-# TODO (cl): unused argument, del?
-parser.add_argument(
-    "-f",
-    "--folder",
-    type=str,
-    default=None,
-    help="folder to stores results in; default 'dag_s'")
-
 parser.add_argument(
     "-m",
     "--model",
     type=str,
-    default="lm",
-    help="linear model ('lm') or random forest regression ('rf'); default: 'lm'")
+    default="rf",
+    help="So far only random forest classifier ('rf') implemented; default: 'rf'")
 
 parser.add_argument(
     "-n",
     "--size",
     type=int,
-    default=100,
-    help="Custom sample size to slice df, default: 100",   # TODO (cl) slice or random draw?
+    default=None,
+    help="Custom sample size to slice df, default: None",   # TODO (cl) slice or random draw?
 )
 
 parser.add_argument(
@@ -82,7 +72,7 @@ parser.add_argument(
     "--thresh",
     type=float,
     default=0.025,
-    help="Threshold for convergence detection; default: 0.025",
+    help="Threshold for convergence detection; default: 0.025",     # TODO (cl) rewrite convergence detection file
 )
 
 parser.add_argument(
@@ -101,22 +91,6 @@ parser.add_argument(
     help="Numpy random seed; default: 1902",
 )
 
-parser.add_argument(
-    "-e",
-    "--extra",
-    type=int,
-    default=0,
-    help="Extra orderings after convergence has been detected, if detection on; default: 0",
-)
-
-parser.add_argument(
-    "-y",
-    "--target",
-    type=str,
-    default=None,
-    help="Target variable; default: '1'",
-)
-
 arguments = parser.parse_args()
 
 # seed
@@ -124,28 +98,19 @@ np.random.seed(arguments.randomseed)
 
 
 def main(args):
-
-    if args.folder is None:
-        create_folder(f"scripts/csl-experiments/results/{args.data}")
-        savepath = f"scripts/csl-experiments/results/{args.data}"
-
-    else:
-        create_folder(f"scripts/csl-experiments/results/{args.folder}")
-        savepath = f"scripts/csl-experiments/results/{args.folder}"
+    # TODO (cl) create directory here
+    savepath = f"scripts/csl-experiments/results/continuous/{args.data}"
 
     # df to store some metadata TODO (cl) do we need to store any other data?
-    col_names_meta = ["data", "model", "runtime", "sample size"]
+    col_names_meta = ["data", "model", "runtime"]
     metadata = pd.DataFrame(columns=col_names_meta)
 
-    # import and prepare data
+    # import and prepare data TODO (cl) or provide full path as command line argument?
     df = pd.read_csv(f"scripts/csl-experiments/data/{args.data}.csv")
     if args.size is not None:
         df = df[0:args.size]
-    col_names = df.columns.to_list()
-    if args.target is None:
-        target = np.random.choice(col_names)
-    else:
-        target = args.target
+    col_names = df.columns.tolist()
+    target = np.random.choice(col_names)    # TODO (cl) can classifier handle either data class (cont/discrete)?
     col_names.remove(target)
     X = df[col_names]
     y = df[target]
@@ -156,51 +121,42 @@ def main(args):
     )
 
     # capture model performance
-    col_names_model = ["data", "model", "target", "mse", "r2"]
+    col_names_model = ["data", "model", "target", "acc"]
     model_details = pd.DataFrame(columns=col_names_model)
 
     # fit model
-    if args.model == "lm":
-        # fit model
-        model = LinearRegression()
-        model.fit(X_train, y_train)
-        # model evaluation
-        y_pred = model.predict(X_test)
-        mse = mean_squared_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
-        # fill df with info about model
-        model_details.loc[len(model_details)] = [args.data, "linear model", target, mse, r2]
-        model_details.to_csv(
-            f"{savepath}/model_details_{args.data}_lm.csv", index=False
-        )
-
-    elif args.model == "rfr":
-        # fit model
-        model = RandomForestRegressor(n_estimators=100)     # TODO (cl) command line argument?
-        model.fit(X_train, y_train)
-        # model evaluation
-        y_pred = model.predict(X_test)
-        mse = mean_squared_error(y_test, y_pred)
-        r2 = r2_score(y_test, y_pred)
-        # fill df with info about model
-        model_details.loc[len(model_details)] = [args.data, "rf regression", target, mse, r2]
-        model_details.to_csv(
-            f"{savepath}/model_details_{args.data}_rf.csv", index=False
-        )
+    model = RandomForestClassifier(n_estimators=100)     # TODO (cl) command line argument?
+    model.fit(X_train, y_train)
+    # model evaluation
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    # fill df with info about model
+    model_details.loc[len(model_details)] = [args.data, "rf classifier", target, acc]
+    model_details.to_csv(
+        f"{savepath}/model_details_rf.csv", index=False
+    )
 
     # model prediction linear model
     def model_predict(x):
         return model.predict(x)
 
-    # set up sampler and decorrelator
-    sampler = GaussianSampler(X_train)
+    # set up sampler and decorrelator TODO (cl) let sampler know what rows are cat and cont
+    cat = []
+    cont = []
+    sampler_cat = UnivRFSampler(X_train[cat])
+    sampler_cont = GaussianSampler(X_train[cont])
+    # TODO (cl) do I have to provide adjacency matrix? If yes, infer graph first before executing script
+    # TODO (cl) provide column names of categorical data
+    sampler = SequentialSampler(X_train, adj_mix, cat, cont_sampler=sampler_cont,
+                                    cat_sampler=sampler_cat)
+    # TODO (cl) what decorrelator to use?
     decorrelator = NaiveGaussianDecorrelator(X_train)
 
     # features of interest
     fsoi = X_train.columns
 
-    # SAGE explainer
-    wrk = Explainer(model_predict, fsoi, X_train, loss=mean_squared_error, sampler=sampler,
+    # SAGE explainer    # TODO What loss function?
+    wrk = Explainer(model_predict, fsoi, X_train, loss=accuracy_score, sampler=sampler,
                     decorrelator=decorrelator)
 
     # NO partial order
@@ -209,8 +165,7 @@ def main(args):
     # track time with time module
     start_time = time.time()
     ex_d_sage, orderings_sage = wrk.sage(X_test, y_test, partial_order, nr_orderings=args.orderings,
-                                         nr_runs=args.runs, detect_convergence=True, thresh=args.thresh,
-                                         extra_orderings=args.extra)
+                                         nr_runs=args.runs, detect_convergence=False, thresh=args.thresh)
     time_sage = time.time() - start_time
 
     # save  orderings
@@ -226,13 +181,11 @@ def main(args):
     # fi_mean values across runs + stds
     ex_d_sage.fi_means_stds().to_csv(f"{savepath}/sage_{args.data}_{args.model}.csv")
 
-    content = [args.data, args.model, time_sage, args.size]
+    content = [args.data, args.model, time_sage]
     # fill evaluation table with current run
     metadata.loc[len(metadata)] = content
     metadata.to_csv(f"{savepath}/metadata_{args.data}_{args.model}.csv", index=False)
 
-    return ex_d_sage
-
 
 if __name__ == "__main__":
-    ex_d_sage = main(arguments)
+    main(arguments)
