@@ -18,12 +18,15 @@ class SequentialSampler(Sampler):
         see rfi.samplers.Sampler
     """
 
-    def __init__(self, X_train, adj_mat, categorical_fs, cat_sampler=None, cont_sampler=None, **kwargs):
+    def __init__(self, X_train, categorical_fs, adj_mat=None, cat_sampler=None, cont_sampler=None, **kwargs):
         """Initialize Sampler with X_train (and mask)."""
         super().__init__(X_train, **kwargs)
         self.adj_mat = adj_mat
-        assert type(adj_mat) == pd.core.frame.DataFrame
-        self.g = nx.from_pandas_adjacency(adj_mat, create_using=nx.DiGraph)
+        if not self.adj_mat is None:
+            assert type(self.adj_mat) == pd.core.frame.DataFrame
+            self.g = nx.from_pandas_adjacency(adj_mat, create_using=nx.DiGraph)
+        else:
+            self.g = None
         self.categorical_fs = categorical_fs
         self.cat_sampler = cat_sampler
         self.cont_sampler = cont_sampler
@@ -41,7 +44,6 @@ class SequentialSampler(Sampler):
             G: arbitrary set of variables (conditioning set)
             verbose: printing
         """
-
         J = Sampler._to_array(list(J))
         G = Sampler._to_array(list(G))
         super().train(J, G, verbose=verbose)
@@ -49,8 +51,11 @@ class SequentialSampler(Sampler):
         JuG = list(set(J).union(G))
 
         if not self._train_J_degenerate(J, G, verbose=verbose):
-            # order J topologically
-            ordering = nx.topological_sort(self.g)
+            if self.g is None:
+                ordering = self.X_train.columns
+            else:
+                # order J topologically
+                ordering = nx.topological_sort(self.g)
             J_ord = [j for j in ordering if j in J]
 
             # iterate over the js and train the respective samplers
