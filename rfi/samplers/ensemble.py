@@ -38,12 +38,19 @@ class UnivRFSampler(Sampler):
         if not self._train_J_degenerate(J, G, verbose=verbose):
             # TODO assert that variables are categorical
             # TODO raise error if that is not the case
+            # adjust max_features in param_grid to actual number of features
+            if len(G) < 4:
+                max_features = list(range(1, len(G)+1))
+            elif len(G) == 4:
+                max_features = [2, 3, 4]
+            else:
+                max_features = [2, 3, 5]
 
             param_grid = {
                 'bootstrap': [True],
                 'criterion': ['entropy'],
                 'max_depth': [80, 90, 100, 110],
-                'max_features': [2, 3, 5],
+                'max_features': max_features,
                 'min_samples_leaf': [5, 10, 50, 100],
                 'min_samples_split': [5, 10, 50, 100],
                 'n_estimators': [100, 200, 300, 1000]
@@ -53,7 +60,7 @@ class UnivRFSampler(Sampler):
             rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
                                            n_iter=100, verbose=0,
                                            n_jobs=-1, scoring='neg_log_loss')  # Fit the random search model
-            rf_random.fit(self.X_train[Sampler._order_fset(G)], self.X_train[J[0]])
+            rf_random.fit(self.X_train[Sampler._order_fset(G)].values, self.X_train[J[0]])
             model = rf_random.best_estimator_
 
             def samplefunc(eval_context, num_samples=1, **kwargs):
