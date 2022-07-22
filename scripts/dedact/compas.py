@@ -32,15 +32,23 @@ X = df[remainder_cont]
 cat_vars_enc = []
 
 for varname in list(set(remainder) - set(remainder_cont)):
+    print(f'converting {varname}')
     var_enc = pd.get_dummies(df[varname])
     cat_vars_enc = cat_vars_enc + list(var_enc.columns)
     X.loc[:, var_enc.columns] = var_enc.values
 
 covars = remainder_cont + cat_vars_enc
 
+print('number of covars', len(covars))
+
 y = df[target_cols]
 X = df[covars]
 
+print('saving X, y')
+X.to_csv('X.csv')
+y.to_csv('y.csv')
+
+print('training model')
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
