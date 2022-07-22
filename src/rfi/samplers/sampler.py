@@ -114,6 +114,11 @@ class Sampler:
         self._trained_sampling_funcs[(J_key, G_key)] = samplefunc
         logger.info('Training ended. Sampler saved.')
 
+    def _get_samplefunc(self, J, G):
+        G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
+        sample_func = self._trained_sampling_funcs[(J_key, G_key)]
+        return sample_func
+
     def train(self, J, G, verbose=True):
         """Trains sampler using the training dataset to resample
         relative to any variable set G.
