@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from rfi.samplers.sampler import Sampler
 
+
 class SimpleSampler(Sampler):
     """
     Simple sampling from observed data
@@ -36,7 +37,6 @@ class SimpleSampler(Sampler):
             # TODO assert that variables are categorical
             # TODO raise error if that is not the case
 
-
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 arrs = []
                 for snr in range(num_samples):
@@ -46,7 +46,8 @@ class SimpleSampler(Sampler):
                         X_train = self.X_train[JuG].set_index(list(G))
                         sample = X_eval.join(X_train, on=list(G), how='left').groupby(['level_0']).sample(1)
                         sample = sample.reset_index().set_index('index')[Sampler._order_fset(J)]
-                        # sample = pd.merge(X_eval.reset_index().reset_index(), self.X_train[JuG], on=list(G), how='left').groupby(['level_0']).sample(1)
+                        # sample = pd.merge(X_eval.reset_index().reset_index(), self.X_train[JuG],
+                        #                   on=list(G), how='left').groupby(['level_0']).sample(1)
                         arrs.append(sample.to_numpy().reshape(1, -1, len(J)))
                     else:
                         sample = self.X_train[Sampler._order_fset(J)].sample(eval_context.shape[0])

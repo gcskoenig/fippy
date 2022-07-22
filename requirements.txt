@@ -1,10 +1,10 @@
 enlighten==1.10.1
 lightgbm==3.2.1
 matplotlib==3.4.2
-mlflow==1.18.0
+mlflow==1.23.1
 networkx==2.5.1
 nflows==0.14
-numpy==1.21.0
+numpy==1.22.0
 omegaconf==2.1.0
 pingouin==0.3.12
 scipy==1.7.0

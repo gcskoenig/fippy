@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import rfi.utils as utils
 import rfi.explanation.explanation as explanation
+from rfi.decorrelators.naive import NaiveDecorrelator
 import logging
 import rfi.explanation.decomposition as decomposition_ex
 import enlighten  # TODO add to requirements
@@ -43,6 +44,9 @@ class Explainer:
         self.loss = loss
         # check whether feature set is valid
         self._valid_fset(self.fsoi)
+        # if not decorrelator is specified, just replace it with the respective sampler
+        if decorrelator is None:
+            self.decorrelator = NaiveDecorrelator(X_train, self.sampler)
 
     def _valid_fset(self, fset):
         """Checks whether fset is subset of features in data"""
@@ -76,11 +80,12 @@ class Explainer:
 
     # Elementary Feature Importance Techniques
 
-    def di_from(self, K, B, J, X_eval, y_eval, D=None, sampler=None,
-                decorrelator=None, loss=None, nr_runs=10,
+    def di_from(self, K, B, J, X_eval, y_eval,
+                D=None, loss=None, nr_runs=10,
                 return_perturbed=False, train_allowed=True,
                 target='Y', marginalize=False,
-                nr_resample_marginalize=5):
+                nr_resample_marginalize=5,
+                sampler=None, decorrelator=None):
         """Computes the direct importance of features K given features B
         that can be explained by variables J, short DI(X_K|X_B <- X_J)
 
@@ -205,7 +210,7 @@ class Explainer:
                 arr_reconstr = X_R_J.loc[ll, :][R].to_numpy()
                 X_tilde_foreground[R] = arr_reconstr
 
-                # decorrelate all features not in B given J such that the sample
+                # decorrelate all features not in B such that the sample
                 # is independent of X_J (given X_\emptyset)
                 X_R_empty_linked = decorrelator.decorrelate(X_tilde_foreground,
                                                             R, J, [])
