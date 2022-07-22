@@ -17,10 +17,12 @@ for var in timevars:
 
 target_cols = ['RawScore', 'DisplayText']
 rm_cols = ['IsCompleted', 'IsDeleted', 'DecileScore', 'ScoreText']
+ignore_cols_feasbility = ['FirstName', 'MiddleName', 'LastName']
+rm_cols = rm_cols + ignore_cols_feasbility
 remainder = list(set(df.columns) - set(target_cols) - set(rm_cols))
 
 protected = ['Ethnic_Code_Text', 'Sex_Code_Text']
-proxies = ['FirstName', 'MiddleName', 'LastName', 'Language']
+proxies = ['Language']
 
 remainder = list(set(remainder) - set(protected))
 
