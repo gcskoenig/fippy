@@ -46,7 +46,7 @@ covars = remainder_cont + cat_vars_enc
 print('number of covars', len(covars))
 
 y = df[target_cols]
-X = df[covars]
+X = X
 
 print('saving X, y')
 X.to_csv('X.csv')
