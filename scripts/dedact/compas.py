@@ -1,6 +1,8 @@
 import pandas as pd
 
-df = pd.read_csv('~/university/phd/2020/research/software/rfi/scripts/dedact/data/compas-scores-raw.csv')
+# df = pd.read_csv('~/university/phd/2020/research/software/rfi/scripts/dedact/data/compas-scores-raw.csv')
+df = pd.read_csv('data/compas-scores-raw.csv')
+
 
 df.columns
 
