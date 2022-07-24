@@ -684,7 +684,8 @@ class Explainer:
         if method not in ['associative', 'direct']:
             raise ValueError('only methods associative or direct implemented')
 
-        if detect_convergence:  # TODO any check necessary other than asserting 0 < thresh < 1? For extra_orderings?
+        if detect_convergence:
+            convergence_var = False     # required as input to detect_conv in line 767
             assert 0 < thresh < 1
 
         if sampler is None:
@@ -762,13 +763,16 @@ class Explainer:
             scores.loc[(ii, slice(None), slice(None)), fsoi] = scores_arr
 
             if detect_convergence:
-                convergence_var = detect_conv(scores, ii, thresh, extra_orderings=extra_orderings)
-                if convergence_var is True:
+                # detect_conv returns whether conv detected (bool) and the number of extra orderings left
+                convergence_var, extra_orderings = detect_conv(scores, ii, thresh, extra_orderings=extra_orderings,
+                                                               conv_detected=convergence_var)
+                # if convergence has been detected and no extra orderings left break out of loop
+                if convergence_var and extra_orderings == 0:
+                    # trim scores to dim of actual number of orderings ii after convergence (potentially < nr_orderings)
                     scores = scores.loc[(slice(0, ii), slice(None), slice(None))]
+                    # note ii+1 is number of orderings after convergence detected + potential extra orderings
                     print('Detected convergence after ordering no.', ii+1)
                     break
-                elif type(convergence_var) == int:
-                    extra_orderings = convergence_var
 
         result = explanation.Explanation(fsoi, scores, ex_name='SAGE')
 
