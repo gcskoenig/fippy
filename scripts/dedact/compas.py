@@ -86,4 +86,5 @@ ex = wrk.ais_via_contextfunc(X_train.columns, X_test, y_test, X_train.columns)
 import matplotlib.pyplot as plt
 
 ex.hbarplot()
+plt.savefig('ais_via.pdf')
 plt.show()
