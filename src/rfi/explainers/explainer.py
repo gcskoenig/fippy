@@ -13,6 +13,7 @@ import logging
 import enlighten  # TODO add to requirements
 import math
 from rfi.explainers.utils import detect_conv
+from tqdm import tqdm
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
@@ -573,7 +574,7 @@ class Explainer:
         Args:
             K: indices specifying the "via" set X_K
             X_eval: evaluation data
-            y_Eval: evaluation labels
+            y_eval: evaluation labels
             context: either 'empty' or 'remainder (C=D without j)
             contextfunc: function that takes j and D as arguments and returns the respective baseline
                 set C=f(j,D). Overrides baseline argument.
@@ -615,7 +616,7 @@ class Explainer:
         scores.loc[(slice(None), slice(None)), J[0]] = ex_first.scores.to_numpy()
 
         # iterate over the remaining variables
-        for jj in np.arange(1, len(fsoi)):
+        for jj in tqdm(np.arange(1, len(fsoi))):
             J = [fsoi[jj]]
             C = contextfunc(J, D)
             ex = self.ai_via(J, C, K, X_eval, y_eval, **kwargs)

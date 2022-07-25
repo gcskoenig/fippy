@@ -1,10 +1,7 @@
 import pandas as pd
 
-# df = pd.read_csv('~/university/phd/2020/research/software/rfi/scripts/dedact/data/compas-scores-raw.csv')
-df = pd.read_csv('data/compas-scores-raw.csv')
-
-
-df.columns
+df = pd.read_csv('~/university/phd/2020/research/software/rfi/scripts/dedact/data/compas-scores-raw.csv')
+# df = pd.read_csv('data/compas-scores-raw.csv')
 
 timevars = ['Screening_Date', 'DateOfBirth']
 
@@ -28,7 +25,7 @@ remainder = list(set(remainder) - set(protected))
 
 categoricalvars = ['Agency_Text', 'AssessmentType', 'MiddleName', 'FirstName', 'ScaleSet',
                    'CustodyStatus', 'MaritalStatus', 'LegalStatus', 'RecSupervisionLevelText',
-                   'Languange', 'AssessmentReason', 'LastName']
+                   'Language', 'AssessmentReason', 'LastName']
 
 remainder_cont = list(set(remainder) - set(categoricalvars))
 X = df[remainder_cont]
@@ -46,6 +43,7 @@ covars = remainder_cont + cat_vars_enc
 print('number of covars', len(covars))
 
 y = df[target_cols]
+y = y['RawScore']
 X = X
 
 print('saving X, y')
@@ -71,3 +69,21 @@ joblib.dump(rf, 'random_forest.joblib')
 joblib.load('random_forest.joblib')
 
 print('Loading rf successful.')
+
+
+from rfi.explainers import Explainer
+from rfi.samplers import GaussianSampler, UnivRFSampler, SequentialSampler
+
+cat_sampler = UnivRFSampler(X_train)
+cont_sampler = GaussianSampler(X_train)
+
+sampler = SequentialSampler(X_train, cat_vars_enc, cat_sampler=cat_sampler, cont_sampler=cont_sampler)
+
+wrk = Explainer(rf, X_train.columns, X_train, sampler=sampler, loss=mean_squared_error)
+
+ex = wrk.ais_via_contextfunc(X_train.columns, X_test, y_test, X_train.columns)
+
+import matplotlib.pyplot as plt
+
+ex.hbarplot()
+plt.show()
