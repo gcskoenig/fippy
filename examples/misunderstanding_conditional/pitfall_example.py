@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error, r2_score
 
-import rfi.examples.chains as chains
-from rfi.explainers.explainer import Explainer
-from rfi.samplers.gaussian import GaussianSampler
-from rfi.decorrelators.gaussian import NaiveGaussianDecorrelator
+from src import rfi as chains
+from src.rfi.explainers import Explainer
+from src.rfi.samplers.gaussian import GaussianSampler
+from src.rfi.decorrelators.gaussian import NaiveGaussianDecorrelator
 
 import logging
 
@@ -25,7 +25,7 @@ simulations = [chains.chain3]
 
 simulation_id = 0
 
-ex_name = simulations[simulation_id].name  #+ ex_identifier
+ex_name = simulations[simulation_id].name  # ex_identifier
 xcolumns = simulations[simulation_id].sem.dag.var_names[:-1]
 ycolumn = [simulations[simulation_id].sem.dag.var_names[-1]]
 data = simulations[simulation_id].get_train_test_data(xcolumns, ycolumn,
@@ -87,5 +87,4 @@ df_pfi = ex_pfi.fi_means_quantiles()
 df_pfi['type'] = 'pfi'
 
 df_res = pd.concat([df_pfi, df_cfi, df_sage]).reset_index()
-df_res.to_csv(savepath+'df_res.csv')
-
+df_res.to_csv(savepath + 'df_res.csv')

@@ -1,9 +1,7 @@
 from sklearn.datasets import load_boston
-from sklearn.model_selection import ShuffleSplit, train_test_split
-from nflows.distributions import StandardNormal
+from sklearn.model_selection import train_test_split
 import seaborn as sns
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import torch
 import pandas as pd
@@ -11,7 +9,7 @@ import logging
 from scipy import integrate
 from sklearn.datasets import make_moons
 
-from rfi.backend.cnf import NormalisingFlowEstimator
+from rfi.backend import NormalisingFlowEstimator
 from rfi.backend.mdn import MixtureDensityNetworkEstimator
 from rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform
 
