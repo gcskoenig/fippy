@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error, r2_score
 
-import src.rfi.utils as utils
-from src import rfi as ii_paper
-from src.rfi.explainers import Explainer
-from src.rfi.samplers.gaussian import GaussianSampler
-from src.rfi.decorrelators.gaussian import NaiveGaussianDecorrelator
+import rfi.utils as utils
+import rfi.examples.ii_paper as ii_paper
+from rfi.explainers import Explainer
+from rfi.samplers import GaussianSampler
+from rfi.decorrelators import NaiveGaussianDecorrelator
 
 import logging
 
