@@ -7,8 +7,8 @@ More details in the docstring for the class Explainer.
 import numpy as np
 import pandas as pd
 import rfi.utils as utils
-from src import rfi as explanation, rfi as decomposition_ex
-from rfi.decorrelators.naive import NaiveDecorrelator
+import rfi.explanation as explanation
+from rfi.decorrelators import NaiveDecorrelator
 import logging
 import enlighten  # TODO add to requirements
 import math
@@ -999,7 +999,5 @@ class Explainer:
 
         if orderings is None:
             orderings = orderings_sampled
-        ex = decomposition_ex.DecompositionExplanation(self.fsoi,
-                                                       decomposition,
-                                                       ex_name=None)
+        ex = explanation.DecompositionExplanation(self.fsoi, decomposition, ex_name=None)
         return ex, orderings
