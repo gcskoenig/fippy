@@ -632,7 +632,7 @@ class Explainer:
              nr_orderings=None, approx=math.sqrt, detect_convergence=False, thresh=0.01,
              extra_orderings=0, nr_runs=10, nr_resample_marginalize=10,
              sampler=None, loss=None, fsoi=None, orderings=None,
-             save_orderings=True, **kwargs):
+             save_orderings=True, aggregate_scores=False, **kwargs):
         """
         Compute Shapley Additive Global Importance values.
         Args:
@@ -762,7 +762,10 @@ class Explainer:
                                                 nr_runs=nr_runs, nr_resample_marginalize=nr_resample_marginalize,
                                                 **kwargs)
 
-            scores_arr = ex.scores[fsoi].to_numpy()
+            if aggregate_scores:
+                scores_arr = ex.fi_means_stds()['mean'][fsoi].to_numpy()
+            else:
+                scores_arr = ex.scores[fsoi].to_numpy()
             scores.loc[(ii, slice(None), slice(None)), fsoi] = scores_arr
 
             if detect_convergence:
