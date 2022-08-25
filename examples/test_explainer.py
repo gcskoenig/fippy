@@ -96,7 +96,7 @@ plt.show()
 partial_ordering = [('cycling', 'PSA', 'biomarkers')]
 
 ex7, orderings = wrk.sage(X_test, y_test, partial_ordering,
-                          nr_orderings=10, nr_runs=3, nr_resample_marginalize=5)
+                          nr_orderings=10, nr_runs=4, nr_resample_marginalize=21)
 ex7.hbarplot()
 plt.show()
 

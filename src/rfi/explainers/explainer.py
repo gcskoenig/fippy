@@ -632,7 +632,7 @@ class Explainer:
              nr_orderings=None, approx=math.sqrt, detect_convergence=False, thresh=0.01,
              extra_orderings=0, nr_runs=10, nr_resample_marginalize=10,
              sampler=None, loss=None, fsoi=None, orderings=None,
-             save_orderings=True, aggregate_scores=False, **kwargs):
+             save_orderings=True, save_each_obs=False, **kwargs):
         """
         Compute Shapley Additive Global Importance values.
         Args:
@@ -721,11 +721,15 @@ class Explainer:
         if save_orderings:
             nr_orderings_saved = nr_orderings
 
+        nr_datapoints_saved = 1
+        if save_each_obs:
+            nr_datapoints_saved = X_eval.shape[0]
+
         # create dataframe for computation results
         index = utils.create_multiindex(['ordering', 'sample', 'i'],
                                         [np.arange(nr_orderings_saved),
                                          np.arange(nr_runs),
-                                         np.arange(X_eval.shape[0])])
+                                         np.arange(nr_datapoints_saved)])
         scores = pd.DataFrame([], index=index)
 
         orderings_sampled = None
@@ -762,10 +766,10 @@ class Explainer:
                                                 nr_runs=nr_runs, nr_resample_marginalize=nr_resample_marginalize,
                                                 **kwargs)
 
-            if aggregate_scores:
-                scores_arr = ex.fi_means_stds()['mean'][fsoi].to_numpy()
-            else:
+            if save_each_obs:
                 scores_arr = ex.scores[fsoi].to_numpy()
+            else:
+                scores_arr = ex.fi_vals()[fsoi].to_numpy()
             scores.loc[(ii, slice(None), slice(None)), fsoi] = scores_arr
 
             if detect_convergence:
