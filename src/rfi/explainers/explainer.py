@@ -782,9 +782,6 @@ class Explainer:
                                                                    conv_detected=convergence_var)
                     # if convergence has been detected and no extra orderings left break out of loop
                     if convergence_var and extra_orderings == 0:
-                        # trim scores to dim of actual number of orderings ii after convergence (potentially < nr_orderings)
-                        # TODO trim score array
-                        # scores = scores.loc[(slice(0, ii), slice(None), slice(None))]
                         # note ii+1 is number of orderings after convergence detected + potential extra orderings
                         print('Detected convergence after ordering no.', ii+1)
                         break
@@ -797,6 +794,9 @@ class Explainer:
         if save_orderings:
             # if detect_convergence:
             #     return result, orderings[0:(ii + 1)]
+            # trim scores to dim of actual number of orderings ii after convergence (potentially < nr_orderings)
+            # TODO trim score array and orderings array
+            # scores = scores.loc[(slice(0, ii), slice(None), slice(None))]
             # else:
             return result, orderings
         else:
