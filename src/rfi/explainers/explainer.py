@@ -688,7 +688,6 @@ class Explainer:
             raise ValueError('only methods associative or direct implemented')
 
         if detect_convergence:
-            convergence_var = False     # required as input to detect_conv in line 767
             assert 0 < thresh < 1
 
         if sampler is None:
@@ -743,7 +742,16 @@ class Explainer:
         #     (len(self.fsoi), nr_runs, X_eval.shape[0], nr_orderings))
         # ord hist helps to avoid duplicate histories
         ord_hist = None
+
+        max_orderings = np.full(nr_runs, nr_orderings)
+
         for jj in range(nr_runs):
+
+            if detect_convergence:
+                # inputs to detect_conv, reset for every run
+                convergence_var = False
+                extra_orderings_r = extra_orderings
+
             for ii in range(nr_orderings):
                 ordering = None
                 if orderings is None:
@@ -778,26 +786,25 @@ class Explainer:
                 if detect_convergence:
                     # detect_conv returns whether conv detected (bool) and the number of extra orderings left
                     scores_run = scores.loc[(slice(None), jj, slice(None)), fsoi]
-                    convergence_var, extra_orderings = detect_conv(scores_run, ii, thresh, extra_orderings=extra_orderings,
-                                                                   conv_detected=convergence_var)
+                    convergence_var, extra_orderings_r = detect_conv(scores_run, ii, thresh, extra_orderings=extra_orderings_r,
+                                                                     conv_detected=convergence_var)
                     # if convergence has been detected and no extra orderings left break out of loop
-                    if convergence_var and extra_orderings == 0:
-                        # note ii+1 is number of orderings after convergence detected + potential extra orderings
+                    if convergence_var and extra_orderings_r == 0:
+                        max_orderings[jj] = ii    # to determine max. orderings to trim dataset
                         print('Detected convergence after ordering no.', ii+1)
                         break
-
-        result = explanation.Explanation(fsoi, scores, ex_name='SAGE')
 
         if orderings is None:
             orderings = orderings_sampled
 
-        if save_orderings:
-            # if detect_convergence:
-            #     return result, orderings[0:(ii + 1)]
+        if detect_convergence:
             # trim scores to dim of actual number of orderings ii after convergence (potentially < nr_orderings)
-            # TODO trim score array and orderings array
-            # scores = scores.loc[(slice(0, ii), slice(None), slice(None))]
-            # else:
+            scores = scores.loc[(slice(0, max_orderings.max()), slice(None), slice(None))]
+            orderings = orderings[0:nr_runs*(max_orderings.max()+1)]
+
+        result = explanation.Explanation(fsoi, scores, ex_name='SAGE')
+
+        if save_orderings:
             return result, orderings
         else:
             return result
