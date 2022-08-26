@@ -734,55 +734,60 @@ class Explainer:
 
         orderings_sampled = None
         if orderings is None:
-            orderings_sampled = pd.DataFrame(index=np.arange(nr_orderings),
+            index_orderings = utils.create_multiindex(['ordering', 'sample'],
+                                                      [np.arange(nr_orderings_saved),
+                                                       np.arange(nr_runs)])
+            orderings_sampled = pd.DataFrame(index=index_orderings,
                                              columns=['ordering'])
-
         # lss = np.zeros(
         #     (len(self.fsoi), nr_runs, X_eval.shape[0], nr_orderings))
         # ord hist helps to avoid duplicate histories
         ord_hist = None
-        for ii in range(nr_orderings):
-            ordering = None
-            if orderings is None:
-                ordering, ord_hist = utils.sample_partial(partial_ordering,
-                                                          ord_hist)
-                orderings_sampled.loc[ii, 'ordering'] = ordering
-            else:
-                ordering = orderings.loc[ii, 'ordering']
+        for jj in range(nr_runs):
+            for ii in range(nr_orderings):
+                ordering = None
+                if orderings is None:
+                    ordering, ord_hist = utils.sample_partial(partial_ordering,
+                                                              ord_hist)
+                    orderings_sampled.loc[(ii, jj), 'ordering'] = ordering
+                else:
+                    ordering = orderings.loc[(ii, jj), 'ordering']
 
-            logging.info('Ordering : {}'.format(ordering))
+                logging.info('Ordering : {}'.format(ordering))
 
-            # compute scores for the ordering
-            ex = None
-            if method == 'associative':
-                ex = self.ais_via_ordering(ordering, G, X_eval, y_eval,
-                                           target=target, marginalize=marginalize,
-                                           nr_runs=nr_runs, nr_resample_marginalize=nr_resample_marginalize,
-                                           **kwargs)
-            elif method == 'direct':
-                # TODO check whether this should be dis_from_baselinefunc
-                ex = self.dis_from_baselinefunc(ordering, G, X_eval, y_eval,
-                                                target=target, marginalize=marginalize,
-                                                nr_runs=nr_runs, nr_resample_marginalize=nr_resample_marginalize,
-                                                **kwargs)
+                # compute scores for the ordering
+                ex = None
+                if method == 'associative':
+                    ex = self.ais_via_ordering(ordering, G, X_eval, y_eval,
+                                               target=target, marginalize=marginalize,
+                                               nr_runs=1, nr_resample_marginalize=nr_resample_marginalize,
+                                               **kwargs)
+                elif method == 'direct':
+                    # TODO check whether this should be dis_from_baselinefunc
+                    ex = self.dis_from_baselinefunc(ordering, G, X_eval, y_eval,
+                                                    target=target, marginalize=marginalize,
+                                                    nr_runs=1, nr_resample_marginalize=nr_resample_marginalize,
+                                                    **kwargs)
 
-            if save_each_obs:
-                scores_arr = ex.scores[fsoi].to_numpy()
-            else:
-                scores_arr = ex.fi_vals()[fsoi].to_numpy()
-            scores.loc[(ii, slice(None), slice(None)), fsoi] = scores_arr
+                if save_each_obs:
+                    scores_arr = ex.scores[fsoi].to_numpy()
+                else:
+                    scores_arr = ex.fi_vals()[fsoi].to_numpy()
+                scores.loc[(ii, jj, slice(None)), fsoi] = scores_arr
 
-            if detect_convergence:
-                # detect_conv returns whether conv detected (bool) and the number of extra orderings left
-                convergence_var, extra_orderings = detect_conv(scores, ii, thresh, extra_orderings=extra_orderings,
-                                                               conv_detected=convergence_var)
-                # if convergence has been detected and no extra orderings left break out of loop
-                if convergence_var and extra_orderings == 0:
-                    # trim scores to dim of actual number of orderings ii after convergence (potentially < nr_orderings)
-                    scores = scores.loc[(slice(0, ii), slice(None), slice(None))]
-                    # note ii+1 is number of orderings after convergence detected + potential extra orderings
-                    print('Detected convergence after ordering no.', ii+1)
-                    break
+                if detect_convergence:
+                    # detect_conv returns whether conv detected (bool) and the number of extra orderings left
+                    scores_run = scores.loc[(slice(None), jj, slice(None)), fsoi]
+                    convergence_var, extra_orderings = detect_conv(scores_run, ii, thresh, extra_orderings=extra_orderings,
+                                                                   conv_detected=convergence_var)
+                    # if convergence has been detected and no extra orderings left break out of loop
+                    if convergence_var and extra_orderings == 0:
+                        # trim scores to dim of actual number of orderings ii after convergence (potentially < nr_orderings)
+                        # TODO trim score array
+                        # scores = scores.loc[(slice(0, ii), slice(None), slice(None))]
+                        # note ii+1 is number of orderings after convergence detected + potential extra orderings
+                        print('Detected convergence after ordering no.', ii+1)
+                        break
 
         result = explanation.Explanation(fsoi, scores, ex_name='SAGE')
 
@@ -790,10 +795,10 @@ class Explainer:
             orderings = orderings_sampled
 
         if save_orderings:
-            if detect_convergence:
-                return result, orderings[0:(ii + 1)]
-            else:
-                return result, orderings
+            # if detect_convergence:
+            #     return result, orderings[0:(ii + 1)]
+            # else:
+            return result, orderings
         else:
             return result
 
