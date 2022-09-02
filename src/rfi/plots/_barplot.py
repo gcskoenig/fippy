@@ -57,7 +57,7 @@ def fi_sns_hbarplot(ex, ax=None, figsize=None):
     df.sort_values('importance', axis=0, ascending=False, inplace=True)
     sns.barplot(x='importance', y='feature', data=df, ax=ax, ci='sd')
     sns.despine(left=True, bottom=True, ax=ax)
-    ax.set(ylabel="", xlabel='Importance score {ex.ex_name}')
+    ax.set(ylabel="", xlabel=f'Importance score {ex.ex_name}')
     return ax
 
 

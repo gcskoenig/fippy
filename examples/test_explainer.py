@@ -81,6 +81,26 @@ ex4 = wrk.ais_via_ordering(('cycling', 'PSA', 'biomarkers'),
 ex4.hbarplot()
 plt.show()
 
+G = ['PSA']
+ex5 = wrk.dis_from_baselinefunc(fsoi, X_test, y_test, baseline='remainder')
+ex6 = wrk.dis_from_baselinefunc(G, X_test, y_test, baseline='remainder')
+
+ex5.hbarplot()
+plt.show()
+ex6.hbarplot()
+plt.show()
+
+from rfi.explanation import Explanation
+scores_rfi = ex5.scores - ex6.scores
+ex = Explanation(fsoi, scores_rfi)
+ex.hbarplot()
+plt.show()
+
+exrfi = wrk.rfi(G, X_test, y_test)
+exrfi.hbarplot()
+plt.show()
+
+
 # test basic fixed importance functions
 
 ex5 = wrk.dis_from_baselinefunc(fsoi, X_test, y_test, baseline='remainder')
@@ -96,7 +116,8 @@ plt.show()
 partial_ordering = [('cycling', 'PSA', 'biomarkers')]
 
 ex7, orderings = wrk.sage(X_test, y_test, partial_ordering,
-                          nr_orderings=10, nr_runs=4, nr_resample_marginalize=21)
+                          nr_orderings=100, nr_runs=4, nr_resample_marginalize=6,
+                          thresh=0.5, detect_convergence=True)
 ex7.hbarplot()
 plt.show()
 
