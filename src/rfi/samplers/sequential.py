@@ -67,11 +67,11 @@ class SequentialSampler(Sampler):
                 # TODO: check whether this solution is too hacky? can we use the samplefunc in any other class?
                 if jj in self.categorical_fs:
                     self.cat_sampler.train([jj], G_jj, verbose=verbose)
-                    self._store_samplefunc([jj], G_jj, self.cat_sampler._get_samplefunc([jj], G_jj))
+                    # self._store_samplefunc([jj], G_jj, self.cat_sampler._get_samplefunc([jj], G_jj))
                 else:
                     # TODO fit other sampler
                     self.cont_sampler.train([jj], G_jj, verbose=verbose)
-                    self._store_samplefunc([jj], G_jj, self.cont_sampler._get_samplefunc([jj], G_jj))
+                    # self._store_samplefunc([jj], G_jj, self.cont_sampler._get_samplefunc([jj], G_jj))
 
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 X_eval_sub = pd.DataFrame(eval_context, columns=Sampler._order_fset(G))
@@ -93,7 +93,10 @@ class SequentialSampler(Sampler):
                     G_jj = list(set(G_cond_jj).union(G))
 
                     # num_samples was already incorporated earlier
-                    df_row = self.sample(X_res, [jj], G_jj, num_samples=1)
+                    if jj in self.categorical_fs:
+                        df_row = self.cat_sampler.sample(X_res, [jj], G_jj, num_samples=1)
+                    else:
+                        df_row = self.cont_sampler.sample(X_res, [jj], G_jj, num_samples=1)
                     X_res[df_row.columns] = np.array(df_row)
 
 
