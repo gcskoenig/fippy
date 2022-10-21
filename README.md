@@ -23,16 +23,4 @@ The library is accompagnied by our ICPR paper [[arXiv]](https://arxiv.org/abs/20
 
 ## Installation
 
-```
-python setup.py install --user
-```
-
-or alternatively
-
-```
-python setup.py develop
-```
-
-## Use Case
-
-See `examples/dedact_arxiv`for two examples that are explained in the dedact paper (https://arxiv.org/abs/2106.08086)
+The package assumes a current version of python, i.e. `>= 3.9.7'. Create a virtual environment and manually install the following dependencies: `torch` (following the installation instructions on the pytorch website), `ray` including tuning functionality (e.g. `pip install -U "ray[tune]"`), `scikit-learn` (following the instructions on their website). Then install the `requirements.txt` using `pip install -r [path-to-rfi-folder]/requirements.txt`. Then you can install the rfi package using `pip install -e [path-to-rfi-folder]`. 
