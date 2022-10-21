@@ -23,4 +23,4 @@ The library is accompagnied by our ICPR paper [[arXiv]](https://arxiv.org/abs/20
 
 ## Installation
 
-The package assumes a current version of python, i.e. `>= 3.9.7'. Create a virtual environment and manually install the following dependencies: `torch` (following the installation instructions on the pytorch website), `ray` including tuning functionality (e.g. `pip install -U "ray[tune]"`), `scikit-learn` (following the instructions on their website). Then install the `requirements.txt` using `pip install -r [path-to-rfi-folder]/requirements.txt`. Then you can install the rfi package using `pip install -e [path-to-rfi-folder]`. 
+The package assumes a current version of python, i.e. `>= 3.9.7`. Create a virtual environment and manually install the following dependencies: `torch` (following the installation instructions on the pytorch website), `ray` including tuning functionality (e.g. `pip install -U "ray[tune]"`), `scikit-learn` (following the instructions on their website). Then install the `requirements.txt` using `pip install -r [path-to-rfi-folder]/requirements.txt`. Then you can install the rfi package using `pip install -e [path-to-rfi-folder]`. 
