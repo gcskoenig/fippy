@@ -84,7 +84,8 @@ class Explainer:
                 return_perturbed=False, train_allowed=True,
                 target='Y', marginalize=False,
                 nr_resample_marginalize=5,
-                sampler=None, decorrelator=None):
+                sampler=None, decorrelator=None,
+                invert=False):
         """Computes the direct importance of features K given features B
         that can be explained by variables J, short DI(X_K|X_B <- X_J)
 
@@ -147,7 +148,7 @@ class Explainer:
 
         # check whether sampler is trained for the X_R|X_J
         # where R is the set of features not in B
-        R = list(set(D) - set(B))
+        R = np.array(list(set(D) - set(B)))
         if not sampler.is_trained(R, J):
             # train if allowed, otherwise raise error
             if train_allowed:
@@ -563,6 +564,15 @@ class Explainer:
             scores.loc[(slice(None), slice(None)), K[0]] = scores_arr
 
         result = explanation.Explanation(self.fsoi, scores, ex_name='dis_from_fixed')
+        return result
+
+    def rfi(self, G, X_eval, y_eval, fsoi=None, D=None, **kwargs):
+        if D is None:
+            D = self.X_train.columns
+        ex_full = self.dis_from_baselinefunc(D, X_eval, y_eval, fsoi=fsoi, D=D, baseline='remainder', **kwargs)
+        ex_partly = self.dis_from_baselinefunc(G, X_eval, y_eval, fsoi=fsoi, D=D, baseline='remainder', **kwargs)
+        rfi_scores = ex_full.scores - ex_partly.scores
+        result = explanation.Explanation(self.fsoi, rfi_scores, ex_name=f'rfi_{G}')
         return result
 
     def ais_via_contextfunc(self, K, X_eval, y_eval, fsoi=None, D=None, context='empty', contextfunc=None, **kwargs):
