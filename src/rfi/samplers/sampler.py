@@ -5,6 +5,7 @@ More details can be found in the class description
 """
 import numpy as np
 import pandas as pd
+import copy
 
 import rfi.utils as utils
 from rfi.samplers._utils import sample_id  # , sample_perm
@@ -54,6 +55,31 @@ class Sampler:
     def _pd_to_np(df):
         np_arr = df[sorted(df.columns)].to_numpy()
         return np_arr
+
+    def _clear_store(self):
+        """ Flushes storage of trained samplers.
+
+        :return:
+        """
+        self._trained_sampling_funcs.clear()
+        self._trained_estimators.clear()
+
+    def copy(self):
+        """ Create deep copy of the object
+
+        :return:
+        """
+        sampler = copy.deepcopy(self)
+        return sampler
+
+    def update_data(self, X_train):
+        """ Feed new training data and flush storage.
+
+        :param X_train:
+        :return:
+        """
+        self._clear_store()
+        self.X_train = X_train
 
     def is_trained(self, J, G):
         """Indicates whether the Sampler has been trained
