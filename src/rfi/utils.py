@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 def fset_to_ix(cnames, fset, sort=True):
-    logger.warning('using fset_to_ix to convert columname'
-                   'to numpy column index')
+    logger.debug('using fset_to_ix to convert columname'
+                 'to numpy column index')
     if sort:
         cnames = sorted(cnames)
         fset = sorted(fset)

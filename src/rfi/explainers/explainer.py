@@ -148,7 +148,7 @@ class Explainer:
 
         # check whether sampler is trained for the X_R|X_J
         # where R is the set of features not in B
-        R = list(set(D) - set(B))
+        R = np.array(list(set(D) - set(B)))
         if not sampler.is_trained(R, J):
             # train if allowed, otherwise raise error
             if train_allowed:

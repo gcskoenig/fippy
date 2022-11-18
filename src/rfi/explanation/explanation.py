@@ -30,6 +30,7 @@ class Explanation:
         """Inits Explanation with fsoi indices, fsoi names, """
         self.fsoi = fsoi  # TODO evaluate, do I need to make a copy?
         self.scores = scores  # TODO evaluate, do I need to make a copy?
+        self.ex_name = ex_name
         if ex_name is None:
             self.ex_name = 'Unknown'
 
