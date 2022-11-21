@@ -61,8 +61,9 @@ class UnivRFSampler(Sampler):
             # rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
             #                                n_iter=100, verbose=0,
             #                                n_jobs=-1, scoring='neg_log_loss')  # Fit the random search model
-            X_train_G, X_train_J = self.X_train[Sampler._order_fset(G)].values, self.X_train[J[0]]
-            enc_G = ce.OneHotEncoder().fit(X_train_G)
+            X_train_G, X_train_J = self.X_train[Sampler._order_fset(G)], self.X_train[J[0]]
+            enc_G = ce.OneHotEncoder()
+            enc_G.fit(X_train_G)
             X_train_G_enc = enc_G.transform(X_train_G)
             rf.fit(X_train_G_enc, X_train_J)
             model = rf  # _random.best_estimator_
