@@ -8,6 +8,7 @@ from rfi.samplers.sampler import Sampler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import RandomizedSearchCV
 import torch
+import category_encoders as ce
 
 class UnivRFSampler(Sampler):
     """
@@ -39,12 +40,12 @@ class UnivRFSampler(Sampler):
             # TODO assert that variables are categorical
             # TODO raise error if that is not the case
             # adjust max_features in param_grid to actual number of features
-            if len(G) < 4:
-                max_features = list(range(1, len(G)+1))
-            elif len(G) == 4:
-                max_features = [2, 3, 4]
-            else:
-                max_features = [2, 3, 5]
+            # if len(G) < 4:
+            #     max_features = list(range(1, len(G)+1))
+            # elif len(G) == 4:
+            #     max_features = [2, 3, 4]
+            # else:
+            #     max_features = [2, 3, 5]
 
             # param_grid = {
             #     'bootstrap': [True],
@@ -60,16 +61,20 @@ class UnivRFSampler(Sampler):
             # rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
             #                                n_iter=100, verbose=0,
             #                                n_jobs=-1, scoring='neg_log_loss')  # Fit the random search model
-            rf.fit(self.X_train[Sampler._order_fset(G)].values, self.X_train[J[0]])
-            model = rf # _random.best_estimator_
+            X_train_G, X_train_J = self.X_train[Sampler._order_fset(G)].values, self.X_train[J[0]]
+            enc_G = ce.OneHotEncoder().fit(X_train_G)
+            X_train_G_enc = enc_G.transform(X_train_G)
+            rf.fit(X_train_G_enc, X_train_J)
+            model = rf  # _random.best_estimator_
 
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 arrs = []
                 for snr in range(num_samples):
                     X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(G))
+                    X_eval_enc = enc_G.transform(X_eval)
 
                     # TODO: use the model to sample the target variable
-                    pred_proba = torch.tensor(model.predict_proba(eval_context))
+                    pred_proba = torch.tensor(model.predict_proba(X_eval_enc))
                     sample = torch.multinomial(pred_proba, 1).numpy().flatten()
                     sample = model.classes_[sample]
                     arrs.append(sample.reshape(1, -1, len(J)))

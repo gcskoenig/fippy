@@ -43,7 +43,7 @@ class GaussianSampler(Sampler):
                 raise NotImplementedError('GaussianConditionalEstimator does '
                                           'not support categorical variables.')
 
-            # to be sampled using gaussin estimator
+            # to be sampled using gaussian estimator
             J_R = list(set(J) - set(G))
             # to be ID returned
             J_G = list(set(J) - set(J_R))

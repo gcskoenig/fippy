@@ -12,6 +12,9 @@ from rfi.samplers._utils import sample_id  # , sample_perm
 import logging
 from typing import List
 
+from sklearn.preprocessing import OneHotEncoder
+import category_encoders as ce
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,6 +34,9 @@ class Sampler:
         self.cat_inputs = self._to_array(cat_inputs if cat_inputs is not None else [])
         self._trained_sampling_funcs = {}
         self._trained_estimators = {}
+        # if len(cat_inputs) > 0:
+        #     self.encoder = ce.OneHotEncoder()
+        #     self.encoder.fit(X_train)
 
         logger.info(f'Sampler initialized. Using following features as categorical {self.cat_inputs}')
 
@@ -144,6 +150,13 @@ class Sampler:
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)
         sample_func = self._trained_sampling_funcs[(J_key, G_key)]
         return sample_func
+    #
+    # def _encode(self, X_unenc):
+    #     if len(self.cat_inputs) > 0:
+    #         X_enc = self.encoder.transform(X_unenc)
+    #     else:
+    #         X_enc = X_unenc.copy()
+    #     return X_enc
 
     def train(self, J, G, verbose=True):
         """Trains sampler using the training dataset to resample
