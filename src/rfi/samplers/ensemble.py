@@ -2,6 +2,8 @@
 Random Forest based
 only works for univariate targets.
 """
+import logging
+
 import numpy as np
 import pandas as pd
 from rfi.samplers.sampler import Sampler
@@ -62,19 +64,26 @@ class UnivRFSampler(Sampler):
             #                                n_iter=100, verbose=0,
             #                                n_jobs=-1, scoring='neg_log_loss')  # Fit the random search model
             X_train_G, X_train_J = self.X_train[Sampler._order_fset(G)], self.X_train[J[0]]
-            enc_G = ce.OneHotEncoder()
-            enc_G.fit(X_train_G)
-            X_train_G_enc = enc_G.transform(X_train_G)
+
+            if len(set(self.cat_inputs).intersection(G)) > 0:
+                enc_G = ce.OneHotEncoder()
+                enc_G.fit(X_train_G)
+                X_train_G_enc = enc_G.transform(X_train_G)
+            else:
+                X_train_G_enc = X_train_G
+
             rf.fit(X_train_G_enc, X_train_J)
             model = rf  # _random.best_estimator_
 
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 arrs = []
                 for snr in range(num_samples):
-                    X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(G))
-                    X_eval_enc = enc_G.transform(X_eval)
+                    X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(X_train_G.columns))
+                    if len(set(self.cat_inputs).intersection(G)):
+                        X_eval_enc = enc_G.transform(X_eval)
+                    else:
+                        X_eval_enc = X_eval
 
-                    # TODO: use the model to sample the target variable
                     pred_proba = torch.tensor(model.predict_proba(X_eval_enc))
                     sample = torch.multinomial(pred_proba, 1).numpy().flatten()
                     sample = model.classes_[sample]
@@ -106,6 +115,7 @@ class ContUnivRFSampler(Sampler):
             verbose: printing
         """
         assert len(J) == 1
+        assert len(set(self.cat_inputs).intersection(J)) == 0
         J = Sampler._to_array(list(J))
         G = Sampler._to_array(list(G))
         super().train(J, G, verbose=verbose)
@@ -120,9 +130,12 @@ class ContUnivRFSampler(Sampler):
             #                                n_iter=100, verbose=0,
             #                                n_jobs=-1, scoring='neg_log_loss')  # Fit the random search model
             X_train_G, X_train_J = self.X_train[Sampler._order_fset(G)], self.X_train[J[0]]
-            enc_G = ce.OneHotEncoder()
-            enc_G.fit(X_train_G)
-            X_train_G_enc = enc_G.transform(X_train_G)
+            if len(set(self.cat_inputs).intersection(G)) > 0:
+                enc_G = ce.OneHotEncoder()
+                enc_G.fit(X_train_G)
+                X_train_G_enc = enc_G.transform(X_train_G)
+            else:
+                X_train_G_enc = X_train_G
             rf.fit(X_train_G_enc, X_train_J)
             model = rf  # _random.best_estimator_
             resids = X_train_J - rf.predict(X_train_G_enc)
@@ -131,9 +144,11 @@ class ContUnivRFSampler(Sampler):
                 arrs = []
                 for snr in range(num_samples):
                     X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(G))
-                    X_eval_enc = enc_G.transform(X_eval)
+                    if len(set(self.cat_inputs).intersection(G)):
+                        X_eval_enc = enc_G.transform(X_eval)
+                    else:
+                        X_eval_enc = X_eval
 
-                    # TODO: use the model to sample the target variable
                     pred = torch.tensor(model.predict(X_eval_enc))
                     sample = pred + np.random.choice(resids, pred.shape[0])
                     arrs.append(sample.reshape(1, -1, len(J)))
