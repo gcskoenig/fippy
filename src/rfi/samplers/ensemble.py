@@ -32,6 +32,7 @@ class UnivRFSampler(Sampler):
             verbose: printing
         """
         assert len(J) == 1
+        assert type(self.X_train.dtypes[J[0]] == 'category')
         J = Sampler._to_array(list(J))
         G = Sampler._to_array(list(G))
         super().train(J, G, verbose=verbose)
@@ -39,8 +40,6 @@ class UnivRFSampler(Sampler):
         JuG = list(set(J).union(G))
 
         if not self._train_J_degenerate(J, G, verbose=verbose):
-            # TODO assert that variables are categorical
-            # TODO raise error if that is not the case
             # adjust max_features in param_grid to actual number of features
             # if len(G) < 4:
             #     max_features = list(range(1, len(G)+1))
@@ -143,7 +142,7 @@ class ContUnivRFSampler(Sampler):
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 arrs = []
                 for snr in range(num_samples):
-                    X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(G))
+                    X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(X_train_G.columns))
                     if len(set(self.cat_inputs).intersection(G)):
                         X_eval_enc = enc_G.transform(X_eval)
                     else:
