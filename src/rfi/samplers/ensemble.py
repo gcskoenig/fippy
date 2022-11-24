@@ -71,7 +71,7 @@ class UnivRFSampler(Sampler):
 
             rf = RandomForestClassifier()  # Instantiate the grid search model
             rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
-                                           n_iter=100, verbose=0,
+                                           n_iter=50, verbose=0,
                                            n_jobs=-1, scoring=log_loss)  # Fit the random search model
             X_train_G, X_train_J = self.X_train[Sampler._order_fset(G)], self.X_train[J[0]]
 
@@ -141,7 +141,7 @@ class ContUnivRFSampler(Sampler):
 
             rf = RandomForestRegressor()  # Instantiate the grid search model
             rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
-                                           n_iter=100, verbose=0,
+                                           n_iter=50, verbose=0,
                                            n_jobs=-1, scoring=score)  # Fit the random search model
             X_train_G, X_train_J = self.X_train[Sampler._order_fset(G)], self.X_train[J[0]]
             if len(set(self.cat_inputs).intersection(G)) > 0:
