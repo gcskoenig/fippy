@@ -9,7 +9,7 @@ import pandas as pd
 from rfi.samplers.sampler import Sampler
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import RandomizedSearchCV
-from sklearn.metrics import log_loss, mean_squared_error
+from sklearn.metrics import log_loss, mean_squared_error, make_scorer
 import torch
 import category_encoders as ce
 
@@ -23,7 +23,7 @@ def get_param_grid(G):
 
     param_grid = {
         'bootstrap': [True],
-        'criterion': ['entropy'],
+        # 'criterion': ['entropy'],
         'max_depth': [80, 90, 100, 110],
         'max_features': max_features,
         'min_samples_leaf': [5, 10, 50, 100],
@@ -61,6 +61,8 @@ class UnivRFSampler(Sampler):
         J = Sampler._to_array(list(J))
         G = Sampler._to_array(list(G))
         super().train(J, G, verbose=verbose)
+
+        log_loss_scorer = make_scorer(log_loss, greater_is_better=False)
 
         JuG = list(set(J).union(G))
 
@@ -126,9 +128,12 @@ class ContUnivRFSampler(Sampler):
         """
         assert len(J) == 1
         assert len(set(self.cat_inputs).intersection(J)) == 0
+        assert score is None
         J = Sampler._to_array(list(J))
         G = Sampler._to_array(list(G))
         super().train(J, G, verbose=verbose)
+
+        mse_scorer = make_scorer(mean_squared_error, greater_is_better=False)
 
         # if score is None:
         #     score = mean_squared_error
@@ -142,7 +147,7 @@ class ContUnivRFSampler(Sampler):
             rf = RandomForestRegressor()  # Instantiate the grid search model
             rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
                                            n_iter=50, verbose=0,
-                                           n_jobs=-1, scoring=score)  # Fit the random search model
+                                           n_jobs=-1, scoring=mse_scorer)  # Fit the random search model
             X_train_G, X_train_J = self.X_train[Sampler._order_fset(G)], self.X_train[J[0]]
             if len(set(self.cat_inputs).intersection(G)) > 0:
                 enc_G = ce.OneHotEncoder()
