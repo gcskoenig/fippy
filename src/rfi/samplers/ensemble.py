@@ -45,7 +45,7 @@ class UnivRFSampler(Sampler):
         """Initialize Sampler with X_train and mask."""
         super().__init__(X_train, **kwargs)
 
-    def train(self, J, G, verbose=True, score=None):
+    def train(self, J, G, verbose=True, score=None, tuning=False):
         """
         Trains sampler using dataset to resample variable jj relative to G.
         Args:
@@ -69,12 +69,14 @@ class UnivRFSampler(Sampler):
         if not self._train_J_degenerate(J, G, verbose=verbose):
             # adjust max_features in param_grid to actual number of features
 
-            param_grid = get_param_grid(G)
-
             rf = RandomForestClassifier()  # Instantiate the grid search model
-            rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
-                                           n_iter=50, verbose=0,
-                                           n_jobs=-1, scoring=log_loss)  # Fit the random search model
+
+            if tuning:
+                param_grid = get_param_grid(G)
+                rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
+                                               n_iter=50, verbose=0,
+                                               n_jobs=-1, scoring=log_loss_scorer)  # Fit the random search model
+
             X_train_G, X_train_J = self.X_train[Sampler._order_fset(G)], self.X_train[J[0]]
 
             if len(set(self.cat_inputs).intersection(G)) > 0:
@@ -84,8 +86,12 @@ class UnivRFSampler(Sampler):
             else:
                 X_train_G_enc = X_train_G
 
-            rf_random.fit(X_train_G_enc, X_train_J)
-            model = rf_random.best_estimator_
+            if tuning:
+                rf_random.fit(X_train_G_enc, X_train_J)
+                model = rf_random.best_estimator_
+            else:
+                rf.fit(X_train_G_enc, X_train_J)
+                model = rf
 
             def samplefunc(eval_context, num_samples=1, **kwargs):
                 arrs = []
@@ -118,7 +124,7 @@ class ContUnivRFSampler(Sampler):
         """Initialize Sampler with X_train and mask."""
         super().__init__(X_train, **kwargs)
 
-    def train(self, J, G, verbose=True, score=None):
+    def train(self, J, G, verbose=True, score=None, tuning=False):
         """
         Trains sampler using dataset to resample variable jj relative to G.
         Args:
@@ -142,12 +148,13 @@ class ContUnivRFSampler(Sampler):
 
         if not self._train_J_degenerate(J, G, verbose=verbose):
             # TODO assert that target variable is continuous
-            param_grid = get_param_grid(G)
-
             rf = RandomForestRegressor()  # Instantiate the grid search model
-            rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
-                                           n_iter=50, verbose=0,
-                                           n_jobs=-1, scoring=mse_scorer)  # Fit the random search model
+            if tuning:
+                param_grid = get_param_grid(G)
+
+                rf_random = RandomizedSearchCV(estimator=rf, param_distributions=param_grid,
+                                               n_iter=50, verbose=0,
+                                               n_jobs=-1, scoring=mse_scorer)  # Fit the random search model
             X_train_G, X_train_J = self.X_train[Sampler._order_fset(G)], self.X_train[J[0]]
             if len(set(self.cat_inputs).intersection(G)) > 0:
                 enc_G = ce.OneHotEncoder()
@@ -155,8 +162,12 @@ class ContUnivRFSampler(Sampler):
                 X_train_G_enc = enc_G.transform(X_train_G)
             else:
                 X_train_G_enc = X_train_G
-            rf_random.fit(X_train_G_enc, X_train_J)
-            model = rf_random.best_estimator_
+            if tuning:
+                rf_random.fit(X_train_G_enc, X_train_J)
+                model = rf_random.best_estimator_
+            else:
+                rf.fit(X_train_G_enc, X_train_J)
+                model = rf
             resids = X_train_J - model.predict(X_train_G_enc)
 
             def samplefunc(eval_context, num_samples=1, **kwargs):
