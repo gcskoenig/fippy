@@ -98,8 +98,9 @@ class Explanation:
             A pd.DataFrame with the mean score and std for
             all features.
         """
-        df = pd.DataFrame(self.scores.mean(), columns=['mean'])
-        df['std'] = self.scores.std()
+        fi_vals = self.fi_vals(fnames_as_columns=True)
+        df = pd.DataFrame(fi_vals.mean(), columns=['mean'])
+        df['std'] = fi_vals.std()
         df.index.set_names(['feature'], inplace=True)
         return df
 
