@@ -9,6 +9,10 @@ from rfi.samplers.simple import SimpleSampler
 from rfi.samplers.gaussian import GaussianSampler
 import networkx as nx
 
+import logging
+
+logger = logging.getLogger()
+
 idx = pd.IndexSlice
 
 class SequentialSampler(Sampler):
@@ -63,6 +67,7 @@ class SequentialSampler(Sampler):
                 jj = J_ord[ii]
                 G_cond_jj = J_ord[ii+1:]
                 G_jj = list(set(G_cond_jj).union(G))
+                logger.debug(f'\tseq sampler training {jj}|{G_cond_jj}')
 
                 # TODO: check whether this solution is too hacky? can we use the samplefunc in any other class?
                 if jj in self.categorical_fs:
