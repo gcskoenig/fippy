@@ -35,10 +35,11 @@ class SequentialSampler(Sampler):
         self.cat_sampler = cat_sampler
         self.cont_sampler = cont_sampler
         if cat_sampler is None:
+            raise NotImplementedError('categorical sampler must be specified')
             self.cat_sampler = SimpleSampler(X_train)
         if cont_sampler is None:
+            raise NotImplementedError('continuous sampler must be specified')
             self.cont_sampler = GaussianSampler(X_train)
-
 
     def train(self, J, G, verbose=True):
         """
