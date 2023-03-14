@@ -406,7 +406,7 @@ class Explainer:
 
                 if self.encoder is not None:
                     X_tilde_baseline = self.encoder.transform(X_tilde_baseline)
-                    X_tilde_foreground = self.encoder.transform(X_tilde_foreground)
+                    X_tilde_foreground_partial = self.encoder.transform(X_tilde_foreground_partial)
 
                 # create and store prediction
                 y_hat_baseline = self.model(X_tilde_baseline)
