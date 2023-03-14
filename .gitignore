@@ -1,6 +1,7 @@
 .idea/
 *.joblib
 *.csv
+*egg-info*
 py_env/
 build/
 dist/
