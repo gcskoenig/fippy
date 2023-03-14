@@ -66,7 +66,7 @@ class UnivRFSampler(Sampler):
 
         JuG = list(set(J).union(G))
 
-        if not self._train_J_degenerate(J, G, verbose=verbose):
+        if not self._train_J_degenerate(J, G) and not self._train_G_degenerate(J, G):
             # adjust max_features in param_grid to actual number of features
 
             rf = RandomForestClassifier()  # Instantiate the grid search model
@@ -146,7 +146,7 @@ class ContUnivRFSampler(Sampler):
 
         JuG = list(set(J).union(G))
 
-        if not self._train_J_degenerate(J, G, verbose=verbose):
+        if not self._train_J_degenerate(J, G):
             # TODO assert that target variable is continuous
             rf = RandomForestRegressor()  # Instantiate the grid search model
             if tuning:

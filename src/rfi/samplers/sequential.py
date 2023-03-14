@@ -54,7 +54,7 @@ class SequentialSampler(Sampler):
 
         JuG = list(set(J).union(G))
 
-        if not self._train_J_degenerate(J, G, verbose=verbose):
+        if not self._train_J_degenerate(J, G):
             if self.g is None:
                 ordering = self.X_train.columns
             else:
