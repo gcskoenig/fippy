@@ -125,10 +125,8 @@ class Sampler:
             pass  # no training required because sampler handles these cases automatically without training
         #     J_ixs = utils.fset_to_ix(self.X_train.columns, J)
         #     self._store_samplefunc(J, G, sample_perm(J_ixs, self.X_train))
-        # # are all elements in G being conditioned upon?
-        elif np.sum(1 - np.isin(J, G)) == 0:
         # are all elements in G being conditioned upon?
-        if np.sum(1 - np.isin(J, G)) == 0:
+        elif np.sum(1 - np.isin(J, G)) == 0:
             logger.debug('Degenerate Training: J subseteq G')
             J_ixs = utils.fset_to_ix(Sampler._order_fset(G),
                                      Sampler._order_fset(J))

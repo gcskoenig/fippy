@@ -32,10 +32,10 @@ class Explainer:
         loss: default loss.
     """
     # TODO make sampler (and decorrelator?) normal arugments (no keyword arguments)
-    def __init__(self, model, fsoi, X_train, sampler=None, decorrelator=None,
+    def __init__(self, predict, fsoi, X_train, sampler=None, decorrelator=None,
                  loss=None, encoder=None):
         """Inits Explainer with sem, mask and potentially sampler and loss"""
-        self.model = model
+        self.model = predict
         self.fsoi = fsoi  # now column names, not indexes
         self.X_train = X_train
         self.sampler = sampler
