@@ -100,6 +100,9 @@ class Sampler:
             a set J|G.
 
         """
+        if len(G) == 0 and len(list(set(J) - set(self.X_train.columns))) == 0:
+            # if G empty and all in J also in the training data, no training required
+            return True
         G_key, J_key = Sampler._to_key(G), Sampler._to_key(J)  # transform into hashable form
         trained = (J_key, G_key) in self._trained_sampling_funcs
         return trained
@@ -116,6 +119,14 @@ class Sampler:
         """
         degenerate = True
 
+        # are we conditioning on zero elements?
+        if G.size == 0:
+            logger.debug('Degenerate Training: Empty G')
+            pass  # no training required because sampler handles these cases automatically without training
+        #     J_ixs = utils.fset_to_ix(self.X_train.columns, J)
+        #     self._store_samplefunc(J, G, sample_perm(J_ixs, self.X_train))
+        # # are all elements in G being conditioned upon?
+        elif np.sum(1 - np.isin(J, G)) == 0:
         # are all elements in G being conditioned upon?
         if np.sum(1 - np.isin(J, G)) == 0:
             logger.debug('Degenerate Training: J subseteq G')
@@ -221,6 +232,15 @@ class Sampler:
         elif len(J) == 0:
             df = pd.DataFrame([], index=index)
             return df
+        elif len(G) == 0:
+            df_J = self.X_train.loc[:, J].copy()
+            dfs = []
+            for jj in range(num_samples):
+                df_perm = df_J.sample(n=X_test.shape[0], replace=True).copy()
+                dfs.append(df_perm)
+            sample = pd.concat(dfs)
+            sample.index = index
+            return sample
         else:
             # expects a sample_func that returns a numpy array of shape
             # (nr_obs, nr_samples, nr_cols)

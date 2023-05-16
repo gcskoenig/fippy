@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from rfi.utils import deprecated
 
 
@@ -15,17 +16,19 @@ def sample_id(J_ixs):
         """ Sample function that returns a copy of
         X_test[:, J] of shape (#obs, #num_samples, #J_ixs)
         """
+        X_J = X_context[:, J_ixs]
+        X_J_rep = np.stack([X_J]*num_samples, axis=2)
+        X_J_rep = X_J_rep.swapaxes(1, 2)
+        # index = create_multiindex(['sample', 'i'],
+        #                           [np.arange(num_samples), list(X_J.index)])
+        # X_J_rep.index = index
         # res = np.zeros((X_context.shape[0], num_samples, len(J_ixs)))
-        arrs = []
-        for kk in range(num_samples):
-            arr = X_context[:, J_ixs].reshape(X_context.shape[0], 1, len(J_ixs))
-            arrs.append(arr)
-        res = np.concatenate(arrs, axis=1)
-        return res
+        # for kk in range(num_samples):
+        #     res[:, kk, :] = X_context[:, J_ixs]
+        return X_J_rep
 
     return sample
-
-
+  
 def sample_perm(J_ixs, X_train):
     """ Simple sampler that permutes the value
 
@@ -39,13 +42,16 @@ def sample_perm(J_ixs, X_train):
         Sample function that returns a permutation of
         X_test[:, ix] of shape (#obs, #num_samples, #ix)
         """
-        n_test = X_test.shape[0]
         # res = np.zeros((X_test.shape[0], num_samples, len(J_ixs)))
-        xss = []
+        X_J = X_train[:, J_ixs]
+        X_J_perms = []
         for kk in range(num_samples):
-            ixs = np.random.choice(n_train, n_test, replace=True)
-            xs = np.array(X_train[np.ix_(ixs, J_ixs)]).reshape(n_test, 1, len(J_ixs))
-            xss.append(xs)
-        res = np.concatenate(xss, axis=1)
+            # xs = np.array(X_test[:, J_ixs])  # copy into new array
+            # np.random.shuffle(xs)  # shuffle in-place
+            # res[:, kk, :] = xs
+            X_J_perm = X_J[np.random.permutation(range(X_J.shape[0])), :]
+            X_J_perms.append(X_J_perm)
+        res = np.stack(X_J_perms, axis=2)
+        res = res.swapaxes(1, 2)
         return res
     return sample
