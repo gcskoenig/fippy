@@ -33,7 +33,7 @@ class SimpleSampler(Sampler):
 
         JuG = list(set(J).union(G))
 
-        if not self._train_J_degenerate(J, G, verbose=verbose):
+        if not self._train_J_degenerate(J, G):
             # TODO assert that variables are categorical
             # TODO raise error if that is not the case
 

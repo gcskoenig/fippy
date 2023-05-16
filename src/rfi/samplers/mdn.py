@@ -24,7 +24,7 @@ class MDNSampler(Sampler):
         G = Sampler._to_array(G)
         super().train(J, G, verbose=verbose)
 
-        if not self._train_J_degenerate(J, G, verbose=verbose):
+        if not self._train_J_degenerate(J, G):
 
             if not set(J).isdisjoint(self.cat_inputs) and len(J) > 1:
                 raise NotImplementedError('Multiple categorical or mixed '

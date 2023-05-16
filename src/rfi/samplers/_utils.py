@@ -28,15 +28,15 @@ def sample_id(J_ixs):
         return X_J_rep
 
     return sample
-
-@deprecated
+  
 def sample_perm(J_ixs, X_train):
     """ Simple sampler that permutes the value
 
     Args:
         J_ixs: ixs for columns to be "sampled"
     """
-
+    n_train = X_train.shape[0]
+    X_train = np.array(X_train)
     def sample(X_test, num_samples=1):
         """
         Sample function that returns a permutation of

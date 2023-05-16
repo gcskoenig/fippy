@@ -107,9 +107,9 @@ class Sampler:
         trained = (J_key, G_key) in self._trained_sampling_funcs
         return trained
 
-    def _train_J_degenerate(self, J, G, verbose=True):
+    def _train_J_degenerate(self, J, G):
         """Training function that takes care of degenerate cases
-        where either j is in G or G is empty.
+        where j is in G.
         Args:
             J: features of interest
             G: relative feature set
@@ -127,10 +127,33 @@ class Sampler:
         #     self._store_samplefunc(J, G, sample_perm(J_ixs, self.X_train))
         # # are all elements in G being conditioned upon?
         elif np.sum(1 - np.isin(J, G)) == 0:
+        # are all elements in G being conditioned upon?
+        if np.sum(1 - np.isin(J, G)) == 0:
             logger.debug('Degenerate Training: J subseteq G')
             J_ixs = utils.fset_to_ix(Sampler._order_fset(G),
                                      Sampler._order_fset(J))
             self._store_samplefunc(J, G, sample_id(J_ixs))
+        else:
+            logger.debug('J not a subset of G')
+            degenerate = False
+
+        return degenerate
+
+    def _train_G_degenerate(self, J, G):
+        """Training function that takes care of cases where G is empty. Makes no distributional assumptions
+        (simply samples by permuting).
+
+        :param J: features of interest
+        :param G: relative feature set
+        :return: boolean indicating whether the case was handled
+        """
+        degenerate = True
+
+        # are we conditioning on zero elements?
+        if G.size == 0:
+            logger.debug('Degenerate Training: Empty G')
+            J_ixs = utils.fset_to_ix(self.X_train.columns, J)
+            self._store_samplefunc(J, G, sample_perm(J_ixs, self.X_train))
         else:
             logger.debug('Training not degenerate.')
             degenerate = False
