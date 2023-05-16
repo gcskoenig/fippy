@@ -36,7 +36,7 @@ class GaussianSampler(Sampler):
         G = Sampler._to_array(list(G))
         super().train(J, G, verbose=verbose)
 
-        if not self._train_J_degenerate(J, G, verbose=verbose):
+        if not self._train_J_degenerate(J, G):
             G_disjoint = set(G).isdisjoint(self.cat_inputs)
             J_disjoint = set(J).isdisjoint(self.cat_inputs)
             if not G_disjoint or not J_disjoint:

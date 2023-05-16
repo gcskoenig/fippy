@@ -33,7 +33,7 @@ class Explainer:
     """
     # TODO make sampler (and decorrelator?) normal arugments (no keyword arguments)
     def __init__(self, model, fsoi, X_train, sampler=None, decorrelator=None,
-                 loss=None):
+                 loss=None, encoder=None):
         """Inits Explainer with sem, mask and potentially sampler and loss"""
         self.model = model
         self.fsoi = fsoi  # now column names, not indexes
@@ -41,6 +41,7 @@ class Explainer:
         self.sampler = sampler
         self.decorrelator = decorrelator
         self.loss = loss
+        self.encoder = encoder
         # check whether feature set is valid
         self._valid_fset(self.fsoi)
         # if not decorrelator is specified, just replace it with the respective sampler
@@ -228,6 +229,10 @@ class Explainer:
                 X_tilde_baseline = X_tilde_baseline[D]
                 X_tilde_foreground = X_tilde_foreground[D]
 
+                if self.encoder is not None:
+                    X_tilde_baseline = self.encoder.transform(X_tilde_baseline)
+                    X_tilde_foreground = self.encoder.transform(X_tilde_foreground)
+
                 y_hat_baseline = self.model(X_tilde_baseline)
                 y_hat_foreground = self.model(X_tilde_foreground)
 
@@ -398,6 +403,10 @@ class Explainer:
                 # make sure model can handle it (selection and ordering)
                 X_tilde_baseline = X_tilde_baseline[D]
                 X_tilde_foreground_partial = X_tilde_foreground_partial[D]
+
+                if self.encoder is not None:
+                    X_tilde_baseline = self.encoder.transform(X_tilde_baseline)
+                    X_tilde_foreground_partial = self.encoder.transform(X_tilde_foreground_partial)
 
                 # create and store prediction
                 y_hat_baseline = self.model(X_tilde_baseline)
