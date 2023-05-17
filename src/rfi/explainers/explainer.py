@@ -791,10 +791,10 @@ class Explainer:
                                                **kwargs)
                 elif method == 'direct':
                     # TODO check whether this should be dis_from_baselinefunc
-                    ex = self.dis_from_baselinefunc(ordering, G, X_eval, y_eval,
-                                                    target=target, marginalize=marginalize,
-                                                    nr_runs=1, nr_resample_marginalize=nr_resample_marginalize,
-                                                    **kwargs)
+                    ex = self.dis_from_ordering(ordering, G, X_eval, y_eval,
+                                                target=target, marginalize=marginalize,
+                                                nr_runs=1, nr_resample_marginalize=nr_resample_marginalize,
+                                                **kwargs)
 
                 if save_each_obs:
                     scores_arr = ex.scores[fsoi].to_numpy()

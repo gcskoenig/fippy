@@ -7,6 +7,48 @@ import seaborn as sns
 textformat = '{:5.2f}'  # TODO(gcsk): remove this line
 
 
+def fi_sns_hbarplot(ex, ax=None, figsize=None):
+    """Seaborn based function that plots rfi results
+
+    Args:
+        ex: Explanation object
+        ax: ax to plot on?
+        figsize: figsize of the form (width, height)
+    """
+    if ax is None:
+        f, ax = plt.subplots(figsize=figsize)
+    df = ex.fi_vals(fnames_as_columns=False)
+    df.reset_index(inplace=True)
+    order = df.groupby('feature').mean().sort_values('importance', ascending=False).reset_index()['feature']
+    with sns.axes_style('whitegrid'):
+        sns.barplot(ax=ax, x='importance', y='feature', data=df, order=order,
+                    errorbar='sd', errcolor='black',
+                    color='black', facecolor='darkgray',
+                    capsize=0, errwidth=3,
+                    linewidth=0, edgecolor='black')
+        sns.despine(left=True, bottom=True, ax=ax)
+    # sns.barplot(x='importance', y='feature', data=df, ax=ax, errorbar='sd',
+    #             order=order, color='black', errcolor='darkgray',
+    #             linewidth=3, facecolor=(244, 244, 244, 0.5), edgecolor='black')
+    # sns.despine(left=True, bottom=True, ax=ax)
+        ax.set(ylabel="", xlabel=f'Importance score {ex.ex_name}')
+        return ax
+
+
+### DEPRECATED
+
+def fi_sns_gbarplot(dex, ax=None, figsize=None):
+    if ax is None:
+        f, ax = plt.subplots(figsize=figsize)
+    df = dex.fi_decomp()
+    df.reset_index(inplace=True)
+    # df.sort_values('importance', axis=0, ascending=False, inplace=True)
+    sns.barplot(x='importance', hue='component', y='feature',
+                ax=ax, ci='sd', data=df,
+                palette=sns.color_palette())
+    return ax
+
+
 def fi_hbarplot(ex, textformat='{:5.2f}', ax=None, figsize=None):
     """
     Function that plots the result of an RFI computation as a barplot
@@ -40,38 +82,6 @@ def fi_hbarplot(ex, textformat='{:5.2f}', ax=None, figsize=None):
         ax.text(tx, ty_lower, '+-' + textformat.format(stds[jj]),
                 va='center', ha='center', size=pix_height)
     return ax
-
-
-def fi_sns_hbarplot(ex, ax=None, figsize=None):
-    """Seaborn based function that plots rfi results
-
-    Args:
-        ex: Explanation object
-        ax: ax to plot on?
-        figsize: figsize of the form (width, height)
-    """
-    if ax is None:
-        f, ax = plt.subplots(figsize=figsize)
-    df = ex.fi_vals(fnames_as_columns=False)
-    df.reset_index(inplace=True)
-    df.sort_values('importance', axis=0, ascending=False, inplace=True)
-    sns.barplot(x='importance', y='feature', data=df, ax=ax, ci='sd')
-    sns.despine(left=True, bottom=True, ax=ax)
-    ax.set(ylabel="", xlabel=f'Importance score {ex.ex_name}')
-    return ax
-
-
-def fi_sns_gbarplot(dex, ax=None, figsize=None):
-    if ax is None:
-        f, ax = plt.subplots(figsize=figsize)
-    df = dex.fi_decomp()
-    df.reset_index(inplace=True)
-    # df.sort_values('importance', axis=0, ascending=False, inplace=True)
-    sns.barplot(x='importance', hue='component', y='feature',
-                ax=ax, ci='sd', data=df,
-                palette=sns.color_palette())
-    return ax
-
 
 def fi_sns_wbarplots(dex, fs=None, ax=None, figsize=None, col_wrap=5):
     if ax is None:
