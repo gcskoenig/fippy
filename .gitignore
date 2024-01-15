@@ -11,6 +11,10 @@ __pycache__/
 /examples/chains/data/
 /examples/cnf_thesis/real_pseudoreal_dags/data/
 venv/
+.idea/
+.venv/
+build/
+~/
 examples_cg/
 /experiments_cg/data/
 /experiments_cg/models/
