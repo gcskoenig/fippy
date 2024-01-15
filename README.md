@@ -1,4 +1,4 @@
-# A Python Library for Feature Importance
+# FiPy: A Python Library for Feature Importance
 
 ![Python package](https://github.com/gcskoenig/rfi/workflows/Python%20package/badge.svg?branch=master)
 
@@ -12,14 +12,8 @@ In this library we offer an implementation of Relative Feature Importance includ
 
 - a variety of conditional sampling techniques
 - visualization
-- significance testing
 
 The library is accompagnied by our ICPR paper [[arXiv]](https://arxiv.org/abs/2007.08283)
-
-## Sampling techniques
-
-- Gaussian Sampling
-- Conditional Normalizing Flows
 
 ## Installation
 
