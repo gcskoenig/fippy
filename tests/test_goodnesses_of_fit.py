@@ -3,12 +3,12 @@ import pandas as pd
 import numpy as np
 from typing import Union
 
-from rfi.backend.goodness_of_fit import conditional_js_divergence, conditional_kl_divergence, conditional_hellinger_distance
-from rfi.backend.causality import DirectedAcyclicGraph, PostNonLinearLaplaceSEM, PostNonLinearMultiplicativeHalfNormalSEM, \
+from fipy.backend.goodness_of_fit import conditional_js_divergence, conditional_kl_divergence, conditional_hellinger_distance
+from fipy.backend.causality import DirectedAcyclicGraph, PostNonLinearLaplaceSEM, PostNonLinearMultiplicativeHalfNormalSEM, \
     LinearGaussianNoiseSEM, RandomGPGaussianNoiseSEM, StructuralEquationModel
-from rfi.backend import GaussianConditionalEstimator
-from rfi.backend import NormalisingFlowEstimator
-from rfi.backend.mdn import MixtureDensityNetworkEstimator
+from fipy.backend import GaussianConditionalEstimator
+from fipy.backend import NormalisingFlowEstimator
+from fipy.backend.mdn import MixtureDensityNetworkEstimator
 
 logging.basicConfig(level=logging.INFO)
 

@@ -1,4 +1,4 @@
-from sklearn.datasets import load_boston
+from sklearn.datasets import fetch_california_housing
 from sklearn.model_selection import train_test_split
 import seaborn as sns
 import numpy as np
@@ -9,10 +9,9 @@ import logging
 from scipy import integrate
 from sklearn.datasets import make_moons
 
-from rfi.backend import NormalisingFlowEstimator
-from rfi.backend.mdn import MixtureDensityNetworkEstimator
-from rfi.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform
-
+from fipy.backend import NormalisingFlowEstimator
+from fipy.backend.mdn import MixtureDensityNetworkEstimator
+from fipy.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform
 
 logging.basicConfig(level=logging.INFO)
 EPSABS = 0.01
@@ -70,7 +69,7 @@ class TestNonGaussianEstimators:
 
     def test_univar_cond(self):  # =================  Univarite unconditional density with Boston dataset ==================
         for estimator_cls in ESTIMATOR_CLS:
-            X, y = load_boston(return_X_y=True)
+            X, y = fetch_california_housing(return_X_y=True)
 
             # Train/test splits
             y_train, y_test, X_train, X_test = train_test_split(y, X, random_state=11)

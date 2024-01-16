@@ -14,11 +14,11 @@ import inspect
 import torch
 import logging
 
-from src.rfi.backend import flatten_dict
-from src.rfi.backend.causality import DirectedAcyclicGraph
-import src.rfi.explainers.explainer as explainer
-from src.rfi import check_existing_hash
-from src.rfi.backend.cnf.transforms import ContextualLogTransform
+from src.fipy.backend import flatten_dict
+from src.fipy.backend.causality import DirectedAcyclicGraph
+import src.fipy.explainers.explainer as explainer
+from src.fipy import check_existing_hash
+from src.fipy.backend.cnf.transforms import ContextualLogTransform
 
 
 logger = logging.getLogger(__name__)

@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error, r2_score
 
-from src import rfi as ii_paper
-from src.rfi.explainers import Explainer
-from src.rfi.samplers.gaussian import GaussianSampler
-from src.rfi.decorrelators.gaussian import NaiveGaussianDecorrelator
-from src.rfi.explanation.decomposition import DecompositionExplanation
+from src import fipy as ii_paper
+from src.fipy.explainers import Explainer
+from src.fipy.samplers.gaussian import GaussianSampler
+from src.fipy.decorrelators.gaussian import NaiveGaussianDecorrelator
+from src.fipy.explanation.decomposition import DecompositionExplanation
 
 import logging
 

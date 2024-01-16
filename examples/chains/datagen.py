@@ -1,4 +1,4 @@
-from src.rfi.examples.chains import confounding2, chain2
+from src.fipy.examples.chains import confounding2, chain2
 
 # logging.basicConfig(level=logging.INFO)
 

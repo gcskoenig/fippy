@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "fipy"
 version = "2023.0.0"
 dependencies = [
+    "enlighten",
     "numpy",
     "scikit-learn",
     "pandas",

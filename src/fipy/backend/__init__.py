@@ -1,0 +1,5 @@
+from fipy.backend.estimator import ConditionalDistributionEstimator
+from fipy.backend.gaussian import GaussianConditionalEstimator
+from fipy.backend.mdn import MixtureDensityNetworkEstimator
+from fipy.backend.cnf import NormalisingFlowEstimator
+from fipy.backend.categorical import CategoricalEstimator

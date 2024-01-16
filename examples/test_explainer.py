@@ -3,11 +3,10 @@ import matplotlib.pyplot as plt
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error, r2_score
 
-import rfi.utils as utils
-import rfi.examples.ii_paper as ii_paper
-from rfi.explainers import Explainer
-from rfi.samplers import GaussianSampler
-from rfi.decorrelators import NaiveGaussianDecorrelator
+import fipy.utils as utils
+import fipy.examples.ii_paper as ii_paper
+from fipy.explainers import Explainer
+from fipy.samplers import GaussianSampler
 
 import logging
 
@@ -51,15 +50,21 @@ m_names = ['LinearRegression']
 print(mean_squared_error(y_test, mod_predict(X_test)))
 print(r2_score(y_test, mod_predict(X_test)))
 
+
 sampler = GaussianSampler(X_train)
-decorrelator = NaiveGaussianDecorrelator(X_train)
 fsoi = X_train.columns
 ordering = [tuple(fsoi)]
 nr_orderings = utils.nr_unique_perm(ordering)
 
 wrk = Explainer(mod_predict, fsoi, X_train,
-                loss=mean_squared_error, sampler=sampler,
-                decorrelator=decorrelator)
+                loss=mean_squared_error, sampler=sampler)
+
+ex1 = wrk.di_from([fsoi[0]], [fsoi[1]], [fsoi[2]], X_test, y_test, fsoi, nr_resample_marginalize=10, nr_runs=5, marginalize=True)
+ex2 = wrk.di_from([fsoi[0]], [fsoi[1]], [fsoi[2]], X_test, y_test, fsoi, nr_resample_marginalize=10, nr_runs=5, marginalize=False)
+
+ex3 = wrk.ai_via([fsoi[0]], [fsoi[1]], [fsoi[2]], X_test, y_test, fsoi, nr_resample_marginalize=10, nr_runs=5, marginalize=True)
+ex4 = wrk.ai_via([fsoi[0]], [fsoi[1]], [fsoi[2]], X_test, y_test, fsoi, nr_resample_marginalize=10, nr_runs=5, marginalize=False)
+
 
 # test basic ordering based importance functions
 
@@ -90,7 +95,7 @@ plt.show()
 ex6.hbarplot()
 plt.show()
 
-from rfi.explanation import Explanation
+from fipy.explanation import Explanation
 scores_rfi = ex5.scores - ex6.scores
 ex = Explanation(fsoi, scores_rfi)
 ex.hbarplot()

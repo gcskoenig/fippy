@@ -8,10 +8,10 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
 
-from src.rfi.examples.chains import chain2
-from src.rfi import CNFSampler
-from src.rfi.samplers.gaussian import GaussianSampler
-import src.rfi.explainers.explainer as explainer
+from src.fipy.examples.chains import chain2
+from src.fipy import CNFSampler
+from src.fipy.samplers.gaussian import GaussianSampler
+import src.fipy.explainers.explainer as explainer
 
 import logging
 logging.basicConfig(level=logging.DEBUG)

@@ -12,9 +12,9 @@ import numpy as np
 import inspect
 import logging
 
-from src.rfi.backend import flatten_dict
-import src.rfi.explainers.explainer as explainer
-from src.rfi import search_nonsorted, check_existing_hash
+from src.fipy.backend import flatten_dict
+import src.fipy.explainers.explainer as explainer
+from src.fipy import search_nonsorted, check_existing_hash
 
 
 logger = logging.getLogger(__name__)

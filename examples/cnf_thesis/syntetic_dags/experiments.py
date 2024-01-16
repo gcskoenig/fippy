@@ -10,11 +10,11 @@ import numpy as np
 import inspect
 import logging
 
-from src.rfi.backend.causality import DirectedAcyclicGraph, LinearGaussianNoiseSEM
-from src.rfi.backend.goodness_of_fit import conditional_hellinger_distance, conditional_kl_divergence, conditional_js_divergence
-from src.rfi.backend import flatten_dict
-from src.rfi import check_existing_hash
-import src.rfi.explainers.explainer as explainer
+from src.fipy.backend.causality import DirectedAcyclicGraph, LinearGaussianNoiseSEM
+from src.fipy.backend.goodness_of_fit import conditional_hellinger_distance, conditional_kl_divergence, conditional_js_divergence
+from src.fipy.backend import flatten_dict
+from src.fipy import check_existing_hash
+import src.fipy.explainers.explainer as explainer
 
 
 logger = logging.getLogger(__name__)

@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error, r2_score
 
-from src import rfi as chains
-from src.rfi.explainers import Explainer
-from src.rfi.samplers.gaussian import GaussianSampler
-from src.rfi.decorrelators.gaussian import NaiveGaussianDecorrelator
+from src import fipy as chains
+from src.fipy.explainers import Explainer
+from src.fipy.samplers.gaussian import GaussianSampler
+from src.fipy.decorrelators.gaussian import NaiveGaussianDecorrelator
 
 import logging
 

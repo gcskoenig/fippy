@@ -1,4 +1,4 @@
-from rfi.samplers import SequentialSampler, GaussianSampler, UnivRFSampler
+from fipy.samplers import SequentialSampler, GaussianSampler, UnivRFSampler
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
