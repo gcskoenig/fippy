@@ -76,7 +76,8 @@ class DecompositionExplanation(Explanation):
         if not sorted:
             return df
         else:
-            fi_ordering = df.loc[:, 'total', :].mean(level=0)
+            # sort by total importance
+            fi_ordering = df.loc[:, 'total', :].groupby(level=0).mean()
             fi_ordering = fi_ordering.sort_values('importance',
                                                   ascending=False)
             fi_ordering = list(fi_ordering.index.values)
