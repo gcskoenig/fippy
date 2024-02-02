@@ -1,1 +1,1 @@
-from fipy.backend.categorical.categorical_estimator import CategoricalEstimator
+from fippy.backend.categorical.categorical_estimator import CategoricalEstimator

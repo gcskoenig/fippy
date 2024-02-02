@@ -3,7 +3,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from typing import List
 
-from fipy.utils import search_nonsorted
+from fippy.utils import search_nonsorted
 
 
 class DirectedAcyclicGraph:

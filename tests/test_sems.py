@@ -8,9 +8,9 @@ import logging
 
 import torch
 
-from fipy.backend.causality import DirectedAcyclicGraph, PostNonLinearLaplaceSEM, \
+from fippy.backend.causality import DirectedAcyclicGraph, PostNonLinearLaplaceSEM, \
     PostNonLinearMultiplicativeHalfNormalSEM, LinearGaussianNoiseSEM, RandomGPGaussianNoiseSEM
-from fipy.examples import SyntheticExample
+from fippy.examples import SyntheticExample
 
 
 logging.basicConfig(level=logging.INFO)
