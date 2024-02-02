@@ -9,9 +9,9 @@ import logging
 from scipy import integrate
 from sklearn.datasets import make_moons
 
-from fipy.backend import NormalisingFlowEstimator
-from fipy.backend.mdn import MixtureDensityNetworkEstimator
-from fipy.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform
+from fippy.backend import NormalisingFlowEstimator
+from fippy.backend.mdn import MixtureDensityNetworkEstimator
+from fippy.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform
 
 logging.basicConfig(level=logging.INFO)
 EPSABS = 0.01
