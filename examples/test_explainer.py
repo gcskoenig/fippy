@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error, r2_score
 
-import fipy.utils as utils
-import fipy.examples.ii_paper as ii_paper
-from fipy.explainers import Explainer
-from fipy.samplers import GaussianSampler
+import fippy.utils as utils
+import fippy.examples.ii_paper as ii_paper
+from fippy.explainers import Explainer
+from fippy.samplers import GaussianSampler
 
 import logging
 
@@ -95,7 +95,7 @@ plt.show()
 ex6.hbarplot()
 plt.show()
 
-from fipy.explanation import Explanation
+from fippy.explanation import Explanation
 scores_rfi = ex5.scores - ex6.scores
 ex = Explanation(fsoi, scores_rfi)
 ex.hbarplot()
