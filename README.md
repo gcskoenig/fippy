@@ -1,4 +1,4 @@
-# fippy: A Python Library for Feature Importance
+# fippy: A Python Library for Feature Importance 🦦
 
 ## Disclaimer
 
