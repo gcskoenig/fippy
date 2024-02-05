@@ -1,1 +1,1 @@
-from fipy.backend.mdn.mdn_estimator import MixtureDensityNetworkEstimator
+from fippy.backend.mdn.mdn_estimator import MixtureDensityNetworkEstimator

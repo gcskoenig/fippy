@@ -4,8 +4,8 @@ import torch
 from torch.distributions import Normal, MultivariateNormal, Distribution
 import logging
 
-import fipy.backend.utils as utils
-from fipy.backend import ConditionalDistributionEstimator
+import fippy.backend.utils as utils
+from fippy.backend import ConditionalDistributionEstimator
 
 logger = logging.getLogger(__name__)
 

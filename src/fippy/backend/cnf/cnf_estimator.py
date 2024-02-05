@@ -14,9 +14,9 @@ from nflows.flows.base import Flow, Distribution
 from nflows.distributions import StandardNormal
 from nflows.transforms import CompositeTransform, PointwiseAffineTransform
 
-from fipy.backend import ConditionalDistributionEstimator
-from fipy.backend.cnf.context_embedding import ContextEmbedding
-from fipy.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform, \
+from fippy.backend import ConditionalDistributionEstimator
+from fippy.backend.cnf.context_embedding import ContextEmbedding
+from fippy.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform, \
     ContextualCompositeTransform
 
 

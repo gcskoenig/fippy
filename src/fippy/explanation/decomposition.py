@@ -1,6 +1,6 @@
-from fipy.explanation.explanation import Explanation
+from fippy.explanation.explanation import Explanation
 import pandas as pd
-from fipy.plots._barplot import fi_sns_gbarplot, fi_sns_wbarplots
+from fippy.plots._barplot import fi_sns_gbarplot, fi_sns_wbarplots
 import numpy as np
 
 

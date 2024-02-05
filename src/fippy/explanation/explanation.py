@@ -6,10 +6,10 @@ accessed. Plotting functionality is available.
 # import numpy as np
 import numpy as np
 
-import fipy.plots._barplot as _barplot
+import fippy.plots._barplot as _barplot
 import pandas as pd
 # import itertools
-import fipy.utils as utils
+import fippy.utils as utils
 
 
 class Explanation:

@@ -13,9 +13,9 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from pyro.contrib.randomvariable import RandomVariable
 
-from fipy.backend.causality.dags import DirectedAcyclicGraph
-from fipy.backend.gaussian import GaussianConditionalEstimator
-from fipy.utils import search_nonsorted
+from fippy.backend.causality.dags import DirectedAcyclicGraph
+from fippy.backend.gaussian import GaussianConditionalEstimator
+from fippy.utils import search_nonsorted
 
 import logging
 logger = logging.getLogger(__name__)

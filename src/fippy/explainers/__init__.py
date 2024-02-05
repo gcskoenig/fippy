@@ -1,2 +1,2 @@
-from fipy.explainers.explainer import Explainer
-from fipy.explainers.cgexplainer import CGExplainer
+from fippy.explainers.explainer import Explainer
+from fippy.explainers.cgexplainer import CGExplainer

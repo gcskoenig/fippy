@@ -6,12 +6,12 @@ More details in the docstring for the class Explainer.
 
 import numpy as np
 import pandas as pd
-import fipy.utils as utils
-import fipy.explanation as explanation
+import fippy.utils as utils
+import fippy.explanation as explanation
 import logging
 import enlighten  # TODO add to requirements
 import math
-from fipy.explainers.utils import detect_conv
+from fippy.explainers.utils import detect_conv
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)

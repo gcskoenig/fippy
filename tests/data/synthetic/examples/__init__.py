@@ -5,8 +5,8 @@ from typing import Tuple, Union
 import pandas as pd
 import logging
 
-from fipy.backend.causality.sem import StructuralEquationModel
-from fipy.utils import search_nonsorted
+from fippy.backend.causality.sem import StructuralEquationModel
+from fippy.utils import search_nonsorted
 
 logger = logging.getLogger(__name__)
 

@@ -1,2 +1,2 @@
-from fipy.explanation.explanation import Explanation
-from fipy.explanation.decomposition import DecompositionExplanation
+from fippy.explanation.explanation import Explanation
+from fippy.explanation.decomposition import DecompositionExplanation

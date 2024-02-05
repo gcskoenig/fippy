@@ -1,8 +1,8 @@
 import numpy as np
 
-from fipy.backend.causality.dags import DirectedAcyclicGraph
-from fipy.backend.causality.sem import LinearGaussianNoiseSEM
-from fipy.examples import SyntheticExample
+from fippy.backend.causality.dags import DirectedAcyclicGraph
+from fippy.backend.causality.sem import LinearGaussianNoiseSEM
+from fippy.examples import SyntheticExample
 
 sigma_low = 0.3
 sigma_medium = .5

@@ -3,13 +3,13 @@
 Different sampling algorithms and loss functions can be used.
 More details in the docstring for the class Explainer.
 """
-from fipy.explainers.explainer import Explainer
+from fippy.explainers.explainer import Explainer
 import numpy as np
 import pandas as pd
 import logging
 import networkx as nx
-from fipy.explanation import explanation
-from fipy import utils
+from fippy.explanation import explanation
+from fippy import utils
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
