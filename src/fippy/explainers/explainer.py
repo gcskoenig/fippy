@@ -397,7 +397,9 @@ class Explainer:
             y_eval: test labels
             **kwargs: keyword arguments that are passed to ai_via
         """
-        return self.ai_via(S, [], self.X_train.columns, X_eval, y_eval, **kwargs)
+        ex = self.ai_via(S, [], self.X_train.columns, X_eval, y_eval, marginalize=True, **kwargs)
+        ex.ex_name = 'csagevf'
+        return ex
     
     def msagevf(self, S, X_eval, y_eval, **kwargs):
         """Computes the marginal SAGE value function for a given feature set S.
@@ -408,7 +410,9 @@ class Explainer:
             y_eval: test labels
             **kwargs: keyword arguments that are passed to di_from
         """
-        return self.di_from(S, [], self.X_train.columns, X_eval, y_eval, **kwargs)
+        ex = self.di_from(S, [], self.X_train.columns, X_eval, y_eval, marginalize=True, **kwargs)
+        ex.ex_name = 'msagevf'
+        return ex
 
     def dis_from_ordering(self, ordering, J, X_eval, y_eval, **kwargs):
         """Computes DI from X_J for every feature and the respective coalition as
@@ -550,7 +554,9 @@ class Explainer:
             y_eval: evaluation labels
             fsoi: features of interest, overrides self.fsoi if not None
         """
-        return self.dis_from_baselinefunc(self.X_train.columns, X_eval, y_eval, fsoi=fsoi, baseline='remainder', **kwargs)
+        ex = self.dis_from_baselinefunc(self.X_train.columns, X_eval, y_eval, fsoi=fsoi, baseline='remainder', **kwargs)
+        ex.ex_name = 'pfi'
+        return ex
         
     def rfi(self, G, X_eval, y_eval, fsoi=None, D=None, **kwargs):
         if D is None:
@@ -629,7 +635,9 @@ class Explainer:
             y_eval: evaluation labels
             fsoi: features of interest, overrides self.fsoi if not None
         """
-        return self.ais_via_contextfunc(self.X_train.columns, X_eval, y_eval, fsoi=fsoi, context='remainder', **kwargs)
+        ex = self.ais_via_contextfunc(self.X_train.columns, X_eval, y_eval, fsoi=fsoi, context='remainder', **kwargs)
+        ex.ex_name = 'cfi'
+        return ex
 
 
     # Advanced Feature Importance
@@ -828,7 +836,12 @@ class Explainer:
         """
         if partial_ordering is None:
             partial_ordering = [tuple(X_eval.columns)]
-        return self.sage(X_eval, y_eval, partial_ordering, method='associative', **kwargs)
+        res = self.sage(X_eval, y_eval, partial_ordering, method='associative', **kwargs)
+        if isinstance(res, tuple): # if the orderings are passed as well
+            res[0].ex_name = 'csage '
+        else:
+            res.ex_name = 'csage'
+        return res
     
     def msage(self, X_eval, y_eval, partial_ordering=None, **kwargs):
         """
@@ -842,7 +855,12 @@ class Explainer:
         """
         if partial_ordering is None:
             partial_ordering = [tuple(X_eval.columns)]
-        return self.sage(X_eval, y_eval, partial_ordering, method='direct', **kwargs)
+        res = self.sage(X_eval, y_eval, partial_ordering, method='direct', **kwargs)
+        if isinstance(res, tuple): # in case orderings passed as well
+            res[0].ex_name = 'msage '
+        else:
+            res.ex_name = 'msage'
+        return res
 
     # Decompositions
 

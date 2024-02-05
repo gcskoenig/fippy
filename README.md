@@ -1,9 +1,4 @@
-# fippy: A Python Library for Feature Importance
-
-## Disclaimer
-
-The package is still under development and in early testing stages. Therefore, we do not guarantee stability. The package was previously called `rfi`and accompagnies our paper on Relative Feature Importance. [[arXiv]](https://arxiv.org/abs/2007.08283)
-
+# fippy: Feature Importance in Python 🐬
 
 ## Functionality
 
@@ -111,10 +106,15 @@ ex_cfi.to_csv(savepath=savepath, filename='cfi.csv')
 ## compute conditional SAGE
 
 ordering = [tuple(X.columns)]
-ex_sage, sage_orderings = wrk.sage(X_test, y_test, ordering, method='associative', nr_orderings=20, nr_runs=3)
-ex_sage.hbarplot()
+ex_csage, sage_orderings = wrk.sage(X_test, y_test, ordering, method='associative', nr_orderings=20, nr_runs=3)
+ex_csage.hbarplot()
 plt.show()
 
-ex_sage.fi_means_stds()
-ex_sage.to_csv(savepath=savepath, filename='sage.csv')
+ex_csage.fi_means_stds()
+ex_csage.to_csv(savepath=savepath, filename='sage.csv')
 ```
+
+## Disclaimer
+
+The package is still under development. 
+The package was previously called `rfi`and accompagnies our paper on Relative Feature Importance. [[arXiv]](https://arxiv.org/abs/2007.08283)
