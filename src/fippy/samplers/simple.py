@@ -4,7 +4,7 @@ all states being observed
 """
 import numpy as np
 import pandas as pd
-from fipy.samplers.sampler import Sampler
+from fippy.samplers.sampler import Sampler
 
 
 class SimpleSampler(Sampler):

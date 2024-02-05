@@ -5,10 +5,10 @@ conditional distribution.
 """
 import numpy as np
 
-from fipy.samplers.sampler import Sampler
-from fipy.backend.gaussian import GaussianConditionalEstimator
-from fipy.samplers._utils import sample_id
-from fipy.utils import fset_to_ix
+from fippy.samplers.sampler import Sampler
+from fippy.backend.gaussian import GaussianConditionalEstimator
+from fippy.samplers._utils import sample_id
+from fippy.utils import fset_to_ix
 
 
 class GaussianSampler(Sampler):

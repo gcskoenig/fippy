@@ -4,9 +4,9 @@ all states being observed
 """
 import numpy as np
 import pandas as pd
-from fipy.samplers.sampler import Sampler
-from fipy.samplers.simple import SimpleSampler
-from fipy.samplers.gaussian import GaussianSampler
+from fippy.samplers.sampler import Sampler
+from fippy.samplers.simple import SimpleSampler
+from fippy.samplers.gaussian import GaussianSampler
 import networkx as nx
 
 import logging

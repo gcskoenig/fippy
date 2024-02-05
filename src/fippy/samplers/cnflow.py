@@ -4,10 +4,10 @@ Using affine and invertable radial transformations.
 """
 import logging
 
-from fipy.samplers.sampler import Sampler
-from fipy.backend.cnf import NormalisingFlowEstimator
-from fipy.backend.categorical import CategoricalEstimator
-import fipy.utils as utils
+from fippy.samplers.sampler import Sampler
+from fippy.backend.cnf import NormalisingFlowEstimator
+from fippy.backend.categorical import CategoricalEstimator
+import fippy.utils as utils
 
 logger = logging.getLogger(__name__)
 

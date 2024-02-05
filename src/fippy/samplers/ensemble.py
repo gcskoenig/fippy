@@ -6,7 +6,7 @@ import logging
 
 import numpy as np
 import pandas as pd
-from fipy.samplers.sampler import Sampler
+from fippy.samplers.sampler import Sampler
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import log_loss, mean_squared_error, make_scorer

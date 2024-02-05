@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 import copy
 
-import fipy.utils as utils
-from fipy.samplers._utils import sample_id, sample_perm
+import fippy.utils as utils
+from fippy.samplers._utils import sample_id, sample_perm
 import logging
 from typing import List
 

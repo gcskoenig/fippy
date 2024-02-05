@@ -3,10 +3,10 @@ Sampler based on conditional gaussian mixture networks
 """
 import logging
 
-from fipy.samplers.sampler import Sampler
-import fipy.utils as utils
-from fipy.backend.mdn import MixtureDensityNetworkEstimator
-from fipy.backend.categorical import CategoricalEstimator
+from fippy.samplers.sampler import Sampler
+import fippy.utils as utils
+from fippy.backend.mdn import MixtureDensityNetworkEstimator
+from fippy.backend.categorical import CategoricalEstimator
 
 logger = logging.getLogger(__name__)
 

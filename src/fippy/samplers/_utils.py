@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from fipy.utils import deprecated
+from fippy.utils import deprecated
 
 
 def sample_id(J_ixs):
