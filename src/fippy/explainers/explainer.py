@@ -518,7 +518,17 @@ class Explainer:
 
         result = explanation.Explanation(self.fsoi, scores, ex_name='dis_from_fixed')
         return result
+    
+    def pfi(self, X_eval, y_eval, fsoi=None, **kwargs):
+        """Computes PFI on a given evaluation dataset.
 
+        Args:
+            X_eval: evaluation data
+            y_eval: evaluation labels
+            fsoi: features of interest, overrides self.fsoi if not None
+        """
+        return self.dis_from_baselinefunc(self.X_train.columns, X_eval, y_eval, fsoi=fsoi, baseline='remainder', **kwargs)
+        
     def rfi(self, G, X_eval, y_eval, fsoi=None, D=None, **kwargs):
         if D is None:
             D = self.X_train.columns
@@ -587,6 +597,17 @@ class Explainer:
 
         result = explanation.Explanation(self.fsoi, scores, ex_name='ais_via_fixed')
         return result
+        
+    def cfi(self, X_eval, y_eval, fsoi=None, **kwargs):
+        """Computes CFI on a given evaluation dataset.
+
+        Args:
+            X_eval: evaluation data
+            y_eval: evaluation labels
+            fsoi: features of interest, overrides self.fsoi if not None
+        """
+        return self.ais_via_contextfunc(self.X_train.columns, X_eval, y_eval, fsoi=fsoi, context='remainder', **kwargs)
+
 
     # Advanced Feature Importance
 
