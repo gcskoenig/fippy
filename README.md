@@ -36,9 +36,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error
 import category_encoders as ce
-import logging
 
-logging.basicConfig(level=logging.INFO)
+# import logging
+# logging.basicConfig(level=logging.INFO)
 
 ## to specify by user
 savepath = '~/Downloads/'
@@ -79,7 +79,7 @@ wrk = Explainer(pipe.predict, X.columns, X_train, sampler, mean_squared_error)
 
 
 ## compute PFI
-ex_pfi = wrk.dis_from_baselinefunc(X.columns, X_test, y_test, X.columns, baseline='remainder')
+ex_pfi = wrk.pfi(X_test, y_test)
 ex_pfi.hbarplot()
 plt.show()
 
@@ -96,7 +96,7 @@ ex_pfi = Explanation.from_csv(savepath + 'pfi.csv')
 
 ## compute CFI
 
-ex_cfi = wrk.ais_via_contextfunc(X.columns, X_test, y_test, context='remainder')
+ex_cfi = wrk.cfi(X_test, y_test)
 ex_cfi.hbarplot()
 plt.show()
 
@@ -105,13 +105,22 @@ ex_cfi.to_csv(savepath=savepath, filename='cfi.csv')
 
 ## compute conditional SAGE
 
-ordering = [tuple(X.columns)]
-ex_csage, sage_orderings = wrk.sage(X_test, y_test, ordering, method='associative', nr_orderings=20, nr_runs=3)
+ex_csage, sage_orderings = wrk.csage(X_test, y_test, nr_orderings=20, nr_runs=3)
 ex_csage.hbarplot()
 plt.show()
 
 ex_csage.fi_means_stds()
-ex_csage.to_csv(savepath=savepath, filename='sage.csv')
+ex_csage.to_csv(savepath=savepath, filename='csage.csv')
+
+
+## compute marginal SAGE
+
+ex_msage, sage_orderings = wrk.msage(X_test, y_test, nr_runs=3, detect_convergence=True)
+ex_msage.hbarplot()
+plt.show()
+
+ex_msage.fi_means_stds()
+ex_msage.to_csv(savepath=savepath, filename='msage.csv')
 ```
 
 ## Disclaimer
