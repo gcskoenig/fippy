@@ -12,6 +12,7 @@ import logging
 import enlighten  # TODO add to requirements
 import math
 from fippy.explainers.utils import detect_conv
+from fippy.samplers import Sampler
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
@@ -29,10 +30,10 @@ class Explainer:
         sampler: default sampler.
         loss: default loss.
     """
-    # TODO make sampler normal arugments (no keyword arguments)
-    def __init__(self, predict, fsoi, X_train, sampler=None,
+    def __init__(self, predict, fsoi, X_train, sampler,
                  loss=None, encoder=None):
         """Inits Explainer with sem, mask and potentially sampler and loss"""
+        assert isinstance(sampler, Sampler)
         self.model = predict
         self.fsoi = fsoi  # now column names, not indexes
         self.X_train = X_train
@@ -386,6 +387,28 @@ class Explainer:
         else:
             logger.debug('Return explanation object only')
             return result
+
+    def csagevf(self, S, X_eval, y_eval, **kwargs):
+        """Computes the conditional SAGE value function for a given feature set S.
+
+        Args:
+            S: features of interest
+            X_eval: test data
+            y_eval: test labels
+            **kwargs: keyword arguments that are passed to ai_via
+        """
+        return self.ai_via(S, [], self.X_train.columns, X_eval, y_eval, **kwargs)
+    
+    def msagevf(self, S, X_eval, y_eval, **kwargs):
+        """Computes the marginal SAGE value function for a given feature set S.
+
+        Args:
+            S: features of interest
+            X_eval: test data
+            y_eval: test labels
+            **kwargs: keyword arguments that are passed to di_from
+        """
+        return self.di_from(S, [], self.X_train.columns, X_eval, y_eval, **kwargs)
 
     def dis_from_ordering(self, ordering, J, X_eval, y_eval, **kwargs):
         """Computes DI from X_J for every feature and the respective coalition as
@@ -792,6 +815,34 @@ class Explainer:
             return result, orderings
         else:
             return result
+
+    def csage(self, X_eval, y_eval, partial_ordering=None, **kwargs):
+        """
+        Compute conditional SAGE values for a given partial ordering.
+
+        Args:
+            X_eval: evaluation data
+            y_eval: evaluation labels
+            partial_ordering: partial ordering for the computation
+            **kwargs: keyword arguments that are passed to sage
+        """
+        if partial_ordering is None:
+            partial_ordering = [tuple(X_eval.columns)]
+        return self.sage(X_eval, y_eval, partial_ordering, method='associative', **kwargs)
+    
+    def msage(self, X_eval, y_eval, partial_ordering=None, **kwargs):
+        """
+        Compute marginal SAGE values for a given partial ordering.
+
+        Args:
+            X_eval: evaluation data
+            y_eval: evaluation labels
+            partial_ordering: partial ordering for the computation
+            **kwargs: keyword arguments that are passed to sage
+        """
+        if partial_ordering is None:
+            partial_ordering = [tuple(X_eval.columns)]
+        return self.sage(X_eval, y_eval, partial_ordering, method='direct', **kwargs)
 
     # Decompositions
 
