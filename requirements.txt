@@ -1,6 +1,6 @@
 enlighten==1.10.2
 matplotlib==3.5.2
-mlflow==1.26.1
+mlflow==2.9.2
 networkx==2.8.4
 nflows==0.14
 numpy==1.23.0
