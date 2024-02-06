@@ -1,5 +1,7 @@
-"""Explainers compute RFI relative to any set of features G.
+"""Graph explainer implements explanation methods that rely
+on knowledge of a (causal) graph.
 
+# TODO: fix docstring here
 Different sampling algorithms and loss functions can be used.
 More details in the docstring for the class Explainer.
 """
@@ -14,10 +16,11 @@ from fippy import utils
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
 
-
+# TODO: rename to GraphExplainer?
 class CGExplainer(Explainer):
     """Implements a number of feature importance algorithms
 
+    # TODO: fix docstring here
     Default samplers or loss function can be defined.
 
     Attributes:
@@ -29,9 +32,9 @@ class CGExplainer(Explainer):
         decorrelator: default decorrelator
         loss: default loss.
     """
-    def __init__(self, model, fsoi, X_train, adj_mat, **kwargs):
+    def __init__(self, predict, loss, sampler, X_train, adj_mat, **kwargs):
         """Inits Explainer with sem, mask and potentially sampler and loss"""
-        Explainer.__init__(self, model, fsoi, X_train, **kwargs)
+        Explainer.__init__(self, predict, loss, sampler, X_train, **kwargs)
         self.adj_mat = adj_mat
         self._check_valid_graph(self.adj_mat)
         self.g = nx.DiGraph(adj_mat)

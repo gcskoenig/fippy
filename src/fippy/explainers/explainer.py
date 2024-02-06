@@ -30,12 +30,15 @@ class Explainer:
         sampler: default sampler.
         loss: default loss.
     """
-    def __init__(self, predict, fsoi, X_train, sampler,
-                 loss=None, encoder=None):
+    def __init__(self, predict, loss, sampler, X_train,  
+                 encoder=None, fsoi=None):
         """Inits Explainer with sem, mask and potentially sampler and loss"""
         assert isinstance(sampler, Sampler)
         self.model = predict
-        self.fsoi = fsoi  # now column names, not indexes
+        if fsoi is None:
+            self.fsoi = X_train.columns
+        else:
+            self.fsoi = fsoi
         self.X_train = X_train
         self.sampler = sampler
         self.loss = loss
