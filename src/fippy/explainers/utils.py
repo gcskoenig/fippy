@@ -37,7 +37,7 @@ def detect_conv(scores, ii, threshold, extra_orderings=0, conv_detected=False): 
         # ratio = ((variance ** 0.5) / np.sqrt(ii)) / (scores.max() - scores.min())
         # max_ratio = ratio.max()
 
-        variance = np.var(scores)*(ii/(ii-1))
+        variance = np.var(scores, axis=0)*(ii/(ii-1))
         ratio = ((variance ** 0.5) / np.sqrt(ii)) / (scores.max() - scores.min())
         max_ratio = ratio.max()
 
