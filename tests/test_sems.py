@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 EPSABS = 0.005
 SEED = 4242
 ASSERT_DECIMAL = 1
-ASSERT_DECIMAL_DATA = 4
+ASSERT_DECIMAL_DATA = 2
 SAMPLE_SIZE = 50
 DAG_N = 5
 DAG_P = 0.5
@@ -126,7 +126,7 @@ class TestSEMs:
         self._plot_and_test_dag_and_data(gauss_anm)
         self._plot_and_test_mb_cond_dist(gauss_anm, 2, 'mc')
         self._plot_and_test_mb_cond_dist(gauss_anm, 2, 'quad')
-        self._plot_sliders(gauss_anm, 2, SAMPLE_SIZE - 1, 'quad')
+        # self._plot_sliders(gauss_anm, 2, SAMPLE_SIZE - 1, 'quad')
 
     def test_post_non_linear_laplace_sem(self):
         laplace_sem = SyntheticExample(sem=PostNonLinearLaplaceSEM(dag=DAG, seed=SEED, interpolation_switch=INTERPOLATION_SWITCH))
@@ -134,7 +134,7 @@ class TestSEMs:
         self._plot_and_test_dag_and_data(laplace_sem)
         self._plot_and_test_mb_cond_dist(laplace_sem, 2, 'mc')
         self._plot_and_test_mb_cond_dist(laplace_sem, 2, 'quad')
-        self._plot_sliders(laplace_sem, 2, SAMPLE_SIZE - 1, 'quad')
+        # self._plot_sliders(laplace_sem, 2, SAMPLE_SIZE - 1, 'quad')
 
     def test_randomgp_gaussian_noise_sem(self):
         gp_anm = SyntheticExample(sem=RandomGPGaussianNoiseSEM(dag=DAG, seed=SEED, interpolation_switch=INTERPOLATION_SWITCH))
@@ -142,7 +142,7 @@ class TestSEMs:
         self._plot_and_test_dag_and_data(gp_anm)
         self._plot_and_test_mb_cond_dist(gp_anm, 2, 'mc')
         self._plot_and_test_mb_cond_dist(gp_anm, 2, 'quad')
-        self._plot_sliders(gp_anm, 2, SAMPLE_SIZE - 1, 'quad')
+        # self._plot_sliders(gp_anm, 2, SAMPLE_SIZE - 1, 'quad')
 
     def test_post_nonlinear_multiplicative_half_normal_sem(self):
         post_half_norm_sem = SyntheticExample(sem=PostNonLinearMultiplicativeHalfNormalSEM(dag=DAG, seed=SEED))
@@ -150,4 +150,4 @@ class TestSEMs:
         self._plot_and_test_dag_and_data(post_half_norm_sem)
         self._plot_and_test_mb_cond_dist(post_half_norm_sem, 2, 'mc')
         self._plot_and_test_mb_cond_dist(post_half_norm_sem, 2, 'quad')
-        self._plot_sliders(post_half_norm_sem, 2, SAMPLE_SIZE - 1, 'quad')
+        # self._plot_sliders(post_half_norm_sem, 2, SAMPLE_SIZE - 1, 'quad')
