@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.utils.data as data_utils
 import torch.nn.init as init
 
-from fippy.backend import ConditionalDistributionEstimator
+from fippy.backend.estimators.estimator import ConditionalDistributionEstimator
 
 import logging
 logger = logging.getLogger(__name__)

@@ -9,9 +9,9 @@ import logging
 from scipy import integrate
 from sklearn.datasets import make_moons
 
-from fippy.backend import NormalisingFlowEstimator
-from fippy.backend.mdn import MixtureDensityNetworkEstimator
-from fippy.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform
+from fippy.backend.estimators import NormalisingFlowEstimator
+from fippy.backend.estimators.mdn import MixtureDensityNetworkEstimator
+from fippy.backend.estimators.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform
 
 logging.basicConfig(level=logging.INFO)
 EPSABS = 0.01
@@ -23,6 +23,13 @@ ESTIMATOR_CLS = [
 ]
 
 torch.autograd.set_detect_anomaly(True)
+
+def load_boston():
+    data_url = "http://lib.stat.cmu.edu/datasets/boston"
+    raw_df = pd.read_csv(data_url, sep="\s+", skiprows=22, header=None)
+    X = np.hstack([raw_df.values[::2, :], raw_df.values[1::2, :2]])
+    y = raw_df.values[1::2, 2]
+    return X, y
 
 
 class TestNonGaussianEstimators:
@@ -36,7 +43,7 @@ class TestNonGaussianEstimators:
 
     def test_univar_uncond(self):  # =================  Univarite unconditional density with Boston dataset ==================
         for estimator_cls in ESTIMATOR_CLS:
-            X, y = load_boston(return_X_y=True)
+            X, y = load_boston()
 
             # Train/test splits
             y_train, y_test = train_test_split(y, random_state=10)

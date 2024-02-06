@@ -1,5 +1,5 @@
 import numpy as np
-from fippy.backend import GaussianConditionalEstimator
+from fippy.backend.estimators import GaussianConditionalEstimator
 import math
 
 name = 'chain2'

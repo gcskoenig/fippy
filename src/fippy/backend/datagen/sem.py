@@ -13,8 +13,8 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from pyro.contrib.randomvariable import RandomVariable
 
-from fippy.backend.causality.dags import DirectedAcyclicGraph
-from fippy.backend.gaussian import GaussianConditionalEstimator
+from fippy.backend.datagen.dags import DirectedAcyclicGraph
+from fippy.backend.estimators import GaussianConditionalEstimator
 from fippy.utils import search_nonsorted
 
 import logging
@@ -65,6 +65,7 @@ class StructuralEquationModel:
 
     def parents_conditional_sample(self, node: str, parents_context: Dict[str, Tensor] = None, sample_shape: tuple = (1, )) \
             -> Tensor:
+        # TODO check whether sample_shape must be passed on 
         cond_dist = self.parents_conditional_distribution(node, parents_context)
         return cond_dist.sample(sample_shape=sample_shape)
 
@@ -85,7 +86,8 @@ class StructuralEquationModel:
             elif self.is_batched:
                 sample_shape = (1, )
             else:
-                sample_shape = (1, size)
+                # TODO check whether sample_shape is correct, used to be (1, size)
+                sample_shape = ()
             self.model[node]['value'] = self.parents_conditional_sample(node, parent_values, sample_shape).reshape(-1)
             assert (~self.model[node]['value'].isnan()).all()
         return torch.stack([self.model[node]['value'] for node in self.dag.var_names], dim=1)
@@ -169,6 +171,7 @@ class StructuralEquationModel:
 
         if method == 'mc':
             torch.manual_seed(mc_seed) if mc_seed is not None else None
+            # TODO check whether sample_shape is correct
             sample_shape = (mc_size, 1) if len(parents_context) != 0 and self.is_batched else (mc_size, context_size)
             sampled_value = self.parents_conditional_sample(node, parents_context, sample_shape)
             normalisation_constant = self.children_log_prob(node, sampled_value, global_context).exp().mean(0)

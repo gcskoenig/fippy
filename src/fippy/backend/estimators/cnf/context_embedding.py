@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.nn.utils import weight_norm
 from torch import Tensor
 
-from fippy.backend.cnf.transforms import ContextualCompositeTransform
+from fippy.backend.estimators.cnf.transforms import ContextualCompositeTransform
 
 
 class ContextEmbedding(Module):

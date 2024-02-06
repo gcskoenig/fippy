@@ -6,7 +6,7 @@ conditional distribution.
 import numpy as np
 
 from fippy.samplers.sampler import Sampler
-from fippy.backend.gaussian import GaussianConditionalEstimator
+from fippy.backend.estimators import GaussianConditionalEstimator
 from fippy.samplers._utils import sample_id
 from fippy.utils import fset_to_ix
 

@@ -1,3 +1,4 @@
+.scratch/
 .vscode/
 .idea/
 *.joblib
