@@ -22,10 +22,10 @@ def fi_sns_hbarplot(ex, ax=None, figsize=None):
     order = df.groupby('feature').mean().sort_values('importance', ascending=False).reset_index()['feature']
     with sns.axes_style('whitegrid'):
         sns.barplot(ax=ax, x='importance', y='feature', data=df, order=order,
-                    errorbar='sd', errcolor='black',
-                    color='black', facecolor='darkgray',
-                    capsize=0, errwidth=3,
-                    linewidth=0, edgecolor='black')
+                    errorbar='sd', color='black',
+                    facecolor='darkgray', capsize=0,
+                    linewidth=0, edgecolor='black',
+                    err_kws={'linewidth': 3, 'color': 'black'})
         sns.despine(left=True, bottom=True, ax=ax)
     # sns.barplot(x='importance', y='feature', data=df, ax=ax, errorbar='sd',
     #             order=order, color='black', errcolor='darkgray',

@@ -7,8 +7,8 @@ from typing import Union, Tuple
 from dataclasses import dataclass
 import logging
 
-from fippy.backend.causality import StructuralEquationModel, LinearGaussianNoiseSEM
-from fippy.backend import ConditionalDistributionEstimator
+from fippy.backend.datagen import StructuralEquationModel, LinearGaussianNoiseSEM
+from fippy.backend.estimators import ConditionalDistributionEstimator
 from fippy.samplers.sampler import Sampler
 
 logger = logging.getLogger(__name__)

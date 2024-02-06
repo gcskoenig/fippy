@@ -1,0 +1,1 @@
+from fippy.backend.estimators.cnf.cnf_estimator import NormalisingFlowEstimator

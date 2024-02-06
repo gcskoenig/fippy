@@ -5,8 +5,8 @@ import logging
 
 from fippy.samplers.sampler import Sampler
 import fippy.utils as utils
-from fippy.backend.mdn import MixtureDensityNetworkEstimator
-from fippy.backend.categorical import CategoricalEstimator
+from fippy.backend.estimators import MixtureDensityNetworkEstimator
+from fippy.backend.estimators import CategoricalEstimator
 
 logger = logging.getLogger(__name__)
 

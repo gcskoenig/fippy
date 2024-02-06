@@ -5,7 +5,7 @@ from torch.distributions import Normal, MultivariateNormal, Distribution
 import logging
 
 import fippy.backend.utils as utils
-from fippy.backend import ConditionalDistributionEstimator
+from fippy.backend.estimators.estimator import ConditionalDistributionEstimator
 
 logger = logging.getLogger(__name__)
 

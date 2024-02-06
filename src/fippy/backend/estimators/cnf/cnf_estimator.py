@@ -14,9 +14,9 @@ from nflows.flows.base import Flow, Distribution
 from nflows.distributions import StandardNormal
 from nflows.transforms import CompositeTransform, PointwiseAffineTransform
 
-from fippy.backend import ConditionalDistributionEstimator
-from fippy.backend.cnf.context_embedding import ContextEmbedding
-from fippy.backend.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform, \
+from fippy.backend.estimators.estimator import ConditionalDistributionEstimator
+from fippy.backend.estimators.cnf.context_embedding import ContextEmbedding
+from fippy.backend.estimators.cnf.transforms import ContextualInvertableRadialTransform, ContextualPointwiseAffineTransform, \
     ContextualCompositeTransform
 
 
@@ -117,8 +117,8 @@ class NormalisingFlowEstimator(Flow, ConditionalDistributionEstimator):
             self.cont_context = [] if len(self.cont_context) == 0 else self.cont_context
 
         # Inputs / Context one-hot encoders
-        self.context_enc = OneHotEncoder(drop='if_binary', sparse=False)
-        self.inputs_enc = OneHotEncoder(drop='if_binary', sparse=False)
+        self.context_enc = OneHotEncoder(drop='if_binary', sparse_output=False)
+        self.inputs_enc = OneHotEncoder(drop='if_binary', sparse_output=False)
 
         # Normalisation
         self.context_normalization = context_normalization

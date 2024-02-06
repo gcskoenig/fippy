@@ -3,12 +3,12 @@ import pandas as pd
 import numpy as np
 from typing import Union
 
-from tests.data.synthetic.examples.causality.goodness_of_fit import conditional_js_divergence, conditional_kl_divergence, conditional_hellinger_distance
-from fippy.backend.causality import DirectedAcyclicGraph, PostNonLinearLaplaceSEM, PostNonLinearMultiplicativeHalfNormalSEM, \
+from fippy.backend.datagen.goodness_of_fit import conditional_js_divergence, conditional_kl_divergence, conditional_hellinger_distance
+from fippy.backend.datagen import DirectedAcyclicGraph, PostNonLinearLaplaceSEM, PostNonLinearMultiplicativeHalfNormalSEM, \
     LinearGaussianNoiseSEM, RandomGPGaussianNoiseSEM, StructuralEquationModel
-from fippy.backend import GaussianConditionalEstimator
-from fippy.backend import NormalisingFlowEstimator
-from fippy.backend.mdn import MixtureDensityNetworkEstimator
+from fippy.backend.estimators import GaussianConditionalEstimator
+from fippy.backend.estimators import NormalisingFlowEstimator
+from fippy.backend.estimators import MixtureDensityNetworkEstimator
 
 logging.basicConfig(level=logging.INFO)
 

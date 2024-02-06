@@ -5,8 +5,8 @@ Using affine and invertable radial transformations.
 import logging
 
 from fippy.samplers.sampler import Sampler
-from fippy.backend.cnf import NormalisingFlowEstimator
-from fippy.backend.categorical import CategoricalEstimator
+from fippy.backend.estimators.cnf import NormalisingFlowEstimator
+from fippy.backend.estimators.categorical import CategoricalEstimator
 import fippy.utils as utils
 
 logger = logging.getLogger(__name__)

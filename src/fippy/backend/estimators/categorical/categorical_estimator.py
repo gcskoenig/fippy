@@ -5,8 +5,8 @@ from torch import Tensor
 from typing import Union
 from ray import tune
 
-from fippy.backend import ConditionalDistributionEstimator
-from fippy.backend.mdn.mdn_estimator import CategoricalNetwork
+from fippy.backend.estimators.estimator import ConditionalDistributionEstimator
+from fippy.backend.estimators.mdn.mdn_estimator import CategoricalNetwork
 
 import logging
 logger = logging.getLogger(__name__)
