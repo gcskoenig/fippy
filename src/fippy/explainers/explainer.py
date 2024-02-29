@@ -770,11 +770,16 @@ class Explainer:
                 convergence_var = False
                 extra_orderings_r = extra_orderings
 
+            ordering = None
             for ii in range(nr_orderings):
-                ordering = None
                 if orderings is None:
-                    ordering, ord_hist = utils.sample_partial(partial_ordering,
-                                                              ord_hist)
+                    if ii % 2 == 0:
+                        ordering, ord_hist = utils.sample_partial(partial_ordering,
+                                                                  ord_hist)
+                    else:
+                        ordering, ord_hist = utils.reverse_partial(ordering,
+                                                                   partial_ordering,
+                                                                   ord_hist)
                     orderings_sampled.loc[(ii, jj), 'ordering'] = ordering
                 else:
                     ordering = orderings.loc[(ii, jj), 'ordering']

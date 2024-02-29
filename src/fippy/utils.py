@@ -136,7 +136,7 @@ def sample_partial(partial_ordering, history=None, max_tries=500):
     while not found_new_ordering:
         ordering = []
         for elem in partial_ordering:
-            if type(elem) is int:
+            if type(elem) is int or type(elem) is str:
                 ordering.append(elem)
             elif type(elem) is tuple:
                 perm = list(elem)
@@ -153,6 +153,34 @@ def sample_partial(partial_ordering, history=None, max_tries=500):
             print('Did not find new ordering in {} runs'.format(max_tries))
         n_tries = n_tries + 1
     return np.array(ordering), history
+
+def reverse_partial(ordering, partial_ordering, history=None):
+    """ reverse ordering sampled from partial_ordering
+
+    Args:
+        partial_ordering: [1, (2, 4), 3]
+
+    Returns:
+        ordering, np.array
+    """
+    ordering = np.array(ordering)
+    reverse_ordering = []
+    ii = 0
+    for elem in partial_ordering:
+        if type(elem) is int or type(elem) is str:
+            reverse_ordering.append(ordering[ii])
+            ii += 1
+        elif type(elem) is tuple:
+            sampled_order = ordering[ii:ii + len(elem)]
+            reversed = list(sampled_order[::-1])
+            reverse_ordering = reverse_ordering + reversed
+            ii += len(elem)
+        else:
+            raise RuntimeError('Element neither int nor tuple')
+    key = fnames_to_key(reverse_ordering, to_set=False)
+    if history is not None:
+        history[key] = None
+    return np.array(reverse_ordering), history
 
 
 def check_existing_hash(args: DictConfig, exp_name: str) -> bool:
