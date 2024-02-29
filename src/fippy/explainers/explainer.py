@@ -19,20 +19,32 @@ logger = logging.getLogger(__name__)
 
 
 class Explainer:
-    """Implements a number of feature importance algorithms
-
-    Default samplers or loss function can be defined.
+    """Implements a number of feature importance algorithms.
+    Default conditional samplers, training data, and loss can be specified.
 
     Attributes:
         model: Model or predict function.
-        fsoi: Features of interest. Columnnames.
-        X_train: Training data for resampling. Pandas dataframe.
-        sampler: default sampler.
-        loss: default loss.
+        X_train: Data used to train the sampler / to resample permutations from.
+        loss: default loss. None if not specified.
+        sampler: default sampler. None if not specified.
+        fsoi: Features of interest. All columns of X_train if not specified.
+        encoder: specifies encoder to use for encoding categorical data
     """
-    def __init__(self, predict, loss, sampler, X_train,  
+    def __init__(self, predict, X_train,
+                 loss=None,
+                 sampler=None,
                  encoder=None, fsoi=None):
-        """Inits Explainer with sem, mask and potentially sampler and loss"""
+        """Inits Explainer with prediction function, training data, and optionally
+        loss, sampler, encoder, and fsoi.
+        
+        Args:
+            predict: Model or predict function.
+            X_train: Data used to train the sampler / to resample permutations from.
+            loss: default loss. None if not specified.
+            sampler: default sampler. None if not specified.
+            fsoi: Features of interest. All columns of X_train if not specified.
+            encoder: specifies encoder to use for encoding categorical data
+        """     
         assert isinstance(sampler, Sampler)
         self.model = predict
         if fsoi is None:
@@ -42,6 +54,7 @@ class Explainer:
         self.X_train = X_train
         self.sampler = sampler
         self.loss = loss
+        # TODO assert that encoder is of predefined type in line with our encoding strategy
         self.encoder = encoder
         # check whether feature set is valid
         self._valid_fset(self.fsoi)
@@ -391,32 +404,8 @@ class Explainer:
             logger.debug('Return explanation object only')
             return result
 
-    def csagevf(self, S, X_eval, y_eval, **kwargs):
-        """Computes the conditional SAGE value function for a given feature set S.
-
-        Args:
-            S: features of interest
-            X_eval: test data
-            y_eval: test labels
-            **kwargs: keyword arguments that are passed to ai_via
-        """
-        ex = self.ai_via(S, [], self.X_train.columns, X_eval, y_eval, marginalize=True, **kwargs)
-        ex.ex_name = 'csagevf'
-        return ex
+    # Elementary Feature Importance Techniques Applied To Multiple Features
     
-    def msagevf(self, S, X_eval, y_eval, **kwargs):
-        """Computes the marginal SAGE value function for a given feature set S.
-
-        Args:
-            S: features of interest
-            X_eval: test data
-            y_eval: test labels
-            **kwargs: keyword arguments that are passed to di_from
-        """
-        ex = self.di_from(S, [], self.X_train.columns, X_eval, y_eval, marginalize=True, **kwargs)
-        ex.ex_name = 'msagevf'
-        return ex
-
     def dis_from_ordering(self, ordering, J, X_eval, y_eval, **kwargs):
         """Computes DI from X_J for every feature and the respective coalition as
         specified by the ordering.
@@ -548,28 +537,7 @@ class Explainer:
 
         result = explanation.Explanation(self.fsoi, scores, ex_name='dis_from_fixed')
         return result
-    
-    def pfi(self, X_eval, y_eval, fsoi=None, **kwargs):
-        """Computes PFI on a given evaluation dataset.
-
-        Args:
-            X_eval: evaluation data
-            y_eval: evaluation labels
-            fsoi: features of interest, overrides self.fsoi if not None
-        """
-        ex = self.dis_from_baselinefunc(self.X_train.columns, X_eval, y_eval, fsoi=fsoi, baseline='remainder', **kwargs)
-        ex.ex_name = 'pfi'
-        return ex
-        
-    def rfi(self, G, X_eval, y_eval, fsoi=None, D=None, **kwargs):
-        if D is None:
-            D = self.X_train.columns
-        ex_full = self.dis_from_baselinefunc(D, X_eval, y_eval, fsoi=fsoi, D=D, baseline='remainder', **kwargs)
-        ex_partly = self.dis_from_baselinefunc(G, X_eval, y_eval, fsoi=fsoi, D=D, baseline='remainder', **kwargs)
-        rfi_scores = ex_full.scores - ex_partly.scores
-        result = explanation.Explanation(self.fsoi, rfi_scores, ex_name=f'rfi_{G}')
-        return result
-
+                    
     def ais_via_contextfunc(self, K, X_eval, y_eval, fsoi=None, D=None, context='empty', contextfunc=None, **kwargs):
         """Computes AI via X_K for every variable given a variable-dependent context. For example,
         the context can be specified to be a function of the variable j and the set of all variables,
@@ -629,7 +597,33 @@ class Explainer:
 
         result = explanation.Explanation(self.fsoi, scores, ex_name='ais_via_fixed')
         return result
-        
+
+    # PFI RFI CFI Wrapper Functions
+
+    def rfi(self, G, X_eval, y_eval, fsoi=None, D=None, **kwargs):
+        if D is None:
+            D = self.X_train.columns
+        # ex_full gives PFIs, i.e. for feature j: R(\tilde{X}_j^empty) - R(X)
+        # ex_partly gives R(\tilde{X}_j^empty) - R(\tilde{X}_j^G)
+        # combined we get R(\tilde{X}_j^G) - R(X) = RFI_j
+        ex_full = self.dis_from_baselinefunc(D, X_eval, y_eval, fsoi=fsoi, D=D, baseline='remainder', **kwargs) # this returns the full model performance?
+        ex_partly = self.dis_from_baselinefunc(G, X_eval, y_eval, fsoi=fsoi, D=D, baseline='remainder', **kwargs)
+        rfi_scores = ex_full.scores - ex_partly.scores
+        result = explanation.Explanation(self.fsoi, rfi_scores, ex_name=f'rfi_{G}')
+        return result
+    
+    def pfi(self, X_eval, y_eval, fsoi=None, **kwargs):
+        """Computes PFI on a given evaluation dataset.
+
+        Args:
+            X_eval: evaluation data
+            y_eval: evaluation labels
+            fsoi: features of interest, overrides self.fsoi if not None
+        """
+        ex = self.dis_from_baselinefunc(self.X_train.columns, X_eval, y_eval, fsoi=fsoi, baseline='remainder', **kwargs)
+        ex.ex_name = 'pfi'
+        return ex
+            
     def cfi(self, X_eval, y_eval, fsoi=None, **kwargs):
         """Computes CFI on a given evaluation dataset.
 
@@ -641,8 +635,57 @@ class Explainer:
         ex = self.ais_via_contextfunc(self.X_train.columns, X_eval, y_eval, fsoi=fsoi, context='remainder', **kwargs)
         ex.ex_name = 'cfi'
         return ex
+    
+    # SAGE Value Function Wrappers
+             
+    def csagevf(self, S, X_eval, y_eval, C=[], **kwargs):
+        """Computes the conditional SAGE value function for a given feature set S.
 
+        Args:
+            S: features of interest
+            X_eval: test data
+            y_eval: test labels
+            **kwargs: keyword arguments that are passed to ai_via
+        """
+        ex = self.ai_via(S, C, self.X_train.columns, X_eval, y_eval, marginalize=True, **kwargs)
+        ex.ex_name = 'csagevf S={} C={}'.format(S, C)
+        return ex
+    
+    def msagevf(self, S, X_eval, y_eval, C=[], **kwargs):
+        """Computes the marginal SAGE value function for a given feature set S.
 
+        Args:
+            S: features of interest
+            X_eval: test data
+            y_eval: test labels
+            **kwargs: keyword arguments that are passed to di_from
+        """
+        ex = self.di_from(S, C, self.X_train.columns, X_eval, y_eval, marginalize=True, **kwargs)
+        ex.ex_name = 'msagevf S={} C={}'.format(S, C)
+        return ex
+
+    def msagevfs(self, X_eval, y_eval, C='empty', **kwargs):
+        """Computes the marginal SAGE value function for a given feature set S.
+
+        Args:
+        """
+        if not isinstance(C, str) and C in ['empty', 'remainder']:
+            raise NotImplementedError('Only empty and remainder are implemented for C.')
+        ex = self.dis_from_baselinefunc(self.X_train.columns, X_eval, y_eval, baseline=C, marginalize=True, **kwargs)
+        ex.ex_name = 'msagevfs C={}'.format(C)
+        return ex
+
+    def csagevfs(self, X_eval, y_eval, C='empty', **kwargs):
+        """Computes the conditional SAGE value function for a given feature set S.
+
+        Args:
+        """
+        if not isinstance(C, str) and C in ['empty', 'remainder']:
+            raise NotImplementedError('Only empty and remainder are implemented for C.')
+        ex = self.ais_via_contextfunc(self.X_train.columns, X_eval, y_eval, context=C, marginalize=True, **kwargs)
+        ex.ex_name = 'csagevfs C={}'.format(C)
+        return ex
+    
     # Advanced Feature Importance
 
     def sage(self, X_eval, y_eval, partial_ordering,
@@ -828,14 +871,24 @@ class Explainer:
             return result
 
     def csage(self, X_eval, y_eval, partial_ordering=None, **kwargs):
-        """
-        Compute conditional SAGE values for a given partial ordering.
+        """Compute conditional SAGE values for a given partial ordering.
 
         Args:
             X_eval: evaluation data
+                The evaluation data used to compute the conditional SAGE values.
             y_eval: evaluation labels
+                The evaluation labels corresponding to the evaluation data.
             partial_ordering: partial ordering for the computation
+                The partial ordering used for the computation of conditional SAGE values.
+                Provided as a list of tuples and lists, where elements within the tuples can be permuted.
+                [(X_eval.colums)] implies no ordering (the default)
             **kwargs: keyword arguments that are passed to sage
+                Additional keyword arguments that can be passed to the `sage` method.
+
+        Returns:
+            res: computed conditional SAGE values
+                The computed conditional SAGE values based on the provided evaluation data,
+                evaluation labels, and partial ordering.
         """
         if partial_ordering is None:
             partial_ordering = [tuple(X_eval.columns)]

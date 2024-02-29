@@ -233,11 +233,12 @@ class Sampler:
         # resampling with replacement (from the marginal) if empty conditioning set
         elif len(G) == 0:
             df_J = self.X_train.loc[:, J].copy()
-            dfs = []
-            for jj in range(num_samples):
-                df_perm = df_J.sample(n=X_test.shape[0], replace=True).copy()
-                dfs.append(df_perm)
-            sample = pd.concat(dfs)
+            # dfs = []
+            # for jj in range(num_samples):
+            #     df_perm = df_J.sample(n=X_test.shape[0], replace=True).copy()
+            #     dfs.append(df_perm)
+            # sample = pd.concat(dfs)
+            sample = df_J.sample(n=X_test.shape[0] * num_samples, replace=True).copy()
             sample.index = index
             return sample
         else:

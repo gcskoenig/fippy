@@ -24,17 +24,12 @@ class CGExplainer(Explainer):
     Default samplers or loss function can be defined.
 
     Attributes:
-        model: Model or predict function.
-        fsoi: Features of interest. Columnnames.
-        X_train: Training data for resampling. Pandas dataframe.
         adj_mat: Adjacency matrix of DAG used for d-separation/independence test
-        sampler: default sampler.
-        decorrelator: default decorrelator
-        loss: default loss.
     """
-    def __init__(self, predict, loss, sampler, X_train, adj_mat, **kwargs):
-        """Inits Explainer with sem, mask and potentially sampler and loss"""
-        Explainer.__init__(self, predict, loss, sampler, X_train, **kwargs)
+    def __init__(self, predict, X_train, adj_mat, **kwargs):
+        """Additionally adds adjacency matrix of graph to Explainer"""
+        # TODO align signature with Explainer
+        Explainer.__init__(self, predict, X_train, **kwargs)
         self.adj_mat = adj_mat
         self._check_valid_graph(self.adj_mat)
         self.g = nx.DiGraph(adj_mat)
