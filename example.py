@@ -49,7 +49,7 @@ sampler = SequentialSampler(X_train, categorical_fs=cat_fs,
                             cont_sampler=cont_sampler, cat_sampler=cat_sampler)
 
 # create explainer
-wrk = Explainer(pipe.predict, mean_squared_error, sampler, X_train)
+wrk = Explainer(pipe.predict, X_train, loss=mean_squared_error, sampler=sampler)
 
 
 ## compute PFI

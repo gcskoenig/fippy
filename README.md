@@ -36,6 +36,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_squared_error
 import category_encoders as ce
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 # import logging
 # logging.basicConfig(level=logging.INFO)
@@ -75,7 +78,7 @@ sampler = SequentialSampler(X_train, categorical_fs=cat_fs,
                             cont_sampler=cont_sampler, cat_sampler=cat_sampler)
 
 # create explainer
-wrk = Explainer(pipe.predict, mean_squared_error, sampler, X_train)
+wrk = Explainer(pipe.predict, X_train, loss=mean_squared_error, sampler=sampler)
 
 
 ## compute PFI
