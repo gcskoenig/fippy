@@ -98,6 +98,106 @@ class Explainer:
             logger.debug(txt)
 
     # Elementary Feature Importance Techniques
+            
+    def _surplus_simple(self, J, C, X_eval, y_eval, conditional, D=None, sampler=None, loss=None,
+                        nr_runs=10, return_perturbed=False, train_allowed=True,
+                        target='Y', marginalize=False, nr_resample_marginalize=5):
+        """Computes AI via, meaning that we quantify the performance"""
+        if target not in ['Y', 'Y_hat']:
+            raise ValueError('Y and Y_hat are the only valid targets.')
+
+        if sampler is None:
+            if self._sampler_specified():
+                sampler = self.sampler
+                logger.debug("Using class specified sampler.")
+
+        if loss is None:
+            if self._loss_specified():
+                loss = self.loss
+                logger.debug("Using class specified loss.")
+
+        if D is None:
+            D = X_eval.columns
+
+        if not marginalize:
+            nr_resample_marginalize = 1
+
+        if not set(J).isdisjoint(set(C)):
+            raise ValueError('J and C are not disjoint.')
+        
+
+        # sampler trained on all features except C given C?
+        RuJ = list(set(D) - set(C))  # background non-coalition variables
+        R = list(set(RuJ) - set(J)) # background non-coalition variables not in J
+        JuC = list(set(J).union(set(C)))  # foreground variables
+
+        if conditional:
+            self._check_sampler_trained(R, JuC, sampler, train_allowed)
+            self._check_sampler_trained(RuJ, C, sampler, train_allowed)
+
+        letter = 'c' if conditional else 'm'
+        desc = 'v^{}({}) - v^{}({})'.format(letter, JuC, letter, C)
+
+        # initialize array for the perturbed samples
+        nr_obs = X_eval.shape[0]
+        index = utils.create_multiindex(['sample', 'i'],
+                                        [np.arange(nr_runs),
+                                         np.arange(nr_obs)])
+
+        scores = pd.DataFrame([], index=index)
+
+        for kk in np.arange(0, nr_runs, 1):
+            # sample perturbed versions
+            if conditional:
+                X_RuJ_C = sampler.sample(X_eval, RuJ, C, num_samples=nr_resample_marginalize)
+                X_R_JuC = sampler.sample(X_eval, R, JuC, num_samples=nr_resample_marginalize)
+            else:
+                X_RuJ_C = sampler.sample(X_eval, RuJ, [], num_samples=nr_resample_marginalize)
+                X_R_JuC = sampler.sample(X_eval, R, [], num_samples=nr_resample_marginalize)
+                
+
+            # set unperturbed variabels to original variables
+            X_JuC = pd.concat([X_eval[JuC]]*nr_resample_marginalize)
+            X_C = pd.concat([X_eval[C]]*nr_resample_marginalize)
+            X_R_JuC[JuC] = X_JuC.to_numpy()
+            X_RuJ_C[C] = X_C.to_numpy()            
+            
+            index = X_RuJ_C.index
+            df_yh = pd.DataFrame(index=index,
+                                 columns=['y_hat_baseline',
+                                          'y_hat_foreground'])
+            
+            df_yh['y_hat_baseline'] = np.array(self.model(X_RuJ_C))
+            df_yh['y_hat_foreground'] = np.array(self.model(X_R_JuC))
+
+            # convert and aggregate predictions
+            df_yh = df_yh.astype({'y_hat_baseline': 'float',
+                                  'y_hat_foreground': 'float'})
+            df_yh = df_yh.groupby(level='i').mean()
+
+            # compute difference in observation-wise loss
+            if target == 'Y':
+                loss_baseline = loss(y_eval, df_yh['y_hat_baseline'])
+                loss_foreground = loss(y_eval, df_yh['y_hat_foreground'])
+                diffs = (loss_baseline - loss_foreground)
+                scores.loc[(kk, slice(None)), 'score'] = diffs
+            elif target == 'Y_hat':
+                diffs = loss(df_yh['y_hat_baseline'],
+                             df_yh['y_hat_foreground'])
+                scores.loc[(kk, slice(None)), 'score'] = diffs
+
+        # return explanation object
+        ex_name = desc
+        result = explanation.Explanation(
+            self.fsoi, scores,
+            ex_name=ex_name)
+
+        if return_perturbed:
+            raise NotImplementedError('return_perturbed=True not implemented.')
+        else:
+            logger.debug('Return explanation object only')
+            return result
+
 
     def di_from(self, K, B, J, X_eval, y_eval,
                 D=None, loss=None, nr_runs=10,
@@ -138,6 +238,14 @@ class Explainer:
             perturbed_foiss (optional): perturbed features of
                 interest if return_perturbed
         """
+
+        if D is None:
+            D = X_eval.columns
+
+        if len(D) == len(J):
+            return self._surplus_simple(K, B, X_eval, y_eval, False, 
+                                        D, sampler, loss, nr_runs, return_perturbed, train_allowed, target, marginalize, nr_resample_marginalize)
+
         if target not in ['Y', 'Y_hat']:
             raise ValueError('Y and Y_hat are the only valid targets.')
 
@@ -155,9 +263,6 @@ class Explainer:
             if self._loss_specified():
                 loss = self.loss
                 logger.debug("Using class specified loss.")
-
-        if D is None:
-            D = X_eval.columns
 
         if not set(K).isdisjoint(set(B)):
             raise ValueError('K and B are not disjoint.')
@@ -291,6 +396,14 @@ class Explainer:
             perturbed_foiss (optional): perturbed features of
                 interest if return_perturbed
         """
+
+        if D is None:
+            D = X_eval.columns
+
+        if len(D) == len(K):
+            return self._surplus_simple(J, C, X_eval, y_eval, True, 
+                                        D, sampler, loss, nr_runs, return_perturbed, train_allowed, target, marginalize, nr_resample_marginalize)
+
         if target not in ['Y', 'Y_hat']:
             raise ValueError('Y and Y_hat are the only valid targets.')
 
@@ -303,9 +416,6 @@ class Explainer:
             if self._loss_specified():
                 loss = self.loss
                 logger.debug("Using class specified loss.")
-
-        if D is None:
-            D = X_eval.columns
 
         if not marginalize:
             nr_resample_marginalize = 1
