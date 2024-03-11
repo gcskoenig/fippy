@@ -425,16 +425,22 @@ class Explainer:
         
 
         # sampler trained on all features except C given C?
-        R = list(set(D) - set(C))  # background non-coalition variables
+        RuJ = list(set(D) - set(C))  # background non-coalition variables
+        R = list(set(RuJ) - set(J))  # background non-coalition variables
+        JuC = list(set(J).union(set(C)))  # foreground variables
+        KnJ = list(set(K).intersection(set(J)))
+        KnR = list(set(K).intersection(R))
+        RuJoK = list(set(RuJ) - set(K))
 
-        self._check_sampler_trained(R, C, sampler, train_allowed)
+        self._check_sampler_trained(RuJ, C, sampler, train_allowed)
+        self._check_sampler_trained(KnR, JuC, sampler, train_allowed)
 
-        # sampler trained on subset of K not in JuC given JuC?
-        JuC = list(set(J).union(set(C)))
-        KnJuC = list(set(K).intersection(set(JuC)))
-        KR = list(set(K) - set(KnJuC))
+        # # sampler trained on subset of K not in JuC given JuC?
+        # JuC = list(set(J).union(set(C)))
+        # KnJuC = list(set(K).intersection(set(JuC)))
+        # KR = list(set(K) - set(KnJuC))
 
-        self._check_sampler_trained(KR, JuC, sampler, train_allowed)
+        # self._check_sampler_trained(KR, JuC, sampler, train_allowed)
 
         desc = 'AR({} | {} -> {})'.format(J, C, K)
 
@@ -449,9 +455,9 @@ class Explainer:
         for kk in np.arange(0, nr_runs, 1):
 
             # sample perturbed versions
-            X_R_C = sampler.sample(X_eval, R, C, num_samples=nr_resample_marginalize)
-            X_KR_JuC = sampler.sample(X_eval, KR, JuC, num_samples=1)
-            index = X_R_C.index
+            X_RuJ_C = sampler.sample(X_eval, RuJ, C, num_samples=nr_resample_marginalize)
+            X_KnR_JuC = sampler.sample(X_eval, KnR, JuC, num_samples=nr_resample_marginalize)
+            index = X_RuJ_C.index
 
             df_yh = pd.DataFrame(index=index,
                                  columns=['y_hat_baseline',
@@ -462,13 +468,13 @@ class Explainer:
 
                 # create baseline dataframe
                 X_tilde_baseline = X_eval.copy()
-                X_tilde_baseline[R] = X_R_C.loc[(ll, slice(None)), R].to_numpy()
+                X_tilde_baseline[RuJ] = X_RuJ_C.loc[(ll, slice(None)), RuJ].to_numpy()
 
                 # create foreground dataframe by taking baseline (where C reconstructed)
                 # and additionally adding info from J (and C) to K
                 X_tilde_foreground_partial = X_tilde_baseline.copy()
-                X_tilde_foreground_partial[KnJuC] = X_eval.loc[:, KnJuC].to_numpy()
-                X_tilde_foreground_partial[KR] = X_KR_JuC.loc[(0, slice(None)), KR].to_numpy()
+                X_tilde_foreground_partial[KnJ] = X_eval.loc[:, KnJ].to_numpy() # C already reconstructed in the baseline
+                X_tilde_foreground_partial[KnR] = X_KnR_JuC.loc[(ll, slice(None)), KnR].to_numpy()
 
                 # make sure model can handle it (selection and ordering)
                 X_tilde_baseline = X_tilde_baseline[D]
