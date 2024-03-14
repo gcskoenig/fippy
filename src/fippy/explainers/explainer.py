@@ -160,15 +160,15 @@ class Explainer:
             X_JuC = pd.concat([X_eval[JuC]]*nr_resample_marginalize)
             X_C = pd.concat([X_eval[C]]*nr_resample_marginalize)
             X_R_JuC[JuC] = X_JuC.to_numpy()
-            X_RuJ_C[C] = X_C.to_numpy()            
+            X_RuJ_C[C] = X_C.to_numpy()          
             
             index = X_RuJ_C.index
             df_yh = pd.DataFrame(index=index,
                                  columns=['y_hat_baseline',
                                           'y_hat_foreground'])
             
-            df_yh['y_hat_baseline'] = np.array(self.model(X_RuJ_C))
-            df_yh['y_hat_foreground'] = np.array(self.model(X_R_JuC))
+            df_yh['y_hat_baseline'] = np.array(self.model(X_RuJ_C[D]))
+            df_yh['y_hat_foreground'] = np.array(self.model(X_R_JuC[D]))
 
             # convert and aggregate predictions
             df_yh = df_yh.astype({'y_hat_baseline': 'float',
