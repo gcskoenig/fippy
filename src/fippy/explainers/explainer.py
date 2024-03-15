@@ -127,6 +127,7 @@ class Explainer:
         
 
         # sampler trained on all features except C given C?
+        J, C = list(J), list(C)
         RuJ = list(set(D) - set(C))  # background non-coalition variables
         R = list(set(RuJ) - set(J)) # background non-coalition variables not in J
         JuC = list(set(J).union(set(C)))  # foreground variables
@@ -154,21 +155,30 @@ class Explainer:
             else:
                 X_RuJ_C = sampler.sample(X_eval, RuJ, [], num_samples=nr_resample_marginalize)
                 X_R_JuC = sampler.sample(X_eval, R, [], num_samples=nr_resample_marginalize)
-                
 
             # set unperturbed variabels to original variables
             X_JuC = pd.concat([X_eval[JuC]]*nr_resample_marginalize)
             X_C = pd.concat([X_eval[C]]*nr_resample_marginalize)
             X_R_JuC[JuC] = X_JuC.to_numpy()
-            X_RuJ_C[C] = X_C.to_numpy()          
+            X_RuJ_C[C] = X_C.to_numpy()      
+
+            X_RuJ_C = X_RuJ_C[D]
+            # X_RuJ_C.columns = X_RuJ_C.columns.astype(str)
+            X_RuJ_C = X_RuJ_C.rename(str, axis="columns")
+            X_R_JuC = X_R_JuC[D]
+            # X_R_JuC.columns = X_R_JuC.columns.astype(str)    
+            X_R_JuC = X_R_JuC.rename(str, axis="columns")
             
             index = X_RuJ_C.index
             df_yh = pd.DataFrame(index=index,
                                  columns=['y_hat_baseline',
                                           'y_hat_foreground'])
             
-            df_yh['y_hat_baseline'] = np.array(self.model(X_RuJ_C[D]))
-            df_yh['y_hat_foreground'] = np.array(self.model(X_R_JuC[D]))
+            try:
+                df_yh['y_hat_baseline'] = np.array(self.model(X_RuJ_C[D]))
+                df_yh['y_hat_foreground'] = np.array(self.model(X_R_JuC[D]))
+            except:
+                print('shit.')
 
             # convert and aggregate predictions
             df_yh = df_yh.astype({'y_hat_baseline': 'float',
