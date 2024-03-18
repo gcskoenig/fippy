@@ -97,6 +97,31 @@ class Explainer:
             txt = txt + '{}|{}'.format(J, C)
             logger.debug(txt)
 
+    def _compute_loss_diff(self, index, X_baseline, X_foreground, y_eval, loss, target='Y'):
+        """Computes the difference in loss between baseline and foreground"""
+        # encode data if necessary
+        if self.encoder is not None:
+            X_tilde_baseline = self.encoder.transform(X_tilde_baseline)
+            X_tilde_foreground = self.encoder.transform(X_tilde_foreground)
+
+        # create and store prediction
+        yh_baseline = pd.DataFrame(self.model(X_baseline), index=index)
+        yh_foreground = pd.DataFrame(self.model(X_foreground), index=index)
+
+        # marginalize predictions
+        yh_baseline = yh_baseline.groupby(level='i').mean()
+        yh_foreground = yh_foreground.groupby(level='i').mean()
+
+        if target == 'Y':
+            loss_baseline = loss(y_eval, yh_baseline)
+            loss_foreground = loss(y_eval, yh_foreground)
+            diffs = (loss_baseline - loss_foreground)
+        elif target == 'Y_hat':
+            diffs = loss(yh_foreground,
+                         yh_baseline)
+        return diffs
+
+
     # Elementary Feature Importance Techniques
             
     def _surplus_simple(self, J, C, X_eval, y_eval, conditional, D=None, sampler=None, loss=None,
@@ -168,33 +193,37 @@ class Explainer:
             X_R_JuC = X_R_JuC[D]
             # X_R_JuC.columns = X_R_JuC.columns.astype(str)    
             X_R_JuC = X_R_JuC.rename(str, axis="columns")
-            
-            index = X_RuJ_C.index
-            df_yh = pd.DataFrame(index=index,
-                                 columns=['y_hat_baseline',
-                                          'y_hat_foreground'])
-            
-            try:
-                df_yh['y_hat_baseline'] = np.array(self.model(X_RuJ_C[D]))
-                df_yh['y_hat_foreground'] = np.array(self.model(X_R_JuC[D]))
-            except:
-                print('shit.')
 
-            # convert and aggregate predictions
-            df_yh = df_yh.astype({'y_hat_baseline': 'float',
-                                  'y_hat_foreground': 'float'})
-            df_yh = df_yh.groupby(level='i').mean()
+            diffs = self._compute_loss_diff(X_RuJ_C.index, X_RuJ_C[D], X_R_JuC[D], y_eval, loss, target=target)
+            scores.loc[(kk, slice(None)), 'score'] = diffs
 
-            # compute difference in observation-wise loss
-            if target == 'Y':
-                loss_baseline = loss(y_eval, df_yh['y_hat_baseline'])
-                loss_foreground = loss(y_eval, df_yh['y_hat_foreground'])
-                diffs = (loss_baseline - loss_foreground)
-                scores.loc[(kk, slice(None)), 'score'] = diffs
-            elif target == 'Y_hat':
-                diffs = loss(df_yh['y_hat_baseline'],
-                             df_yh['y_hat_foreground'])
-                scores.loc[(kk, slice(None)), 'score'] = diffs
+            # old code that does not work with multiclass classification      
+            # index = X_RuJ_C.index
+            # df_yh = pd.DataFrame(index=index,
+            #                      columns=['y_hat_baseline',
+            #                               'y_hat_foreground'])
+            
+            # try:
+            #     df_yh['y_hat_baseline'] = np.array(self.model(X_RuJ_C[D]))
+            #     df_yh['y_hat_foreground'] = np.array(self.model(X_R_JuC[D]))
+            # except Exception as e:
+            #     raise e
+
+            # # convert and aggregate predictions
+            # df_yh = df_yh.astype({'y_hat_baseline': 'float',
+            #                       'y_hat_foreground': 'float'})
+            # df_yh = df_yh.groupby(level='i').mean()
+
+            # # compute difference in observation-wise loss
+            # if target == 'Y':
+            #     loss_baseline = loss(y_eval, df_yh['y_hat_baseline'])
+            #     loss_foreground = loss(y_eval, df_yh['y_hat_foreground'])
+            #     diffs = (loss_baseline - loss_foreground)
+            #     scores.loc[(kk, slice(None)), 'score'] = diffs
+            # elif target == 'Y_hat':
+            #     diffs = loss(df_yh['y_hat_baseline'],
+            #                  df_yh['y_hat_foreground'])
+            #     scores.loc[(kk, slice(None)), 'score'] = diffs
 
         # return explanation object
         ex_name = desc
