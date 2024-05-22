@@ -1,2 +1,4 @@
-from fippy.explanation.explanation import Explanation
+from fippy.explanation.modelexplanation import ModelExplanation as Explanation
+from fippy.explanation.modelexplanation import ModelExplanation
+from fippy.explanation.learnerexplanation import LearnerExplanation
 from fippy.explanation.decomposition import DecompositionExplanation

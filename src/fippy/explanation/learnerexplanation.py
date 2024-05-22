@@ -1,18 +1,9 @@
-"""Explanations are the output of Explainers.
-
-Aggregated or observation-wise wise results can be
-accessed. Plotting functionality is available.
-"""
-# import numpy as np
 import numpy as np
-
-import fippy.plots._barplot as _barplot
 import pandas as pd
-# import itertools
-import fippy.utils as utils
+from fippy.utils import create_multiindex
+import fippy.plots._barplot as _barplot
 
-
-class Explanation:
+class LearnerExplanation:
     """Stores and provides access to results from Explainer.
 
     Aggregated as well as observation-wise results are stored.
@@ -26,21 +17,23 @@ class Explanation:
         ex_name: Explanation description
     """
 
-    def __init__(self, fsoi, scores, ex_name=None):
+    def __init__(self, fsoi, scores, split, ex_name=None):
         """Inits Explanation with fsoi indices, fsoi names, """
-        self.fsoi = fsoi  # TODO evaluate, do I need to make a copy?
-        self.scores = scores  # TODO evaluate, do I need to make a copy?
+        self.fsoi = fsoi  
+        self.scores = scores 
         self.ex_name = ex_name
+        self.split = split # tuple with (n_train, n_test)
+        assert isinstance(self.split, tuple)
         if ex_name is None:
             self.ex_name = 'Unknown'
 
     @staticmethod
     def from_csv(path, ex_name=None):
-        index_candidates = np.array(['ordering', 'sample', 'i'])
+        index_candidates = np.array(['ordering', 'fit', 'sample', 'i'])
         scores = pd.read_csv(path)
         index_names = list(index_candidates[np.isin(index_candidates, scores.columns)])
         scores = scores.set_index(index_names)
-        ex = Explanation(scores.columns, scores, ex_name=ex_name)
+        ex = LearnerExplanation(scores.columns, scores, ex_name=ex_name)
         return ex
 
     def _check_shape(self):
@@ -51,9 +44,6 @@ class Explanation:
         """
         raise NotImplementedError('Check shape has to be '
                                   'updated for Data Frame.')
-        # if len(self.lss.shape) != 3:
-        #     raise RuntimeError('.lss has shape {self.lss.shape}.'
-        #                        'Expected 3-dim.')
 
     def to_csv(self, savepath=None, filename=None):
         if savepath is None:
@@ -68,23 +58,12 @@ class Explanation:
         Returns:
             pd.DataFrame with index: sample and fsoi as columns
         """
-        # self._check_shape()
-        # arr = np.mean(self.scores, axis=(2))
-        # if return_np:
-        #     return arr
-        # else:
-        #     runs = range(arr.shape[1])
-        #     index = utils.create_multiindex(['feature', 'run'],
-        #                                     [self.fsoi_names, runs])
-        #     arr = arr.reshape(-1)
-        #     df = pd.DataFrame(arr, index=index, columns=['importance'])
-        # return df
-        df = self.scores.groupby(level='sample').mean()
+        df = self.scores.groupby(level='fit').mean()
         if fnames_as_columns:
             return df
         else:
-            index = utils.create_multiindex([df.index.name, 'feature'],
-                                            [df.index.values, df.columns])
+            index = create_multiindex([df.index.name, 'feature'],
+                                      [df.index.values, df.columns])
             df2 = pd.DataFrame(df.to_numpy().reshape(-1),
                                index=index,
                                columns=['importance'])
@@ -112,12 +91,51 @@ class Explanation:
             A pd.DataFrame with the respective characteristics for every feature.
             features are rows, quantities are columns
         """
-        scores_agg = self.scores.groupby(level='sample').mean()
+        scores_agg = self.scores.groupby(level='fit').mean()
         df = pd.DataFrame(scores_agg.mean(), columns=['mean'])
         df['q.05'] = scores_agg.quantile(0.05)
         df['q.95'] = scores_agg.quantile(0.95)
         df.index.set_names(['feature'], inplace=True)
         return df
+    
+    def cis(self, type='two-sided', alpha=0.05, c=None):
+        """Computes confidence intervals for the feature importance.
+        
+        Args:
+            type: Type of confidence interval. 'two-sided' or 'one-sided'
+            c: correction term. Recommended to be set to ntest/train
+            alpha: Significance level
+        """
+        agg = self.scores.groupby('fit').mean()
+        var = agg.var()
+        if (var == 0).all():
+            raise RuntimeError('Variance of scores is zero. Did you specify only one fit?')
+        
+        means = agg.mean()
+        count = agg.shape[0]
+        
+        cis = means.to_frame('importance')
+        cis.index.name = 'feature'
+        
+        if type=='two-sided':
+            # implements the learner ci procedure from Molnar et al. (2023)
+            if c is None:
+                c = self.split[1] / self.split[0]
+            se = np.sqrt(var * (c + 1/count))
+
+            from scipy.stats import t
+            alpha = 0.05
+            t_quant = t(df=count-1).ppf((1-(alpha/2)))
+            
+            ci_upper = means + se * t_quant
+            ci_lower = means - se * t_quant
+            cis['lower'] = ci_lower
+            cis['upper'] = ci_upper              
+        else:
+            raise NotImplementedError('Type not implemented.') 
+        
+        cis.sort_values('importance', ascending=False, inplace=True)
+        return cis
 
     def hbarplot(self, ax=None, figsize=None):
         return _barplot.fi_sns_hbarplot(self, ax=ax, figsize=figsize)

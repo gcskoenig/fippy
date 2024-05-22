@@ -1,4 +1,4 @@
-"""Explainers compute RFI relative to any set of features G.
+"""Explainers compute various feature importance measures.
 
 Different sampling algorithms and loss functions can be used.
 More details in the docstring for the class Explainer.
@@ -16,6 +16,13 @@ from fippy.samplers import Sampler
 
 idx = pd.IndexSlice
 logger = logging.getLogger(__name__)
+
+# defaults for keyword arguments
+NR_RUNS = 1
+NR_RESAMPLE_MARGINALIZE = 10
+TARGET = 'Y'
+TRAIN_ALLOWED = True
+RETURN_PERTURBED = False
 
 
 class Explainer:
@@ -97,7 +104,7 @@ class Explainer:
             txt = txt + '{}|{}'.format(J, C)
             logger.debug(txt)
 
-    def _compute_loss_diff(self, index, X_baseline, X_foreground, y_eval, loss, target='Y'):
+    def _compute_loss_diff(self, index, X_baseline, X_foreground, y_eval, loss, target=TARGET):
         """Computes the difference in loss between baseline and foreground"""
         # encode data if necessary
         if self.encoder is not None:
@@ -105,16 +112,17 @@ class Explainer:
             X_tilde_foreground = self.encoder.transform(X_tilde_foreground)
 
         # create and store prediction
-        yh_baseline = pd.DataFrame(self.model(X_baseline), index=index)
-        yh_foreground = pd.DataFrame(self.model(X_foreground), index=index)
+        yh_baseline = pd.Series(self.model(X_baseline), index=index)
+        yh_foreground = pd.Series(self.model(X_foreground), index=index)
 
         # marginalize predictions
-        yh_baseline = yh_baseline.groupby(level='i').mean()
-        yh_foreground = yh_foreground.groupby(level='i').mean()
+        yh_baseline = yh_baseline.groupby(level='i').mean().to_numpy()
+        yh_foreground = yh_foreground.groupby(level='i').mean().to_numpy()
+        y_eval_np = y_eval.to_numpy()
 
         if target == 'Y':
-            loss_baseline = loss(y_eval, yh_baseline)
-            loss_foreground = loss(y_eval, yh_foreground)
+            loss_baseline = loss(y_eval_np, yh_baseline)
+            loss_foreground = loss(y_eval_np, yh_foreground)
             diffs = (loss_baseline - loss_foreground)
         elif target == 'Y_hat':
             diffs = loss(yh_foreground,
@@ -123,10 +131,11 @@ class Explainer:
 
 
     # Elementary Feature Importance Techniques
-            
+    
+    # TODO add encoding        
     def _surplus_simple(self, J, C, X_eval, y_eval, conditional, D=None, sampler=None, loss=None,
-                        nr_runs=10, return_perturbed=False, train_allowed=True,
-                        target='Y', marginalize=False, nr_resample_marginalize=5):
+                        nr_runs=NR_RUNS, return_perturbed=RETURN_PERTURBED, train_allowed=TRAIN_ALLOWED,
+                        target=TARGET, marginalize=False, nr_resample_marginalize=NR_RESAMPLE_MARGINALIZE):
         """Computes AI via, meaning that we quantify the performance"""
         if target not in ['Y', 'Y_hat']:
             raise ValueError('Y and Y_hat are the only valid targets.')
@@ -145,11 +154,13 @@ class Explainer:
             D = X_eval.columns
 
         if not marginalize:
-            nr_resample_marginalize = 1
+            nr_resample_marginalize = NR_RESAMPLE_MARGINALIZE
 
         if not set(J).isdisjoint(set(C)):
             raise ValueError('J and C are not disjoint.')
         
+        if self.encoder is not None:
+            raise NotImplementedError('Encoding not implemented for surplus simple.')
 
         # sampler trained on all features except C given C?
         J, C = list(J), list(C)
@@ -197,34 +208,6 @@ class Explainer:
             diffs = self._compute_loss_diff(X_RuJ_C.index, X_RuJ_C[D], X_R_JuC[D], y_eval, loss, target=target)
             scores.loc[(kk, slice(None)), 'score'] = diffs
 
-            # old code that does not work with multiclass classification      
-            # index = X_RuJ_C.index
-            # df_yh = pd.DataFrame(index=index,
-            #                      columns=['y_hat_baseline',
-            #                               'y_hat_foreground'])
-            
-            # try:
-            #     df_yh['y_hat_baseline'] = np.array(self.model(X_RuJ_C[D]))
-            #     df_yh['y_hat_foreground'] = np.array(self.model(X_R_JuC[D]))
-            # except Exception as e:
-            #     raise e
-
-            # # convert and aggregate predictions
-            # df_yh = df_yh.astype({'y_hat_baseline': 'float',
-            #                       'y_hat_foreground': 'float'})
-            # df_yh = df_yh.groupby(level='i').mean()
-
-            # # compute difference in observation-wise loss
-            # if target == 'Y':
-            #     loss_baseline = loss(y_eval, df_yh['y_hat_baseline'])
-            #     loss_foreground = loss(y_eval, df_yh['y_hat_foreground'])
-            #     diffs = (loss_baseline - loss_foreground)
-            #     scores.loc[(kk, slice(None)), 'score'] = diffs
-            # elif target == 'Y_hat':
-            #     diffs = loss(df_yh['y_hat_baseline'],
-            #                  df_yh['y_hat_foreground'])
-            #     scores.loc[(kk, slice(None)), 'score'] = diffs
-
         # return explanation object
         ex_name = desc
         result = explanation.Explanation(
@@ -239,10 +222,10 @@ class Explainer:
 
 
     def di_from(self, K, B, J, X_eval, y_eval,
-                D=None, loss=None, nr_runs=10,
-                return_perturbed=False, train_allowed=True,
-                target='Y', marginalize=False,
-                nr_resample_marginalize=5,
+                D=None, loss=None, nr_runs=NR_RUNS,
+                return_perturbed=RETURN_PERTURBED, train_allowed=TRAIN_ALLOWED,
+                target=TARGET, marginalize=False,
+                nr_resample_marginalize=NR_RESAMPLE_MARGINALIZE,
                 sampler=None,
                 invert=False):
         """Computes the performance gain recieved from reconstructing features K
@@ -290,7 +273,7 @@ class Explainer:
 
         if not marginalize:
             # if we take expecation over one sample that coincides with taking only one sample
-            nr_resample_marginalize = 1
+            nr_resample_marginalize = NR_RESAMPLE_MARGINALIZE
 
         if sampler is None:
             if self._sampler_specified():
@@ -401,9 +384,9 @@ class Explainer:
             return result
 
     def ai_via(self, J, C, K, X_eval, y_eval, D=None, sampler=None, loss=None, 
-               nr_runs=10, return_perturbed=False, train_allowed=True,
-               target='Y', marginalize=False,
-               nr_resample_marginalize=5):
+               nr_runs=NR_RUNS, return_perturbed=RETURN_PERTURBED, train_allowed=TRAIN_ALLOWED,
+               target=TARGET, marginalize=False,
+               nr_resample_marginalize=NR_RESAMPLE_MARGINALIZE):
         """Computes AI via, meaning that we quantify the performance
         gain when reconstructing features K from features J and C,
         given that in the baseline distribution all features are
@@ -441,7 +424,8 @@ class Explainer:
 
         if len(D) == len(K):
             return self._surplus_simple(J, C, X_eval, y_eval, True, 
-                                        D, sampler, loss, nr_runs, return_perturbed, train_allowed, target, marginalize, nr_resample_marginalize)
+                                        D, sampler, loss, nr_runs, return_perturbed,
+                                        train_allowed, target, marginalize, nr_resample_marginalize)
 
         if target not in ['Y', 'Y_hat']:
             raise ValueError('Y and Y_hat are the only valid targets.')
@@ -844,9 +828,9 @@ class Explainer:
     # Advanced Feature Importance
 
     def sage(self, X_eval, y_eval, partial_ordering,
-             target='Y', method='associative', G=None, marginalize=True,
+             target=TARGET, method='associative', G=None, marginalize=True,
              nr_orderings=None, approx=math.sqrt, detect_convergence=False, thresh=0.01,
-             extra_orderings=0, nr_runs=10, nr_resample_marginalize=10,
+             extra_orderings=0, nr_runs=NR_RUNS, nr_resample_marginalize=NR_RESAMPLE_MARGINALIZE,
              sampler=None, loss=None, fsoi=None, orderings=None,
              save_orderings=True, save_each_obs=False, **kwargs):
         """
@@ -984,13 +968,13 @@ class Explainer:
                 if method == 'associative':
                     ex = self.ais_via_ordering(ordering, G, X_eval, y_eval,
                                                target=target, marginalize=marginalize,
-                                               nr_runs=1, nr_resample_marginalize=nr_resample_marginalize,
+                                               nr_runs=NR_RUNS, nr_resample_marginalize=nr_resample_marginalize,
                                                **kwargs)
                 elif method == 'direct':
                     # TODO check whether this should be dis_from_baselinefunc
                     ex = self.dis_from_ordering(ordering, G, X_eval, y_eval,
                                                 target=target, marginalize=marginalize,
-                                                nr_runs=1, nr_resample_marginalize=nr_resample_marginalize,
+                                                nr_runs=NR_RUNS, nr_resample_marginalize=nr_resample_marginalize,
                                                 **kwargs)
 
                 if save_each_obs:
@@ -1077,10 +1061,10 @@ class Explainer:
 
     def decomposition(self, imp_type, fsoi, partial_ordering, X_eval, y_eval,
                       nr_orderings=None, nr_orderings_sage=None,
-                      nr_runs=3, show_pbar=True,
+                      nr_runs=NR_RUNS, show_pbar=True,
                       approx=math.sqrt, save_orderings=True,
                       sage_partial_ordering=None, orderings=None,
-                      target='Y', D=None, **kwargs):
+                      target=TARGET, D=None, **kwargs):
         """
         Given a partial ordering, this code allows to decompose
         feature importance or feature association for a given set of
