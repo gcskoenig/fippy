@@ -1,4 +1,4 @@
-from fippy.explanation.modelexplanation import ModelExplanation as Explanation
+from fippy.explanation.explanation import Explanation
 import pandas as pd
 from fippy.plots._barplot import fi_sns_gbarplot, fi_sns_wbarplots
 import numpy as np
@@ -25,22 +25,6 @@ class DecompositionExplanation(Explanation):
         scores = scores.set_index(index_names['component', 'ordering', 'sample'])
         ex = DecompositionExplanation(scores.columns, scores, ex_name=ex_name)
         return ex
-
-    # def _check_shape(self):
-    #     if len(self.lss.shape) != 4:
-    #         raise RuntimeError('.lss has shape {self.lss.shape}.'
-    #                            'Expected 4-dim.')
-
-    # def _create_index(self, dims=[0, 1, 3]):
-    #     names = ['feature', 'component', 'permutation', 'run']
-    #     runs = range(self.lss.shape[3])
-    #     permutations = range(self.lss.shape[2])
-    #     lists = [self.fsoi_names, self.component_names, permutations, runs]
-
-    #     names_sub = [names[i] for i in dims]
-    #     lists_sub = [lists[i] for i in dims]
-    #     index = utils.create_multiindex(names_sub, lists_sub)
-    #     return index
 
     def fi_vals(self, fnames_as_columns=True):
         if fnames_as_columns:

@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 from fippy.utils import create_multiindex
 import numpy as np
 import pandas as pd
+import tqdm
 
 class LearnerExplainer:
     """Implements learner versions of various feature importance algorithms.
@@ -51,7 +52,7 @@ class LearnerExplainer:
         self.sampler = sampler
         self.loss = loss
         self.encoder = encoder
-        
+               
     def learner_importance(self, method, nr_refits, test_size, replace=False, sampler=None, loss=None, **kwargs):
         """
         Compute feature importance over multiple refits of the model.
@@ -74,7 +75,7 @@ class LearnerExplainer:
                 
         scoress = []
         
-        for mm in range(nr_refits):
+        for mm in tqdm.tqdm(range(nr_refits)):
             model = clone(self.learner)
             X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size=test_size)
             model.fit(X_train, y_train)
@@ -90,6 +91,8 @@ class LearnerExplainer:
             scoress.append(scores)
             
         scores = pd.concat(scoress)
-        ex = LearnerExplanation(self.fsoi, scores, (nr_train, nr_test), ex_name=f'learner-{method}')
-        return ex
-
+        ex_description = 'Learner ' + ex.ex_description + f' with {nr_refits} refits, test size {test_size}, and '
+        ex_description += f'{"bootstrapping" if replace else "subsampling"}.'
+        lex = LearnerExplanation(self.fsoi, scores, (nr_train, nr_test), ex_name='learner-'+ex.ex_name, 
+                                 ex_description=ex_description)
+        return lex

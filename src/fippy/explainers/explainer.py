@@ -210,7 +210,7 @@ class Explainer:
 
         # return explanation object
         ex_name = desc
-        result = explanation.Explanation(
+        result = explanation.ModelExplanation(
             self.fsoi, scores,
             ex_name=ex_name)
 
@@ -373,7 +373,7 @@ class Explainer:
 
         # return explanation object
         ex_name = desc
-        result = explanation.Explanation(
+        result = explanation.ModelExplanation(
             self.fsoi, scores,
             ex_name=ex_name)
 
@@ -533,7 +533,7 @@ class Explainer:
 
         # return explanation object
         ex_name = desc
-        result = explanation.Explanation(
+        result = explanation.ModelExplanation(
             self.fsoi, scores,
             ex_name=ex_name)
 
@@ -576,7 +576,7 @@ class Explainer:
             scores_arr = ex.scores.to_numpy()
             scores.loc[(slice(None), slice(None)), K[0]] = scores_arr
 
-        result = explanation.Explanation(self.fsoi, scores, ex_name='dis_from_ordering')
+        result = explanation.ModelExplanation(self.fsoi, scores, ex_name='dis_from_ordering')
         return result
 
     def ais_via_ordering(self, ordering, K, X_eval, y_eval, **kwargs):
@@ -674,7 +674,7 @@ class Explainer:
             scores_arr = ex.scores.to_numpy()
             scores.loc[(slice(None), slice(None)), K[0]] = scores_arr
 
-        result = explanation.Explanation(self.fsoi, scores, ex_name='dis_from_fixed')
+        result = explanation.ModelExplanation(self.fsoi, scores, ex_name='dis_from_fixed')
         return result
                     
     def ais_via_contextfunc(self, K, X_eval, y_eval, fsoi=None, D=None, context='empty', contextfunc=None, **kwargs):
@@ -734,7 +734,7 @@ class Explainer:
             scores_arr = ex.scores.to_numpy()
             scores.loc[(slice(None), slice(None)), J[0]] = scores_arr
 
-        result = explanation.Explanation(self.fsoi, scores, ex_name='ais_via_fixed')
+        result = explanation.ModelExplanation(self.fsoi, scores, ex_name='ais_via_fixed')
         return result
 
     # PFI RFI CFI Wrapper Functions
@@ -748,7 +748,8 @@ class Explainer:
         ex_full = self.dis_from_baselinefunc(D, X_eval, y_eval, fsoi=fsoi, D=D, baseline='remainder', **kwargs) # this returns the full model performance?
         ex_partly = self.dis_from_baselinefunc(G, X_eval, y_eval, fsoi=fsoi, D=D, baseline='remainder', **kwargs)
         rfi_scores = ex_full.scores - ex_partly.scores
-        result = explanation.Explanation(self.fsoi, rfi_scores, ex_name=f'rfi_{G}')
+        result = explanation.ModelExplanation(self.fsoi, rfi_scores, ex_name=f'rfi_{G}',
+                                         ex_description='Relative Feature Importance with respect to {}'.format(G))
         return result
     
     def pfi(self, X_eval, y_eval, fsoi=None, **kwargs):
@@ -761,6 +762,7 @@ class Explainer:
         """
         ex = self.dis_from_baselinefunc(self.X_train.columns, X_eval, y_eval, fsoi=fsoi, baseline='remainder', **kwargs)
         ex.ex_name = 'pfi'
+        ex.ex_description = 'Permutation Feature Importance'
         return ex
             
     def cfi(self, X_eval, y_eval, fsoi=None, **kwargs):
@@ -773,6 +775,7 @@ class Explainer:
         """
         ex = self.ais_via_contextfunc(self.X_train.columns, X_eval, y_eval, fsoi=fsoi, context='remainder', **kwargs)
         ex.ex_name = 'cfi'
+        ex.ex_description = 'Conditional Feature Importance'
         return ex
     
     # SAGE Value Function Wrappers
@@ -787,7 +790,8 @@ class Explainer:
             **kwargs: keyword arguments that are passed to ai_via
         """
         ex = self.ai_via(S, C, self.X_train.columns, X_eval, y_eval, marginalize=True, **kwargs)
-        ex.ex_name = 'csagevf S={} C={}'.format(S, C)
+        ex.ex_name = 'cSAGEvf_{}|{}'.format(S, C)
+        ex.ex_description = 'Conditional SAGE value function for features S={} with context C={}'.format(S, C)
         return ex
     
     def msagevf(self, S, X_eval, y_eval, C=[], **kwargs):
@@ -800,7 +804,8 @@ class Explainer:
             **kwargs: keyword arguments that are passed to di_from
         """
         ex = self.di_from(S, C, self.X_train.columns, X_eval, y_eval, marginalize=True, **kwargs)
-        ex.ex_name = 'msagevf S={} C={}'.format(S, C)
+        ex.ex_name = 'mSAGEvf_{}|{}'.format(S, C)
+        ex.ex_description = 'Marginal SAGE value function for features S={} with context C={}'.format(S, C)
         return ex
 
     def msagevfs(self, X_eval, y_eval, C='empty', **kwargs):
@@ -811,18 +816,20 @@ class Explainer:
         if not isinstance(C, str) and C in ['empty', 'remainder']:
             raise NotImplementedError('Only empty and remainder are implemented for C.')
         ex = self.dis_from_baselinefunc(self.X_train.columns, X_eval, y_eval, baseline=C, marginalize=True, **kwargs)
-        ex.ex_name = 'msagevfs C={}'.format(C)
+        ex.ex_name = 'msagevfs_C={}'.format(C)
+        ex.ex_description = 'Marginal SAGE value functions with context C={}'.format(C)
         return ex
 
     def csagevfs(self, X_eval, y_eval, C='empty', **kwargs):
-        """Computes the conditional SAGE value function for a given feature set S.
+        """Computes the conditional SAGE value function for a given context C.
 
         Args:
         """
         if not isinstance(C, str) and C in ['empty', 'remainder']:
             raise NotImplementedError('Only empty and remainder are implemented for C.')
         ex = self.ais_via_contextfunc(self.X_train.columns, X_eval, y_eval, context=C, marginalize=True, **kwargs)
-        ex.ex_name = 'csagevfs C={}'.format(C)
+        ex.ex_name = 'cSAGEvfs_C={}'.format(C)
+        ex.ex_description = 'Conditional SAGE value functions with context C={}'.format(C)
         return ex
     
     # Advanced Feature Importance
@@ -1002,8 +1009,10 @@ class Explainer:
             scores = scores.loc[(slice(0, max_orderings.max()), slice(None), slice(None))]
             orderings = orderings[0:nr_runs*(max_orderings.max()+1)]
 
-        result = explanation.Explanation(fsoi, scores, ex_name='SAGE')
-
+        ex_name = 'mSAGE' if method == 'direct' else 'cSAGE'
+        long_title = 'Marginal SAGE' if method == 'direct' else 'Conditional SAGE'
+        ex_description = long_title + ' over {} orderings'.format(nr_orderings)
+        result = explanation.ModelExplanation(fsoi, scores, ex_name='SAGE')
         if save_orderings:
             return result, orderings
         else:
@@ -1032,10 +1041,6 @@ class Explainer:
         if partial_ordering is None:
             partial_ordering = [tuple(X_eval.columns)]
         res = self.sage(X_eval, y_eval, partial_ordering, method='associative', **kwargs)
-        if isinstance(res, tuple): # if the orderings are passed as well
-            res[0].ex_name = 'csage '
-        else:
-            res.ex_name = 'csage'
         return res
     
     def msage(self, X_eval, y_eval, partial_ordering=None, **kwargs):
@@ -1051,10 +1056,6 @@ class Explainer:
         if partial_ordering is None:
             partial_ordering = [tuple(X_eval.columns)]
         res = self.sage(X_eval, y_eval, partial_ordering, method='direct', **kwargs)
-        if isinstance(res, tuple): # in case orderings passed as well
-            res[0].ex_name = 'msage '
-        else:
-            res.ex_name = 'msage'
         return res
 
     # Decompositions
