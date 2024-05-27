@@ -12,6 +12,9 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import log_loss, mean_squared_error, make_scorer
 import torch
 import category_encoders as ce
+import warnings
+
+warnings.filterwarnings("ignore", module="category_encoders")
 
 def get_param_grid(G):
     if len(G) < 4:
@@ -79,8 +82,10 @@ class UnivRFSampler(Sampler):
 
             X_train_G, X_train_J = self.X_train[Sampler._order_fset(G)], self.X_train[J[0]]
 
-            if len(set(self.cat_inputs).intersection(G)) > 0:
-                enc_G = ce.OneHotEncoder()
+            cat_in_G = set(self.cat_inputs).intersection(G)
+            cat_inputs_noninteger = [col for col in cat_in_G if not pd.api.types.is_numeric_dtype(X_train_G[col])]
+            if len(cat_inputs_noninteger) > 0:
+                enc_G = ce.OneHotEncoder(verbose=0)
                 enc_G.fit(X_train_G)
                 X_train_G_enc = enc_G.transform(X_train_G)
             else:
@@ -97,7 +102,7 @@ class UnivRFSampler(Sampler):
                 arrs = []
                 for snr in range(num_samples):
                     X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(X_train_G.columns))
-                    if len(set(self.cat_inputs).intersection(G)):
+                    if len(cat_inputs_noninteger) > 0:
                         X_eval_enc = enc_G.transform(X_eval)
                     else:
                         X_eval_enc = X_eval
@@ -156,8 +161,11 @@ class ContUnivRFSampler(Sampler):
                                                n_iter=50, verbose=0,
                                                n_jobs=-1, scoring=mse_scorer)  # Fit the random search model
             X_train_G, X_train_J = self.X_train[Sampler._order_fset(G)], self.X_train[J[0]]
-            if len(set(self.cat_inputs).intersection(G)) > 0:
-                enc_G = ce.OneHotEncoder()
+            
+            cat_in_G = set(self.cat_inputs).intersection(G)
+            cat_inputs_noninteger = [col for col in cat_in_G if not pd.api.types.is_numeric_dtype(X_train_G[col])]
+            if len(cat_inputs_noninteger) > 0:
+                enc_G = ce.OneHotEncoder(verbose=0)
                 enc_G.fit(X_train_G)
                 X_train_G_enc = enc_G.transform(X_train_G)
             else:
@@ -174,7 +182,7 @@ class ContUnivRFSampler(Sampler):
                 arrs = []
                 for snr in range(num_samples):
                     X_eval = pd.DataFrame(data=eval_context, columns=Sampler._order_fset(X_train_G.columns))
-                    if len(set(self.cat_inputs).intersection(G)):
+                    if len(cat_inputs_noninteger) > 0:
                         X_eval_enc = enc_G.transform(X_eval)
                     else:
                         X_eval_enc = X_eval

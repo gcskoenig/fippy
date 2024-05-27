@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import logging
 import networkx as nx
-from fippy.explanation import explanation
+import fippy.explanation as explanation
 from fippy import utils
 
 idx = pd.IndexSlice

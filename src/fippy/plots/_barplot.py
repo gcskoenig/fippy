@@ -7,7 +7,7 @@ import seaborn as sns
 textformat = '{:5.2f}'  # TODO(gcsk): remove this line
 
 
-def fi_sns_hbarplot(ex, ax=None, figsize=None):
+def fi_sns_hbarplot(ex, ax=None, figsize=None, alpha=0.05, facecolor='darkgray', errcolor='black'):
     """Seaborn based function that plots rfi results
 
     Args:
@@ -17,23 +17,26 @@ def fi_sns_hbarplot(ex, ax=None, figsize=None):
     """
     if ax is None:
         f, ax = plt.subplots(figsize=figsize)
-    df = ex.fi_vals(fnames_as_columns=False)
+    df = ex.cis(type='two-sided', alpha=alpha)
+    df.sort_values('importance', ascending=True, inplace=True)
+    asymmetric_error = [(df['importance']-df['lower']).values, (df['upper']-df['importance']).values]
     df.reset_index(inplace=True)
     order = df.groupby('feature').mean().sort_values('importance', ascending=False).reset_index()['feature']
     with sns.axes_style('whitegrid'):
-        sns.barplot(ax=ax, x='importance', y='feature', data=df, order=order,
-                    errorbar='sd', color='black',
-                    facecolor='darkgray', capsize=0,
-                    linewidth=0, edgecolor='black',
-                    err_kws={'linewidth': 3, 'color': 'black'})
+        plt.barh(y=df['feature'], width=df['importance'], xerr=asymmetric_error,
+             color='black', facecolor=facecolor, capsize=0,
+             linewidth=0, edgecolor='black', ecolor=errcolor)
+        plt.title(f'{ex.ex_description}')
+        # sns.barplot(ax=ax, x='importance', y='feature', data=df, order=order,
+        #             yerr='width', color='black',
+        #             facecolor='darkgray', capsize=0,
+        #             linewidth=0, edgecolor='black',
+        #             err_kws={'linewidth': 3, 'color': 'black'})
         sns.despine(left=True, bottom=True, ax=ax)
-    # sns.barplot(x='importance', y='feature', data=df, ax=ax, errorbar='sd',
-    #             order=order, color='black', errcolor='darkgray',
-    #             linewidth=3, facecolor=(244, 244, 244, 0.5), edgecolor='black')
-    # sns.despine(left=True, bottom=True, ax=ax)
-        ax.set(ylabel="", xlabel=f'Importance score {ex.ex_name}')
+        ax.set(ylabel="Features", xlabel=f'Importance with {1-alpha} CIs')
         return ax
 
+# err_kws={'linewidth': 3, 'color': 'black'}
 
 ### DEPRECATED
 
