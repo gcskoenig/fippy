@@ -366,11 +366,19 @@ class Explainer:
                 loss_baseline = loss(y_eval, df_yh['y_hat_baseline'])
                 loss_foreground = loss(y_eval, df_yh['y_hat_foreground'])
                 diffs = (loss_baseline - loss_foreground)
-                scores.loc[(kk, slice(None)), 'score'] = diffs.to_numpy()
+                # Handle different types of diffs (scalar, numpy array, pandas Series)
+                if hasattr(diffs, 'to_numpy'):
+                    scores.loc[(kk, slice(None)), 'score'] = diffs.to_numpy()
+                else:
+                    scores.loc[(kk, slice(None)), 'score'] = np.asarray(diffs)
             elif target == 'Y_hat':
                 diffs = loss(df_yh['y_hat_baseline'],
                              df_yh['y_hat_foreground'])
-                scores.loc[(kk, slice(None)), 'score'] = diffs.to_numpy()
+                # Handle different types of diffs (scalar, numpy array, pandas Series)
+                if hasattr(diffs, 'to_numpy'):
+                    scores.loc[(kk, slice(None)), 'score'] = diffs.to_numpy()
+                else:
+                    scores.loc[(kk, slice(None)), 'score'] = np.asarray(diffs)
 
         # return explanation object
         ex_name = desc
