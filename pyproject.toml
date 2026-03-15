@@ -5,18 +5,31 @@ build-backend = "hatchling.build"
 [project]
 name = "fippy"
 version = "0.2.0"
-description = "Feature Importance in Python"
+description = "Model-Agnostic Feature Importance in Python"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
+authors = [
+    { name = "Gunnar König", email = "g.koenig.edu@pm.me" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Intended Audience :: Science/Research",
+]
 dependencies = [
     "numpy",
     "pandas",
     "scikit-learn",
     "scipy",
-    "torch",
     "tqdm",
+    "joblib",
 ]
+
+[project.urls]
+Repository = "https://github.com/gcskoenig/fippy"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fippy"]
