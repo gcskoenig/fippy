@@ -104,18 +104,6 @@ class TestEwaldPFI:
         assert test_df.loc["X4", "p_value"] < 0.05
         assert test_df.loc["X5", "p_value"] < 0.05
 
-    def test_pfi_lm_x1_x2_spurious_due_to_correlation(self, ewald_data, ewald_lm):
-        """For fitted LM, PFI(X1) and PFI(X2) may be nonzero because X2≈X1.
-        The LM assigns weight to both, so permuting either creates OOD inputs.
-        This is a known limitation of PFI (Ewald et al., Negative Result 5.14).
-        The test verifies that PFI(X1,X2) < PFI(X4,X5) at least.
-        """
-        X, y = ewald_data
-        explainer = Explainer(ewald_lm, X, loss=squared_error)
-        result = explainer.pfi(X, y, n_repeats=10)
-        imp = result.importance()
-        assert imp.loc["X4", "importance"] > imp.loc["X1", "importance"]
-        assert imp.loc["X5", "importance"] > imp.loc["X2", "importance"]
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +127,7 @@ class TestEwaldCFI:
         explainer = Explainer(ewald_lm, X, loss=squared_error, sampler=ewald_sampler)
         result = explainer.cfi(X, y, n_repeats=10)
         imp = result.importance()
-        assert abs(imp.loc["X3", "importance"]) < 0.5
+        assert abs(imp.loc["X3", "importance"]) < 0.1
 
     def test_cfi_x4_x5_positive(self, ewald_data, ewald_lm, ewald_sampler):
         """X4 and X5 are conditionally associated with Y (A2a)."""

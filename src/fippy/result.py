@@ -22,6 +22,7 @@ class ExplanationResult:
     restriction: str
     distribution: str | None = None
     description: str = ""
+    baseline_loss: np.ndarray | None = None  # (n_obs,) observation-wise baseline loss
 
     @property
     def method(self) -> str:
@@ -31,7 +32,7 @@ class ExplanationResult:
             parts.append(self.distribution)
         return "_".join(parts)
 
-    def importance(self, aggregate_over=None) -> pd.DataFrame:
+    def importance(self, aggregate_over=None, relative=False) -> pd.DataFrame:
         """Mean importance per feature.
 
         Args:
@@ -40,6 +41,8 @@ class ExplanationResult:
                 "folds" -- std over folds (requires n_folds > 1)
                 None (default) -- auto-selects "repeats" when n_folds == 1.
                     Raises ValueError when n_folds > 1.
+            relative: If True, return importance as a fraction of baseline loss:
+                importance / mean(baseline_loss). Requires baseline_loss to be set.
         """
         if aggregate_over is None:
             if self.scores.shape[0] > 1:
@@ -69,6 +72,19 @@ class ExplanationResult:
             raise ValueError(
                 f"aggregate_over must be 'repeats' or 'folds', got '{aggregate_over}'"
             )
+
+        if relative:
+            if self.baseline_loss is None:
+                raise ValueError(
+                    "relative=True requires baseline_loss to be set."
+                )
+            baseline_mean = np.nanmean(self.baseline_loss)
+            if baseline_mean == 0:
+                raise ValueError(
+                    "Cannot compute relative importance: baseline loss is zero."
+                )
+            means = means / baseline_mean
+            stds = stds / baseline_mean
 
         return pd.DataFrame({
             "importance": means,

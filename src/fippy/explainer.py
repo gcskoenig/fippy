@@ -81,6 +81,7 @@ class Explainer:
             attribution="loo",
             restriction=restriction,
             distribution=distribution,
+            baseline_loss=baseline_loss,
         )
 
     def shapley(
@@ -105,6 +106,7 @@ class Explainer:
 
         n_obs = len(X)
         scores = np.empty((1, n_repeats, n_obs, len(groups)))
+        baseline_loss = self.loss(y, self.predict(X))
 
         for r in range(n_repeats):
             scores[0, r, :, :] = self._shapley_scores(
@@ -118,6 +120,7 @@ class Explainer:
             attribution="shapley",
             restriction=restriction,
             distribution=distribution,
+            baseline_loss=baseline_loss,
         )
 
     # ------------------------------------------------------------------
