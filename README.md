@@ -83,6 +83,27 @@ result_sage = explainer.sage(X_test, y_test, distribution="marginal", n_samples=
 result_sage.importance()
 ```
 
+### Key parameters
+
+**`restriction`** — How the dropped feature is handled:
+- `"resample"`: Replace the feature with a single random draw from a reference distribution. Fast, but introduces sampling noise.
+- `"marginalize"`: Replace the feature with `n_samples` random draws and average the predictions. Approximates the expected prediction over the reference distribution. More accurate than `resample` but slower.
+- `"refit"`: Retrain the model without the feature entirely. No sampling involved; measures importance through model performance change.
+
+**`distribution`** — Which reference distribution replacement values are drawn from (for `resample` and `marginalize`):
+- `"marginal"`: Draw from the unconditional distribution P(X_j). Breaks dependence between the dropped feature and all others. Used by PFI.
+- `"conditional"`: Draw from P(X_j | X_{-j}), respecting the dependence structure. Requires a `sampler`. Used by CFI/RFI.
+
+Not applicable for `restriction="refit"`.
+
+**`n_repeats`** — Number of times the importance computation is repeated with fresh perturbed samples for the dropped features. The variance across repeats captures Monte Carlo noise and is used by `ci()` for confidence intervals. Higher values give more stable estimates.
+
+**`n_samples`** — Number of replacement samples drawn per observation when using `restriction="marginalize"`. The predictions are averaged over these samples to approximate the expectation. Required for `sage()` and `loo(..., restriction="marginalize")`. Not used for `resample` (which draws a single sample) or `refit`.
+
+**`n_permutations`** — Maximum number of random feature orderings for Shapley value estimation (default: 500). Shapley values are approximated by averaging marginal contributions over random permutations. Computation stops early if the estimates converge (controlled by `convergence_threshold`).
+
+**`n_jobs`** — Number of parallel threads for the feature loop in LOO methods (default: 1). Uses `joblib` with thread-based parallelism. Set to `-1` to use all cores. Not supported for Shapley.
+
 ### Using the generic interface
 
 All convenience methods are shortcuts for `loo()` and `shapley()`:
