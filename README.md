@@ -23,6 +23,12 @@ This gives rise to well-known methods as special cases:
 Requires Python >= 3.9.
 
 ```bash
+pip install fippy
+```
+
+For development, install in editable mode:
+
+```bash
 pip install -e path/to/fippy
 ```
 
