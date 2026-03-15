@@ -218,6 +218,51 @@ class ExplanationResult:
 
         return df
 
+    def hbarplot(self, ax=None, figsize=None, alpha=0.05,
+                 facecolor="darkgray", errcolor="black",
+                 aggregate_over=None):
+        """Horizontal bar plot of feature importance with confidence intervals.
+
+        Args:
+            ax: Matplotlib axes to plot on. If None, a new figure is created.
+            figsize: Figure size (width, height) when creating a new figure.
+            alpha: Significance level for confidence intervals.
+            facecolor: Bar fill color.
+            errcolor: Error bar color.
+            aggregate_over: Passed to ci(). "repeats", "folds", or None (auto).
+
+        Returns:
+            The matplotlib Axes object.
+        """
+        import matplotlib.pyplot as plt
+
+        if ax is None:
+            _, ax = plt.subplots(figsize=figsize)
+
+        df = self.ci(alpha=alpha, aggregate_over=aggregate_over)
+        df = df.sort_values("importance", ascending=True)
+
+        err_lower = (df["importance"] - df["lower"]).values
+        err_upper = (df["upper"] - df["importance"]).values
+        asymmetric_error = [err_lower, err_upper]
+
+        ax.barh(
+            y=df.index,
+            width=df["importance"],
+            xerr=asymmetric_error,
+            color=facecolor,
+            edgecolor="none",
+            ecolor=errcolor,
+            capsize=0,
+        )
+        ax.set_xlabel(f"Importance ({1 - alpha:.0%} CI)")
+        ax.set_ylabel("Feature")
+        ax.set_title(self.method)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+        return ax
+
     def to_csv(self, path):
         """Save result to CSV."""
         # Flatten scores and save with metadata

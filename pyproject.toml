@@ -1,23 +1,22 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "fippy"
-version = "2024.0.0"
+version = "0.2.0"
+description = "Feature Importance in Python"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
 dependencies = [
-    "enlighten",
     "numpy",
-    "scikit-learn",
     "pandas",
-    "matplotlib",
-    "seaborn",
-    "omegaconf",
+    "scikit-learn",
+    "scipy",
     "torch",
-    "mlflow",
-    "category_encoders",
-    "ray[tune]",
-    "pyro-ppl",
-    "nflows",
-    "networkx",
+    "tqdm",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fippy"]

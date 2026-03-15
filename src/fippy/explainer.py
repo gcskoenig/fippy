@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import logging
 from typing import Callable, Literal
+from tqdm.auto import tqdm
+from joblib import Parallel, delayed
 
 from fippy.result import ExplanationResult
 from fippy.groups import FeatureGroup, as_groups
@@ -57,6 +59,7 @@ class Explainer:
         n_samples: int | None = None,
         learner=None,
         features=None,
+        n_jobs: int = 1,
     ) -> ExplanationResult:
         """Leave-one-out feature importance: v(D) - v(D \\ {j})."""
         self._validate_args(restriction, distribution, G, n_samples, learner)
@@ -68,12 +71,23 @@ class Explainer:
         scores = np.empty((1, n_repeats, n_obs, len(groups)))
         baseline_loss = self.loss(y, self.predict(X))
 
-        for r in range(n_repeats):
-            for j, group in enumerate(groups):
-                scores[0, r, :, j] = self._loo_scores(
-                    X, y, baseline_loss, group,
-                    restriction, distribution, G, n_samples, learner,
+        for r in tqdm(range(n_repeats), desc="loo repeats", disable=n_repeats <= 1):
+            if n_jobs == 1:
+                for j, group in enumerate(tqdm(groups, desc="features", leave=False)):
+                    scores[0, r, :, j] = self._loo_scores(
+                        X, y, baseline_loss, group,
+                        restriction, distribution, G, n_samples, learner,
+                    )
+            else:
+                results = Parallel(n_jobs=n_jobs, prefer="threads")(
+                    delayed(self._loo_scores)(
+                        X, y, baseline_loss, group,
+                        restriction, distribution, G, n_samples, learner,
+                    )
+                    for group in groups
                 )
+                for j, res in enumerate(results):
+                    scores[0, r, :, j] = res
 
         return ExplanationResult(
             feature_names=[g.name for g in groups],
@@ -97,8 +111,11 @@ class Explainer:
         convergence_threshold: float | None = 0.01,
         learner=None,
         features=None,
+        n_jobs: int = 1,
     ) -> ExplanationResult:
         """Shapley-based feature importance: E_S[v(S u {j}) - v(S)]."""
+        if n_jobs != 1:
+            raise ValueError("n_jobs > 1 is not supported for shapley()")
         self._validate_args(restriction, distribution, None, n_samples, learner)
         self._validate_X(X)
         y = np.asarray(y)
@@ -108,7 +125,7 @@ class Explainer:
         scores = np.empty((1, n_repeats, n_obs, len(groups)))
         baseline_loss = self.loss(y, self.predict(X))
 
-        for r in range(n_repeats):
+        for r in tqdm(range(n_repeats), desc="shapley repeats", disable=n_repeats <= 1):
             scores[0, r, :, :] = self._shapley_scores(
                 X, y, groups, restriction, distribution,
                 n_samples, n_permutations, convergence_threshold, learner,
@@ -127,25 +144,26 @@ class Explainer:
     # Convenience aliases
     # ------------------------------------------------------------------
 
-    def pfi(self, X, y, *, n_repeats=1, features=None):
+    def pfi(self, X, y, *, n_repeats=1, features=None, n_jobs=1):
         """Permutation Feature Importance (loo + resample + marginal)."""
         return self.loo(X, y, "resample", distribution="marginal",
-                        n_repeats=n_repeats, features=features)
+                        n_repeats=n_repeats, features=features, n_jobs=n_jobs)
 
-    def cfi(self, X, y, *, n_repeats=1, features=None):
+    def cfi(self, X, y, *, n_repeats=1, features=None, n_jobs=1):
         """Conditional Feature Importance (loo + resample + conditional)."""
         return self.loo(X, y, "resample", distribution="conditional",
-                        n_repeats=n_repeats, features=features)
+                        n_repeats=n_repeats, features=features, n_jobs=n_jobs)
 
-    def rfi(self, X, y, G, *, n_repeats=1, features=None):
+    def rfi(self, X, y, G, *, n_repeats=1, features=None, n_jobs=1):
         """Relative Feature Importance (loo + resample + conditional + G)."""
         return self.loo(X, y, "resample", distribution="conditional",
-                        G=G, n_repeats=n_repeats, features=features)
+                        G=G, n_repeats=n_repeats, features=features,
+                        n_jobs=n_jobs)
 
-    def loco(self, X, y, learner, *, n_repeats=1, features=None):
+    def loco(self, X, y, learner, *, n_repeats=1, features=None, n_jobs=1):
         """Leave-One-Covariate-Out (loo + refit)."""
         return self.loo(X, y, "refit", learner=learner,
-                        n_repeats=n_repeats, features=features)
+                        n_repeats=n_repeats, features=features, n_jobs=n_jobs)
 
     def sage(self, X, y, *, distribution, n_samples, n_repeats=1,
              n_permutations=None, convergence_threshold=0.01, features=None):
@@ -291,12 +309,13 @@ class Explainer:
         n_feat = len(groups)
 
         if n_permutations is None:
-            n_permutations = 10000
+            n_permutations = 500
 
         running_mean = np.zeros((n_obs, n_feat))
         running_m2 = np.zeros((n_obs, n_feat))
 
-        for t in range(n_permutations):
+        pbar = tqdm(range(n_permutations), desc="permutations")
+        for t in pbar:
             perm = np.random.permutation(n_feat)
             mc = np.zeros((n_obs, n_feat))
 
@@ -328,6 +347,7 @@ class Explainer:
                     rel_se = np.where(abs_mean > 1e-10, se / abs_mean, 0.0)
                 if np.all(rel_se < convergence_threshold):
                     logger.info(f"Shapley converged after {n} permutations")
+                    pbar.close()
                     break
 
         return running_mean

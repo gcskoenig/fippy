@@ -115,6 +115,24 @@ result.importance(relative=True)
 
 Multiple testing corrections: `"bonferroni"`, `"holm"`, `"bh"` (Benjamini-Hochberg).
 
+## Plotting
+
+Visualize results with horizontal bar plots showing confidence intervals:
+
+```python
+# Single plot
+result.hbarplot(figsize=(8, 4))
+
+# Side-by-side comparison
+import matplotlib.pyplot as plt
+fig, axes = plt.subplots(1, 2, figsize=(14, 4))
+result_pfi.hbarplot(ax=axes[0])
+result_cfi.hbarplot(ax=axes[1])
+fig.tight_layout()
+```
+
+See `Example.ipynb` for a complete walkthrough with plots.
+
 ## Feature groups
 
 Features can be grouped and assessed jointly:
@@ -146,7 +164,7 @@ loaded = ExplanationResult.from_csv("importance.csv")
 
 ## Status
 
-The package is under active development. The core API is stable, but additional samplers, plotting, and cross-validation features are planned.
+The package is under active development. The core API is stable, but additional samplers and cross-validation features are planned.
 
 ## References
 
