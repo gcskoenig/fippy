@@ -8,7 +8,7 @@ version = "0.2.0"
 description = "Model-Agnostic Feature Importance in Python"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 authors = [
     { name = "Gunnar König", email = "g.koenig.edu@pm.me" },
 ]

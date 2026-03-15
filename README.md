@@ -25,7 +25,7 @@ This gives rise to well-known methods as special cases:
 
 ## Installation
 
-Requires Python >= 3.9.
+Requires Python >= 3.11.
 
 ```bash
 pip install fippy
