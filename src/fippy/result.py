@@ -173,6 +173,12 @@ class ExplanationResult:
             vals = obs_scores[:, j]
             vals = vals[~np.isnan(vals)]
 
+            if np.std(vals) == 0:
+                raise ValueError(
+                    f"Cannot run test for feature '{self.feature_names[j]}': "
+                    f"observation-wise scores have zero variance."
+                )
+
             if method == "t":
                 from scipy.stats import ttest_1samp
                 stat, p = ttest_1samp(vals, 0, alternative=alternative)

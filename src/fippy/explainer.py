@@ -154,28 +154,6 @@ class Explainer:
                             features=features)
 
     # ------------------------------------------------------------------
-    # Value functions (for SAGE tests)
-    # ------------------------------------------------------------------
-
-    def marginal_value(self, S, X, y, n_samples=50):
-        """v^m(S): loss when features outside S are marginalized."""
-        y = np.asarray(y)
-        X = self._to_df(X)
-        J = [c for c in self._columns if c not in S]
-        if not J:
-            return self.loss(y, self.predict(X))
-        return self._marginalized_loss(X, y, J, [], "marginal", n_samples)
-
-    def conditional_value(self, S, X, y, n_samples=50):
-        """v^c(S): loss when features outside S are conditionally sampled."""
-        y = np.asarray(y)
-        X = self._to_df(X)
-        J = [c for c in self._columns if c not in S]
-        if not J:
-            return self.loss(y, self.predict(X))
-        return self._marginalized_loss(X, y, J, list(S), "conditional", n_samples)
-
-    # ------------------------------------------------------------------
     # Validation
     # ------------------------------------------------------------------
 

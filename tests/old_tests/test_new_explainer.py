@@ -438,64 +438,6 @@ class TestFeatureGroups:
 
 
 # ---------------------------------------------------------------------------
-# Value Function Tests
-# ---------------------------------------------------------------------------
-
-class TestValueFunctions:
-
-    def test_marginal_value_empty_coalition(self):
-        X, y = make_independent_linear(n=2000)
-        predict = fit_linear(X, y)
-        explainer = Explainer(predict, X, loss=squared_error)
-
-        v_empty = explainer.marginal_value(S=[], X=X, y=y.values, n_samples=50)
-        assert v_empty.shape == (len(X),)
-        v_full = explainer.marginal_value(S=list(X.columns), X=X, y=y.values, n_samples=50)
-        assert v_empty.mean() > v_full.mean()
-
-    def test_marginal_value_full_coalition(self):
-        X, y = make_independent_linear(n=2000)
-        predict = fit_linear(X, y)
-        explainer = Explainer(predict, X, loss=squared_error)
-
-        v_full = explainer.marginal_value(S=list(X.columns), X=X, y=y.values, n_samples=50)
-        direct_loss = squared_error(y.values, predict(X))
-        np.testing.assert_allclose(v_full, direct_loss, atol=0.01)
-
-    def test_conditional_value_full_coalition(self):
-        X, y = make_independent_linear(n=2000)
-        predict = fit_linear(X, y)
-        sampler = GaussianSampler(X)
-        explainer = Explainer(predict, X, loss=squared_error, sampler=sampler)
-
-        v_full = explainer.conditional_value(S=list(X.columns), X=X, y=y.values, n_samples=50)
-        direct_loss = squared_error(y.values, predict(X))
-        np.testing.assert_allclose(v_full, direct_loss, atol=0.01)
-
-    def test_marginal_value_monotone(self):
-        X, y = make_independent_linear(n=2000)
-        predict = fit_linear(X, y)
-        explainer = Explainer(predict, X, loss=squared_error)
-
-        v_empty = explainer.marginal_value(S=[], X=X, y=y.values, n_samples=50)
-        v_x1 = explainer.marginal_value(S=["x1"], X=X, y=y.values, n_samples=50)
-        v_full = explainer.marginal_value(S=["x1", "x2"], X=X, y=y.values, n_samples=50)
-
-        assert v_empty.mean() > v_x1.mean() + 1.0
-        np.testing.assert_allclose(v_x1.mean(), v_full.mean(), atol=0.5)
-
-    def test_conditional_equals_marginal_for_independent_features(self):
-        X, y = make_independent_linear(n=3000)
-        predict = fit_linear(X, y)
-        sampler = GaussianSampler(X)
-        explainer = Explainer(predict, X, loss=squared_error, sampler=sampler)
-
-        v_m = explainer.marginal_value(S=["x1"], X=X, y=y.values, n_samples=50)
-        v_c = explainer.conditional_value(S=["x1"], X=X, y=y.values, n_samples=50)
-        np.testing.assert_allclose(v_m.mean(), v_c.mean(), atol=0.5)
-
-
-# ---------------------------------------------------------------------------
 # SAGE Tests
 # ---------------------------------------------------------------------------
 
@@ -511,10 +453,11 @@ class TestSAGE:
         imp = result.importance()
         sage_sum = imp["importance"].sum()
 
-        v_full = explainer.marginal_value(S=list(X.columns), X=X, y=y.values, n_samples=50)
-        v_empty = explainer.marginal_value(S=[], X=X, y=y.values, n_samples=50)
-        # SAGE sums to total loss reduction: v({}) - v(D)
-        total_reduction = v_empty.mean() - v_full.mean()
+        y_arr = y.values
+        loss_empty = explainer._value_fn(X, y_arr, [], "marginalize", "marginal", 50, None)
+        loss_full = explainer._value_fn(X, y_arr, list(X.columns), "marginalize", "marginal", 50, None)
+        # SAGE sums to total loss reduction: loss(empty) - loss(full)
+        total_reduction = loss_empty.mean() - loss_full.mean()
 
         np.testing.assert_allclose(sage_sum, total_reduction, atol=1.0)
 
