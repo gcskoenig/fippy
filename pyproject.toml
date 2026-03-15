@@ -1,23 +1,35 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "fippy"
-version = "2024.0.0"
-dependencies = [
-    "enlighten",
-    "numpy",
-    "scikit-learn",
-    "pandas",
-    "matplotlib",
-    "seaborn",
-    "omegaconf",
-    "torch",
-    "mlflow",
-    "category_encoders",
-    "ray[tune]",
-    "pyro-ppl",
-    "nflows",
-    "networkx",
+version = "0.2.0"
+description = "Model-Agnostic Feature Importance in Python"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [
+    { name = "Gunnar König", email = "g.koenig.edu@pm.me" },
 ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "scipy",
+    "tqdm",
+    "joblib",
+]
+
+[project.urls]
+Repository = "https://github.com/gcskoenig/fippy"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fippy"]

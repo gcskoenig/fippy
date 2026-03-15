@@ -1,77 +1,91 @@
-"""Model-X Knockoff sampler based on arXiv:1610.02351.
-
-Second-order Gaussian models are used to sem the
-conditional distribution.
-"""
+"""GaussianSampler: conditional sampling via Gaussian conditioning formulas."""
 import numpy as np
-
-from fippy.samplers.sampler import Sampler
+import pandas as pd
 from fippy.backend.estimators import GaussianConditionalEstimator
-from fippy.samplers._utils import sample_id
-from fippy.utils import fset_to_ix
 
 
-class GaussianSampler(Sampler):
+class GaussianSampler:
+    """Second-order Gaussian conditional sampler.
+
+    Computes P(X_J | X_S) using standard multivariate normal conditioning:
+      mu_{J|S} = mu_J + Sigma_JS @ Sigma_SS^{-1} @ (x_S - mu_S)
+      Sigma_{J|S} = Sigma_JJ - Sigma_JS @ Sigma_SS^{-1} @ Sigma_SJ
+
+    Estimators are fitted lazily and cached by (J, S) key.
     """
-    Second order Gaussian Sampler.
 
-    Attributes:
-        see rfi.samplers.Sampler
-    """
+    multivariate = True
 
-    def __init__(self, X_train, **kwargs):
-        """Initialize Sampler with X_train and mask."""
-        super().__init__(X_train, **kwargs)
+    def __init__(self, X_train: pd.DataFrame):
+        self.X_train = X_train
+        self.feature_names = list(X_train.columns)
+        self._cache: dict[tuple, object] = {}
 
-    def train(self, J, G, verbose=True):
+    def fit(self, J, S):
+        """Fit P(X_J | X_S)."""
+        key = self._key(J, S)
+        if key in self._cache:
+            return
+
+        J, S = list(J), list(S)
+        J_only = sorted(set(J) - set(S))
+
+        if not J_only:
+            self._cache[key] = "identity"
+            return
+
+        estimator = GaussianConditionalEstimator()
+        estimator.fit(
+            train_inputs=self.X_train[J_only].to_numpy(),
+            train_context=self.X_train[sorted(S)].to_numpy() if S else np.zeros((len(self.X_train), 0)),
+        )
+        self._cache[key] = (estimator, J_only)
+
+    def sample(self, X, J, S, n_samples=1):
+        """Sample from P(X_J | X_S).
+
+        Returns: np.ndarray of shape (n_obs, n_samples, len(J)).
         """
-        Trains sampler using dataset to resample variable jj relative to G.
-        Args:
-            J: features of interest
-            G: arbitrary set of variables
-            verbose: printing
-        """
+        J, S = list(J), list(S)
+        key = self._key(J, S)
+        if key not in self._cache:
+            self.fit(J, S)
 
-        J = Sampler._to_array(list(J))
-        G = Sampler._to_array(list(G))
-        super().train(J, G, verbose=verbose)
+        entry = self._cache[key]
+        n_obs = len(X)
 
-        if not self._train_J_degenerate(J, G):
-            G_disjoint = set(G).isdisjoint(self.cat_inputs)
-            J_disjoint = set(J).isdisjoint(self.cat_inputs)
-            if not G_disjoint or not J_disjoint:
-                raise NotImplementedError('GaussianConditionalEstimator does '
-                                          'not support categorical variables.')
+        if entry == "identity":
+            vals = X[J].values if isinstance(X, pd.DataFrame) else X
+            return np.broadcast_to(vals[:, np.newaxis, :], (n_obs, n_samples, len(J))).copy()
 
-            # to be sampled using gaussian estimator
-            J_R = list(set(J) - set(G))
-            # to be ID returned
-            J_G = list(set(J) - set(J_R))
+        estimator, J_only = entry
+        context = X[sorted(S)].values if S else np.zeros((n_obs, 0))
+        # estimator.sample returns (n_obs, n_samples, len(J_only))
+        raw = estimator.sample(context, num_samples=n_samples)
 
-            gaussian_estimator = GaussianConditionalEstimator()
-            train_inputs = self.X_train[Sampler._order_fset(J_R)].to_numpy()
-            train_context = self.X_train[Sampler._order_fset(G)].to_numpy()
+        J_in_S = [j for j in J if j in S]
+        if not J_in_S:
+            # J_only == J (possibly reordered)
+            if sorted(J) == J:
+                return raw
+            # Reorder to match J
+            result = np.empty((n_obs, n_samples, len(J)))
+            for i, j in enumerate(J):
+                src = J_only.index(j)
+                result[:, :, i] = raw[:, :, src]
+            return result
 
-            gaussian_estimator.fit(train_inputs=train_inputs,
-                                   train_context=train_context)
+        # Mix identity (J in S) and sampled (J_only)
+        result = np.empty((n_obs, n_samples, len(J)))
+        for i, j in enumerate(J):
+            if j in J_in_S:
+                col_vals = X[j].values if isinstance(X, pd.DataFrame) else X[:, self.feature_names.index(j)]
+                result[:, :, i] = col_vals[:, np.newaxis]
+            else:
+                src = J_only.index(j)
+                result[:, :, i] = raw[:, :, src]
+        return result
 
-            J_G_ixs = fset_to_ix(G, J)
-            samplef_J_G = sample_id(J_G_ixs)
-
-            ixs_J_G = fset_to_ix(J, J_G)
-            ixs_J_R = fset_to_ix(J, J_R)
-
-            def samplefunc(eval_context, **kwargs):
-                sample_J_G = samplef_J_G(eval_context, **kwargs)
-                sample_J_R = gaussian_estimator.sample(eval_context, **kwargs)
-                sample = np.zeros((sample_J_R.shape[0], sample_J_R.shape[1],
-                                   sample_J_R.shape[2] + sample_J_G.shape[2]))
-                sample[:, :, ixs_J_G] = sample_J_G
-                sample[:, :, ixs_J_R] = sample_J_R
-                return sample
-
-            self._store_samplefunc(J, G, samplefunc, verbose=verbose)
-
-            return gaussian_estimator
-        else:
-            return None
+    @staticmethod
+    def _key(J, S):
+        return (tuple(sorted(J)), tuple(sorted(S)))

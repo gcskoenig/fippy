@@ -1,2 +1,3 @@
-from fippy.explainers import Explainer, LearnerExplainer, CGExplainer
-from fippy.explanation import Explanation, DecompositionExplanation
+from fippy.explainer import Explainer
+from fippy.result import ExplanationResult
+from fippy.groups import FeatureGroup, as_groups
