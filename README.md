@@ -5,7 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/pypi/pyversions/fippy)](https://pypi.org/project/fippy/)
 
-A Python package for model-agnostic feature importance with statistical inference. Fippy implements a unified framework where feature importance methods are composed from three orthogonal axes:
+A Python package for model-agnostic feature importance with support for conditional sampling and statistical inference. Includes PFI, CFI, RFI, LOCO, and SAGE, along with hypothesis tests for individual feature relevance and confidence intervals for importance estimates.
+
+All existing methods quantify feature importance by measuring how removing a feature from the model affects the prediction loss, but they differ across three axes: **attribution** concerns how credit is assigned across features, **restriction** determines how a feature is removed, and **distribution** specifies which reference distribution replacement values are drawn from.
 
 | Axis | Options | Description |
 |---|---|---|
@@ -13,7 +15,19 @@ A Python package for model-agnostic feature importance with statistical inferenc
 | **Restriction** | `resample`, `marginalize`, `refit` | How the removed feature is handled |
 | **Distribution** | `marginal`, `conditional` | Which distribution replacement values are drawn from |
 
-This gives rise to well-known methods as special cases:
+For example, LOO importance with resampling from the conditional distribution (i.e. CFI):
+
+```python
+from fippy import Explainer
+from fippy.samplers import GaussianSampler
+from fippy.losses import squared_error
+
+sampler = GaussianSampler(X_train)
+explainer = Explainer(model.predict, X_train, loss=squared_error, sampler=sampler)
+result = explainer.loo(X_test, y_test, "resample", distribution="conditional")
+```
+
+Based on that logic, the package also offers convenience functions for popular methods:
 
 | Method | Attribution | Restriction | Distribution | Alias |
 |---|---|---|---|---|
@@ -22,6 +36,26 @@ This gives rise to well-known methods as special cases:
 | RFI | loo | resample | conditional + G | `rfi()` |
 | LOCO | loo | refit | — | `loco()` |
 | SAGE | shapley | marginalize | marginal or conditional | `sage()` |
+
+All methods return an `ExplanationResult`, which provides built-in tools for inference and visualization:
+
+- **`importance()`** — mean importance per feature with standard deviations
+- **`ci()`** — confidence intervals (t-based or quantile-based)
+- **`test()`** — hypothesis tests for individual feature relevance (t-test or Wilcoxon signed-rank test) with multiple testing correction
+- **`hbarplot()`** — horizontal bar plot of importances with confidence intervals
+
+LOO methods support parallelization over features via the `n_jobs` parameter.
+
+## Contents
+
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Samplers](#samplers)
+- [Feature groups](#feature-groups)
+- [Plotting](#plotting)
+- [Statistical inference](#statistical-inference)
+- [Serialization](#serialization)
+- [Disclaimer](#disclaimer)
 
 ## Installation
 
@@ -124,6 +158,45 @@ All convenience methods are shortcuts for `loo()` and `shapley()`:
 result = explainer.loo(X_test, y_test, "resample", distribution="marginal")
 ```
 
+## Samplers
+
+| Sampler | Distribution | Description |
+|---|---|---|
+| `PermutationSampler` | marginal | Draws from training marginal (used automatically) |
+| `GaussianSampler` | conditional | Multivariate Gaussian conditional P(X_J \| X_S) |
+
+Additional samplers (regression-based, ARF, TabPFN) are planned.
+
+## Feature groups
+
+Features can be grouped and assessed jointly:
+
+```python
+# As a dict
+explainer.pfi(X_test, y_test, features={"size": ["width", "height"], "color": ["r", "g", "b"]})
+
+# As a list (each element becomes one group)
+explainer.pfi(X_test, y_test, features=["width", "height", "color"])
+```
+
+## Plotting
+
+Visualize results with horizontal bar plots showing confidence intervals:
+
+```python
+# Single plot
+result.hbarplot(figsize=(8, 4))
+
+# Side-by-side comparison
+import matplotlib.pyplot as plt
+fig, axes = plt.subplots(1, 2, figsize=(14, 4))
+result_pfi.hbarplot(ax=axes[0])
+result_cfi.hbarplot(ax=axes[1])
+fig.tight_layout()
+```
+
+See `Example.ipynb` for a complete walkthrough with plots.
+
 ## Statistical inference
 
 `ExplanationResult` provides built-in inference on the importance scores.
@@ -147,45 +220,6 @@ result.importance(relative=True)
 
 Multiple testing corrections: `"bonferroni"`, `"holm"`, `"bh"` (Benjamini-Hochberg).
 
-## Plotting
-
-Visualize results with horizontal bar plots showing confidence intervals:
-
-```python
-# Single plot
-result.hbarplot(figsize=(8, 4))
-
-# Side-by-side comparison
-import matplotlib.pyplot as plt
-fig, axes = plt.subplots(1, 2, figsize=(14, 4))
-result_pfi.hbarplot(ax=axes[0])
-result_cfi.hbarplot(ax=axes[1])
-fig.tight_layout()
-```
-
-See `Example.ipynb` for a complete walkthrough with plots.
-
-## Feature groups
-
-Features can be grouped and assessed jointly:
-
-```python
-# As a dict
-explainer.pfi(X_test, y_test, features={"size": ["width", "height"], "color": ["r", "g", "b"]})
-
-# As a list (each element becomes one group)
-explainer.pfi(X_test, y_test, features=["width", "height", "color"])
-```
-
-## Samplers
-
-| Sampler | Distribution | Description |
-|---|---|---|
-| `PermutationSampler` | marginal | Draws from training marginal (used automatically) |
-| `GaussianSampler` | conditional | Multivariate Gaussian conditional P(X_J \| X_S) |
-
-Additional samplers (regression-based, ARF, TabPFN) are planned.
-
 ## Serialization
 
 ```python
@@ -194,10 +228,8 @@ from fippy import ExplanationResult
 loaded = ExplanationResult.from_csv("importance.csv")
 ```
 
-## Status
+## Disclaimer
 
 The package is under active development. The core API is stable, but additional samplers and cross-validation features are planned.
-
-## References
 
 The package was previously called `rfi` and accompanies our paper on Relative Feature Importance: [[arXiv]](https://arxiv.org/abs/2007.08283)
