@@ -2,8 +2,10 @@
 import numpy as np
 import pandas as pd
 
+from fippy.samplers.base import Sampler
 
-class PermutationSampler:
+
+class PermutationSampler(Sampler):
     """Samples from the marginal distribution P(X_J) by randomly
     drawing rows from training data.
 
@@ -11,16 +13,14 @@ class PermutationSampler:
     """
 
     multivariate = True
+    supports_categorical_target = True
+    supports_categorical_context = True
 
-    def __init__(self, X_train: pd.DataFrame):
-        self.X_train = X_train
-        self.feature_names = list(X_train.columns)
-
-    def fit(self, J, S):
+    def _fit(self, J, S):
         """No fitting needed for permutation sampling."""
         pass
 
-    def sample(self, X, J, S, n_samples=1):
+    def _sample(self, X, J, S, n_samples=1):
         """Sample by drawing from training data (ignores S).
 
         Args:
