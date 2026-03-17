@@ -67,6 +67,12 @@ class Explainer:
         y = np.asarray(y)
         groups = self._resolve_features(features)
 
+        if distribution is not None:
+            sampler = self._get_sampler(distribution)
+            if hasattr(sampler, 'check_compatibility'):
+                requires_multi = any(len(g.columns) > 1 for g in groups)
+                sampler.check_compatibility(requires_multivariate=requires_multi)
+
         n_obs = len(X)
         scores = np.empty((1, n_repeats, n_obs, len(groups)))
         baseline_loss = self.loss(y, self.predict(X))
@@ -120,6 +126,11 @@ class Explainer:
         self._validate_X(X)
         y = np.asarray(y)
         groups = self._resolve_features(features)
+
+        if distribution is not None:
+            sampler = self._get_sampler(distribution)
+            if hasattr(sampler, 'check_compatibility'):
+                sampler.check_compatibility(requires_multivariate=True)
 
         n_obs = len(X)
         scores = np.empty((1, n_repeats, n_obs, len(groups)))

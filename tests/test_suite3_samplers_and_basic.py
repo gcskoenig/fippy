@@ -474,3 +474,107 @@ class TestValidation:
         explainer, X, y = basic_explainer
         with pytest.raises(ValueError, match="Invalid restriction"):
             explainer.loo(X, y, "invalid_restriction", distribution="marginal")
+
+
+# ===========================================================================
+# 3.6 Categorical compatibility tests
+# ===========================================================================
+
+class TestCategoricalCompatibility:
+    """Test that samplers fail fast on categorical data when unsupported."""
+
+    @pytest.fixture
+    def categorical_data(self):
+        rng = np.random.RandomState(42)
+        n = 200
+        X = pd.DataFrame({
+            "x1": rng.randn(n),
+            "x2": rng.randn(n),
+            "x3": pd.Categorical(rng.choice(["a", "b", "c"], n)),
+        })
+        y = X["x1"] + rng.randn(n) * 0.1
+        return X, y
+
+    def test_gaussian_sampler_rejects_categorical_target(self, categorical_data):
+        X, y = categorical_data
+        sampler = GaussianSampler(X)
+        predict = lambda x: x["x1"].values
+        explainer = Explainer(predict, X, loss=squared_error, sampler=sampler)
+        with pytest.raises(ValueError, match="categorical targets"):
+            explainer.cfi(X, y)
+
+    def test_gaussian_sampler_rejects_categorical_context(self, categorical_data):
+        X, y = categorical_data
+        sampler = GaussianSampler(X)
+        predict = lambda x: x["x1"].values
+        explainer = Explainer(predict, X, loss=squared_error, sampler=sampler)
+        with pytest.raises(ValueError, match="categorical context"):
+            explainer.cfi(X, y)
+
+    def test_gaussian_sampler_rejects_object_dtype(self):
+        rng = np.random.RandomState(42)
+        n = 200
+        X = pd.DataFrame({
+            "x1": rng.randn(n),
+            "x2": rng.choice(["a", "b"], n),  # object dtype
+        })
+        y = X["x1"] + rng.randn(n) * 0.1
+        sampler = GaussianSampler(X)
+        predict = lambda x: x["x1"].values
+        explainer = Explainer(predict, X, loss=squared_error, sampler=sampler)
+        with pytest.raises(ValueError, match="categorical targets"):
+            explainer.cfi(X, y)
+
+    def test_permutation_sampler_accepts_categorical(self, categorical_data):
+        X, _ = categorical_data
+        sampler = PermutationSampler(X)
+        # PermutationSampler supports categorical in both roles — check passes
+        sampler.check_compatibility(requires_multivariate=True)
+
+    def test_check_compatibility_reports_both_errors(self, categorical_data):
+        """When both target and context are unsupported, both errors are reported."""
+        X, _ = categorical_data
+        sampler = GaussianSampler(X)
+        with pytest.raises(ValueError, match="(?s)categorical targets.*categorical context"):
+            sampler.check_compatibility()
+
+    def test_no_error_on_numeric_only_data(self):
+        rng = np.random.RandomState(42)
+        X = pd.DataFrame({"x1": rng.randn(100), "x2": rng.randn(100)})
+        sampler = GaussianSampler(X)
+        # Should not raise
+        sampler.check_compatibility()
+
+    def test_integer_columns_not_detected_as_categorical(self):
+        rng = np.random.RandomState(42)
+        X = pd.DataFrame({"x1": rng.randn(100), "x2": rng.randint(0, 3, 100)})
+        sampler = GaussianSampler(X)
+        assert sampler._categorical_cols == set()
+
+    def test_astype_category_detected(self):
+        rng = np.random.RandomState(42)
+        X = pd.DataFrame({"x1": rng.randn(100), "x2": rng.randint(0, 3, 100)})
+        X["x2"] = X["x2"].astype("category")
+        sampler = GaussianSampler(X)
+        assert sampler._categorical_cols == {"x2"}
+
+    def test_gaussian_rejects_categorical_in_shapley(self, categorical_data):
+        X, y = categorical_data
+        sampler = GaussianSampler(X)
+        predict = lambda x: x["x1"].values
+        explainer = Explainer(predict, X, loss=squared_error, sampler=sampler)
+        with pytest.raises(ValueError, match="categorical targets"):
+            explainer.sage(X, y, distribution="conditional", n_samples=2,
+                           n_permutations=2)
+
+    def test_marginal_without_sampler_skips_check(self):
+        """PFI with no sampler uses internal _PermutationSampler — no compatibility check."""
+        rng = np.random.RandomState(42)
+        n = 50
+        X = pd.DataFrame({"x1": rng.randn(n), "x2": rng.randn(n)})
+        y = X["x1"].values
+        predict = lambda x: x["x1"].values
+        explainer = Explainer(predict, X, loss=squared_error)
+        # No sampler provided → internal fallback, no check_compatibility call
+        result = explainer.pfi(X, y)
+        assert result.scores.shape[2] == n
