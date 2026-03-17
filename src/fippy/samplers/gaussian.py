@@ -1,10 +1,12 @@
 """GaussianSampler: conditional sampling via Gaussian conditioning formulas."""
 import numpy as np
 import pandas as pd
+
 from fippy.backend.estimators import GaussianConditionalEstimator
+from fippy.samplers.base import Sampler
 
 
-class GaussianSampler:
+class GaussianSampler(Sampler):
     """Second-order Gaussian conditional sampler.
 
     Computes P(X_J | X_S) using standard multivariate normal conditioning:
@@ -15,13 +17,14 @@ class GaussianSampler:
     """
 
     multivariate = True
+    supports_categorical_target = False
+    supports_categorical_context = False
 
     def __init__(self, X_train: pd.DataFrame):
-        self.X_train = X_train
-        self.feature_names = list(X_train.columns)
+        super().__init__(X_train)
         self._cache: dict[tuple, object] = {}
 
-    def fit(self, J, S):
+    def _fit(self, J, S):
         """Fit P(X_J | X_S)."""
         key = self._key(J, S)
         if key in self._cache:
@@ -41,7 +44,7 @@ class GaussianSampler:
         )
         self._cache[key] = (estimator, J_only)
 
-    def sample(self, X, J, S, n_samples=1):
+    def _sample(self, X, J, S, n_samples=1):
         """Sample from P(X_J | X_S).
 
         Returns: np.ndarray of shape (n_obs, n_samples, len(J)).
@@ -49,7 +52,7 @@ class GaussianSampler:
         J, S = list(J), list(S)
         key = self._key(J, S)
         if key not in self._cache:
-            self.fit(J, S)
+            self._fit(J, S)
 
         entry = self._cache[key]
         n_obs = len(X)
