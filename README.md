@@ -3,9 +3,9 @@
 [![Tests](https://github.com/gcskoenig/fippy/actions/workflows/python-package.yml/badge.svg)](https://github.com/gcskoenig/fippy/actions/workflows/python-package.yml)
 [![PyPI](https://img.shields.io/pypi/v/fippy)](https://pypi.org/project/fippy/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/pypi/pyversions/fippy)](https://pypi.org/project/fippy/)
+[![Python](https://img.shields.io/badge/python-3.11%20--%203.13-blue)](https://pypi.org/project/fippy/)
 
-A Python package for model-agnostic feature importance with statistical inference. Fippy implements a unified framework where feature importance methods are composed from three orthogonal axes:
+A Python package for model-agnostic feature importance with statistical inference. Fippy implements a unified framework where feature importance methods are composed from three axes:
 
 | Axis | Options | Description |
 |---|---|---|
